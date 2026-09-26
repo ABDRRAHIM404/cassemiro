@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+
+# Large local source assets; optimized production derivatives are versioned.
+public/media/hero/frames/
+/ChatGPT Image*.png
+/ChatGPT Image*.jpg
