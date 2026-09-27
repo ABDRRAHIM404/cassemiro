@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
-import { heroFrames, heroPoster } from "@/config/hero";
+import {
+  heroDesktopFrames,
+  heroDesktopPoster,
+  heroMobileFrames,
+  heroMobilePoster,
+} from "@/config/hero";
 import { HeroFrameSequence } from "./HeroFrameSequence";
 import { defaultHomepageContent } from "@/lib/site-settings";
 
 export function Hero({ content = defaultHomepageContent }: { content?: typeof defaultHomepageContent }) {
   return (
-    <section className={`hero ${heroFrames.length ? "hero--sequence" : ""}`} aria-labelledby="hero-title">
+    <section className={`hero ${heroDesktopFrames.length ? "hero--sequence" : ""}`} aria-labelledby="hero-title">
       <div className="hero__sticky">
-        <HeroFrameSequence frames={heroFrames} poster={heroPoster} />
+        <HeroFrameSequence
+          desktopFrames={heroDesktopFrames}
+          mobileFrames={heroMobileFrames}
+          desktopPoster={heroDesktopPoster}
+          mobilePoster={heroMobilePoster}
+        />
         <div className="hero__veil" />
         <div className="hero__content shell">
           <p className="eyebrow">{content.heroEyebrow}</p>

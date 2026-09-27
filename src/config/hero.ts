@@ -1,10 +1,7 @@
-/**
- * Add supplied frame paths here in their original order when they arrive.
- * Example: "/media/hero/frames/frame-0001.webp"
- */
-export const heroFrames: string[] = Array.from(
-  { length: 190 },
-  (_, index) => `/media/hero/frames-webp/frame_${String(index + 1).padStart(3, "0")}.webp`
-);
+import frameManifest from "./hero-frames.json";
 
-export const heroPoster: string | null = heroFrames[0];
+export const heroDesktopFrames: string[] = frameManifest.desktop;
+export const heroMobileFrames: string[] = frameManifest.mobile;
+
+export const heroDesktopPoster: string | null = heroDesktopFrames[0] ?? null;
+export const heroMobilePoster: string | null = heroMobileFrames[0] ?? heroDesktopPoster;
