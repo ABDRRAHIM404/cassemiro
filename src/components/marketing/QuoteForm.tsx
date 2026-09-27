@@ -27,12 +27,8 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        const form = event.currentTarget;
         setAttempted(true);
-        if (!valid) {
-          requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
-          return;
-        }
+        if (!valid) return;
         setStatus("submitting");
         setServerMessage("");
 
@@ -70,30 +66,30 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
       ) : <>
       <div className="field">
         <label htmlFor="name">Nome</label>
-        <input id="name" name="name" autoComplete="name" required minLength={2} value={data.name} onChange={(e) => update("name", e.target.value)} aria-invalid={attempted && data.name.trim().length < 2} aria-describedby={attempted && data.name.trim().length < 2 ? "name-error" : undefined} />
-        {attempted && data.name.trim().length < 2 && <small id="name-error">Informe seu nome.</small>}
+        <input id="name" name="name" autoComplete="name" value={data.name} onChange={(e) => update("name", e.target.value)} aria-invalid={attempted && data.name.trim().length < 2} />
+        {attempted && data.name.trim().length < 2 && <small>Informe seu nome.</small>}
       </div>
       <div className="field">
         <label htmlFor="phone">Telefone / WhatsApp</label>
-        <input id="phone" name="phone" type="tel" autoComplete="tel" required minLength={8} value={data.phone} onChange={(e) => update("phone", e.target.value)} aria-invalid={attempted && data.phone.trim().length < 8} aria-describedby={attempted && data.phone.trim().length < 8 ? "phone-error" : undefined} />
-        {attempted && data.phone.trim().length < 8 && <small id="phone-error">Informe um telefone válido.</small>}
+        <input id="phone" name="phone" type="tel" autoComplete="tel" value={data.phone} onChange={(e) => update("phone", e.target.value)} aria-invalid={attempted && data.phone.trim().length < 8} />
+        {attempted && data.phone.trim().length < 8 && <small>Informe um telefone válido.</small>}
       </div>
       <div className="field">
         <label htmlFor="city">Cidade</label>
-        <input id="city" name="city" autoComplete="address-level2" required minLength={2} value={data.city} onChange={(e) => update("city", e.target.value)} aria-invalid={attempted && data.city.trim().length < 2} aria-describedby={attempted && data.city.trim().length < 2 ? "city-error" : undefined} />
-        {attempted && data.city.trim().length < 2 && <small id="city-error">Informe sua cidade.</small>}
+        <input id="city" name="city" autoComplete="address-level2" value={data.city} onChange={(e) => update("city", e.target.value)} aria-invalid={attempted && data.city.trim().length < 2} />
+        {attempted && data.city.trim().length < 2 && <small>Informe sua cidade.</small>}
       </div>
       <div className="field">
         <label htmlFor="workType">Tipo de obra</label>
-        <select id="workType" name="workType" required value={data.workType} onChange={(e) => update("workType", e.target.value)} aria-invalid={attempted && !data.workType} aria-describedby={attempted && !data.workType ? "work-type-error" : undefined}>
+        <select id="workType" name="workType" value={data.workType} onChange={(e) => update("workType", e.target.value)} aria-invalid={attempted && !data.workType}>
           <option value="">Selecione</option><option>Construção residencial</option><option>Reforma</option><option>Construção comercial</option><option>Instalações</option><option>Acabamentos</option><option>Outro serviço</option>
         </select>
-        {attempted && !data.workType && <small id="work-type-error">Selecione o tipo de obra.</small>}
+        {attempted && !data.workType && <small>Selecione o tipo de obra.</small>}
       </div>
       <div className="field field--full">
         <label htmlFor="description">Descrição do projeto</label>
-        <textarea id="description" name="description" rows={5} required minLength={10} value={data.description} onChange={(e) => update("description", e.target.value)} aria-invalid={attempted && data.description.trim().length < 10} aria-describedby={attempted && data.description.trim().length < 10 ? "description-error" : undefined} placeholder="Conte um pouco sobre o espaço e o que você gostaria de fazer." />
-        {attempted && data.description.trim().length < 10 && <small id="description-error">Conte um pouco mais sobre o projeto.</small>}
+        <textarea id="description" name="description" rows={5} value={data.description} onChange={(e) => update("description", e.target.value)} aria-invalid={attempted && data.description.trim().length < 10} placeholder="Conte um pouco sobre o espaço e o que você gostaria de fazer." />
+        {attempted && data.description.trim().length < 10 && <small>Conte um pouco mais sobre o projeto.</small>}
       </div>
       <div className="field field--full">
         <label htmlFor="desiredStart">Quando gostaria de começar? <span>Opcional</span></label>

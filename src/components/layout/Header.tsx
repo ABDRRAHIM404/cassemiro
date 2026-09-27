@@ -22,23 +22,6 @@ export function Header({ showProjects = false }: { showProjects?: boolean }) {
     return () => window.removeEventListener("scroll", update);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
   return (
     <header className={`site-header ${solid ? "site-header--solid" : ""} ${open ? "site-header--open" : ""}`}>
       <div className="site-header__inner shell">
