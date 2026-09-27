@@ -6,24 +6,41 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    let cleanup = () => {};
+    const desktopPointer = window.matchMedia("(min-width: 768px) and (pointer: fine)");
+    let cancelled = false;
+    let destroyLenis = () => {};
 
-    Promise.all([import("lenis"), import("gsap"), import("gsap/ScrollTrigger")]).then(
-      ([{ default: Lenis }, { gsap }, { ScrollTrigger }]) => {
-        gsap.registerPlugin(ScrollTrigger);
-        const lenis = new Lenis({ duration: 1.05, smoothWheel: true, anchors: true });
-        const update = (time: number) => lenis.raf(time * 1000);
-        lenis.on("scroll", ScrollTrigger.update);
-        gsap.ticker.add(update);
-        gsap.ticker.lagSmoothing(0);
-        cleanup = () => {
-          gsap.ticker.remove(update);
-          lenis.destroy();
-        };
-      }
-    );
+    const stop = () => {
+      destroyLenis();
+      destroyLenis = () => {};
+    };
 
-    return () => cleanup();
+    const start = async () => {
+      stop();
+      if (!desktopPointer.matches) return;
+
+      const { default: Lenis } = await import("lenis");
+      if (cancelled || !desktopPointer.matches) return;
+
+      const lenis = new Lenis({
+        anchors: { offset: -86 },
+        autoRaf: true,
+        duration: 1.05,
+        smoothWheel: true,
+        stopInertiaOnNavigate: true
+      });
+
+      destroyLenis = () => lenis.destroy();
+    };
+
+    void start();
+    desktopPointer.addEventListener("change", start);
+
+    return () => {
+      cancelled = true;
+      desktopPointer.removeEventListener("change", start);
+      stop();
+    };
   }, []);
 
   return children;

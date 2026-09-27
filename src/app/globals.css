@@ -16,6 +16,7 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; background: var(--black); }
 body { margin: 0; color: var(--black); background: var(--ivory); font-family: var(--sans); font-size: 16px; line-height: 1.55; text-rendering: optimizeLegibility; }
+body[data-menu-open] { overflow: hidden; }
 body, button, a { -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
 button { color: inherit; font: inherit; }
@@ -536,7 +537,9 @@ body:has(.admin-shell), body:has(.admin-login) { padding-bottom: 0; background: 
   .site-header__inner { min-height: 72px; }
   .menu-button { display: block; position: relative; z-index: 2; }
   .site-nav { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 23px; padding: 80px 12vw; color: white; background: #111; font-family: var(--serif); font-size: 2.5rem; letter-spacing: -.03em; text-transform: none; transform: translateY(-105%); transition: transform .55s cubic-bezier(.7,0,.2,1); }
-  .site-header--open .site-nav { transform: translateY(0); }
+  .site-nav { visibility: hidden; pointer-events: none; }
+  .site-header--open .site-nav { visibility: visible; pointer-events: auto; transform: translateY(0); }
+  .site-header--solid { backdrop-filter: none; }
   .site-header--open { color: white; }
   .site-header--open .menu-button span:first-child { transform: translateY(4px) rotate(45deg); }
   .site-header--open .menu-button span:last-child { transform: translateY(-4px) rotate(-45deg); }

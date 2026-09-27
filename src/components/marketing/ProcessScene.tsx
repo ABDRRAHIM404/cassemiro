@@ -5,25 +5,45 @@ import { processStages } from "@/config/site";
 
 export function ProcessScene() {
   const ref = useRef<HTMLElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const [active, setActive] = useState(0);
 
   useEffect(() => {
     let ticking = false;
     const update = () => {
       const section = ref.current;
-      if (!section) return;
+      if (!section) {
+        ticking = false;
+        return;
+      }
       const rect = section.getBoundingClientRect();
-      const distance = Math.max(1, section.offsetHeight - window.innerHeight);
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const distance = Math.max(1, section.offsetHeight - viewportHeight);
       const progress = Math.min(0.999, Math.max(0, -rect.top / distance));
-      setActive(Math.floor(progress * processStages.length));
+      const nextStage = Math.floor(progress * processStages.length);
+
+      setActive((currentStage) => currentStage === nextStage ? currentStage : nextStage);
       ticking = false;
     };
     const onScroll = () => {
-      if (!ticking) { requestAnimationFrame(update); ticking = true; }
+      if (!ticking) {
+        ticking = true;
+        animationFrameRef.current = requestAnimationFrame(update);
+      }
     };
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("orientationchange", onScroll, { passive: true });
+    window.visualViewport?.addEventListener("resize", onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("orientationchange", onScroll);
+      window.visualViewport?.removeEventListener("resize", onScroll);
+      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    };
   }, []);
 
   const stage = processStages[active];

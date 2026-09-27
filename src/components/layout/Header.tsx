@@ -16,11 +16,23 @@ export function Header({ showProjects = false }: { showProjects?: boolean }) {
   ];
 
   useEffect(() => {
-    const update = () => setSolid(window.scrollY > window.innerHeight * 0.55);
+    const update = () => {
+      setSolid(window.scrollY > window.innerHeight * 0.55);
+      if (window.innerWidth > 960) setOpen(false);
+    };
     update();
     window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
+    window.addEventListener("resize", update, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
   }, []);
+
+  useEffect(() => {
+    document.body.toggleAttribute("data-menu-open", open);
+    return () => document.body.removeAttribute("data-menu-open");
+  }, [open]);
 
   return (
     <header className={`site-header ${solid ? "site-header--solid" : ""} ${open ? "site-header--open" : ""}`}>

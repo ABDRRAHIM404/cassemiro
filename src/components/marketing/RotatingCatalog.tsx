@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { services as fallbackServices } from "@/config/site";
@@ -16,6 +16,7 @@ export type CatalogService = {
 export function RotatingCatalog({ items }: { items?: CatalogService[] }) {
   const services: CatalogService[] = items?.length ? items : fallbackServices.map((item) => ({ ...item, slug: item.title === "Reformas" ? "reformas" : item.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }));
   const [active, setActive] = useState(0);
+  const lastWheelChange = useRef(0);
   const select = (index: number) => setActive((index + services.length) % services.length);
   const service = services[active];
 
@@ -35,7 +36,10 @@ export function RotatingCatalog({ items }: { items?: CatalogService[] }) {
           if (event.key === "ArrowUp" || event.key === "ArrowLeft") { event.preventDefault(); select(active - 1); }
         }}
         onWheel={(event) => {
-          if (Math.abs(event.deltaY) > 20) select(active + (event.deltaY > 0 ? 1 : -1));
+          const now = performance.now();
+          if (Math.abs(event.deltaY) < 30 || now - lastWheelChange.current < 450) return;
+          lastWheelChange.current = now;
+          select(active + (event.deltaY > 0 ? 1 : -1));
         }}
       >
         <div className="catalog__stage" aria-hidden="true">

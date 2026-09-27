@@ -19,40 +19,60 @@ function ArchitecturalFallback() {
 
 export function HeroFrameSequence({ frames, poster }: { frames: string[]; poster: string | null }) {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
-    if (
-      frames.length < 2 ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      window.matchMedia("(max-width: 767px), (pointer: coarse)").matches
-    ) return;
+    if (frames.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     let ticking = false;
+
     const update = () => {
       const section = sectionRef.current?.closest<HTMLElement>(".hero");
-      if (!section) return;
+      if (!section) {
+        ticking = false;
+        return;
+      }
+
       const rect = section.getBoundingClientRect();
-      const distance = Math.max(1, section.offsetHeight - window.innerHeight);
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const distance = Math.max(1, section.offsetHeight - viewportHeight);
       const progress = Math.min(1, Math.max(0, -rect.top / distance));
-      setFrameIndex(Math.round(progress * (frames.length - 1)));
+      const nextFrame = Math.round(progress * (frames.length - 1));
+
+      setFrameIndex((currentFrame) => currentFrame === nextFrame ? currentFrame : nextFrame);
       ticking = false;
     };
+
     const onScroll = () => {
       if (!ticking) {
-        requestAnimationFrame(update);
         ticking = true;
+        animationFrameRef.current = requestAnimationFrame(update);
       }
     };
+
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("orientationchange", onScroll, { passive: true });
+    window.visualViewport?.addEventListener("resize", onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("orientationchange", onScroll);
+      window.visualViewport?.removeEventListener("resize", onScroll);
+      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    };
   }, [frames]);
 
   useEffect(() => {
     if (!frames.length) return;
-    [frameIndex - 1, frameIndex, frameIndex + 1].forEach((index) => {
+
+    [frameIndex - 2, frameIndex - 1, frameIndex, frameIndex + 1, frameIndex + 2, frameIndex + 3].forEach((index) => {
       if (frames[index]) {
         const image = new Image();
+        image.decoding = "async";
         image.src = frames[index];
       }
     });
@@ -66,7 +86,12 @@ export function HeroFrameSequence({ frames, poster }: { frames: string[]; poster
     <div ref={sectionRef} className="hero-sequence">
       <div className="hero-sequence__sticky">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={frames[frameIndex] ?? poster ?? frames[0]} alt="Construção de uma residência, do alicerce ao acabamento" />
+        <img
+          src={frames[frameIndex] ?? poster ?? frames[0]}
+          alt="Construção de uma residência, do alicerce ao acabamento"
+          decoding="async"
+          draggable={false}
+        />
       </div>
     </div>
   );
