@@ -12,11 +12,12 @@ type HeroFrameSequenceProps = {
 };
 
 const MOBILE_QUERY = "(max-width: 767px), (orientation: portrait) and (max-width: 1024px)";
-const MAX_DECODED_DESKTOP_FRAMES = 24;
+const MAX_DECODED_DESKTOP_FRAMES = 32;
 const MAX_DECODED_MOBILE_FRAMES = 18;
-const PRELOAD_BEHIND = 3;
-const PRELOAD_AHEAD = 8;
-const MAX_CONCURRENT_LOADS = 3;
+const PRELOAD_BEHIND = 16;
+const PRELOAD_AHEAD = 12;
+const MAX_CONCURRENT_LOADS = 4;
+const ABORT_DISTANCE = 24;
 
 interface NavigatorWithDeviceHints extends Navigator {
   connection?: { saveData?: boolean };
@@ -118,6 +119,8 @@ export function HeroFrameSequence({
     let queue: number[] = [];
     let activeLoads = 0;
     let currentPosition = 0;
+    let lastScheduledIndex = -1;
+    let lastScheduledDirection = 1;
     let generation = 0;
     let animationFrame = 0;
     let consecutiveFailures = 0;
@@ -164,7 +167,17 @@ export function HeroFrameSequence({
       const upperIndex = Math.min(frames.length - 1, Math.ceil(currentPosition));
       const lower = cache.get(lowerIndex);
       const upper = cache.get(upperIndex);
-      if (!lower && !upper) return;
+      const nearest = !lower && !upper
+        ? Array.from(cache.entries()).reduce<{ index: number; frame: DecodedFrame } | null>(
+            (closest, [index, frame]) => (
+              !closest || Math.abs(index - currentPosition) < Math.abs(closest.index - currentPosition)
+                ? { index, frame }
+                : closest
+            ),
+            null,
+          )?.frame
+        : null;
+      if (!lower && !upper && !nearest) return;
 
       context.globalAlpha = 1;
       context.fillStyle = "#161514";
@@ -176,7 +189,7 @@ export function HeroFrameSequence({
         touchCacheEntry(lowerIndex);
         touchCacheEntry(upperIndex);
       } else {
-        const frame = lower ?? upper;
+        const frame = lower ?? upper ?? nearest;
         if (frame) drawCover(context, frame);
       }
 
@@ -232,14 +245,16 @@ export function HeroFrameSequence({
       }
 
       queue = [...new Set(prioritized)].filter(
-        (index) => index >= 0 && index < frames.length && !cache.has(index),
+        (index) => (
+          index >= 0 &&
+          index < frames.length &&
+          !cache.has(index) &&
+          !controllers.has(index)
+        ),
       );
-      const useful = new Set(queue);
-      useful.add(lowerIndex);
-      useful.add(upperIndex);
 
       controllers.forEach((controller, index) => {
-        if (!useful.has(index)) controller.abort();
+        if (Math.abs(index - lowerIndex) > ABORT_DISTANCE) controller.abort();
       });
       pumpQueue();
     };
@@ -254,7 +269,13 @@ export function HeroFrameSequence({
 
       currentPosition = nextPosition;
       draw();
-      reprioritize(currentPosition, direction);
+
+      const currentIndex = Math.floor(currentPosition);
+      if (currentIndex !== lastScheduledIndex || direction !== lastScheduledDirection) {
+        lastScheduledIndex = currentIndex;
+        lastScheduledDirection = direction;
+        reprioritize(currentPosition, direction);
+      }
     };
 
     const requestUpdate = () => {
@@ -276,6 +297,8 @@ export function HeroFrameSequence({
       cache = new Map();
       queue = [];
       frames = nextFrames;
+      lastScheduledIndex = -1;
+      lastScheduledDirection = 1;
       root.classList.remove("hero-sequence--ready", "hero-sequence--failed");
       requestUpdate();
     };
