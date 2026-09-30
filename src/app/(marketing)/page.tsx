@@ -33,7 +33,7 @@ export default async function HomePage() {
     <main id="conteudo">
       <Hero content={homepageContent} />
       <SergioStory content={homepageContent} />
-      <WhyCassemiro />
+      <WhyCassemiro imageUrl={projects?.find((project) => project.hero_image)?.hero_image} />
       <ProjectsJourney items={projects ?? []} />
       <Testimonials items={testimonials ?? []} />
       <ContactCta content={homepageContent} business={businessSettings} />
