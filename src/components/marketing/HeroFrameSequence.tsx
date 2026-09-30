@@ -12,12 +12,13 @@ type HeroFrameSequenceProps = {
 };
 
 const MOBILE_QUERY = "(max-width: 767px), (orientation: portrait) and (max-width: 1024px)";
-const MAX_DECODED_DESKTOP_FRAMES = 32;
-const MAX_DECODED_MOBILE_FRAMES = 18;
-const PRELOAD_BEHIND = 16;
-const PRELOAD_AHEAD = 12;
-const MAX_CONCURRENT_LOADS = 4;
-const ABORT_DISTANCE = 24;
+const MAX_DECODED_DESKTOP_FRAMES = 16;
+const MAX_DECODED_MOBILE_FRAMES = 10;
+const PRELOAD_BEHIND = 4;
+const PRELOAD_AHEAD = 6;
+const MAX_CONCURRENT_LOADS = 2;
+const ABORT_DISTANCE = 10;
+const MAX_CANVAS_PIXELS = 2_000_000;
 
 const SERVICE_START_PROGRESS = 0.1;
 const HOLD_START = 0.3;
@@ -178,6 +179,7 @@ export function HeroFrameSequence({
     let wheelGestureLocked = false;
     let wheelReleaseTimer = 0;
     let snapLockedUntil = 0;
+    let wasInView = false;
 
     const serviceItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-service"));
     const serviceProgressItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-services__progress i"));
@@ -188,14 +190,20 @@ export function HeroFrameSequence({
 
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const pixelRatio = Math.min(
+        window.devicePixelRatio || 1,
+        1.25,
+        Math.sqrt(MAX_CANVAS_PIXELS / Math.max(1, rect.width * rect.height)),
+      );
       const width = Math.max(1, Math.round(rect.width * pixelRatio));
       const height = Math.max(1, Math.round(rect.height * pixelRatio));
 
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
         canvas.height = height;
+        return true;
       }
+      return false;
     };
 
     const touchCacheEntry = (index: number) => {
@@ -205,9 +213,9 @@ export function HeroFrameSequence({
       cache.set(index, frame);
     };
 
-    const trimCache = () => {
+    const trimCache = (maxEntries = maxCacheSize()) => {
       const protectedIndexes = new Set([Math.floor(currentPosition), Math.ceil(currentPosition)]);
-      while (cache.size > maxCacheSize()) {
+      while (cache.size > maxEntries) {
         const candidate = Array.from(cache.keys()).find((index) => !protectedIndexes.has(index));
         if (candidate === undefined) break;
         const frame = cache.get(candidate);
@@ -217,8 +225,6 @@ export function HeroFrameSequence({
     };
 
     const draw = () => {
-      resizeCanvas();
-
       const lowerIndex = Math.floor(currentPosition);
       const upperIndex = Math.min(frames.length - 1, Math.ceil(currentPosition));
       const lower = cache.get(lowerIndex);
@@ -236,9 +242,6 @@ export function HeroFrameSequence({
       if (!lower && !upper && !nearest) return;
 
       context.globalAlpha = 1;
-      context.fillStyle = "#161514";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-
       if (lower && upper && lowerIndex !== upperIndex) {
         drawCover(context, lower, 1);
         drawCover(context, upper, currentPosition - lowerIndex);
@@ -272,7 +275,11 @@ export function HeroFrameSequence({
             cache.set(index, frame);
             consecutiveFailures = 0;
             trimCache();
-            draw();
+            if (
+              index === Math.floor(currentPosition) ||
+              index === Math.ceil(currentPosition) ||
+              !root.classList.contains("hero-sequence--ready")
+            ) draw();
           })
           .catch((error: unknown) => {
             if (error instanceof DOMException && error.name === "AbortError") return;
@@ -318,6 +325,18 @@ export function HeroFrameSequence({
     const updateFromScroll = () => {
       const rect = section.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const inView = rect.bottom > 0 && rect.top < viewportHeight;
+      if (!inView) {
+        if (wasInView) {
+          wasInView = false;
+          queue = [];
+          controllers.forEach((controller) => controller.abort());
+          trimCache(4);
+          lastScheduledIndex = -1;
+        }
+        return;
+      }
+      wasInView = true;
       const distance = Math.max(1, section.offsetHeight - viewportHeight);
       const progress = Math.min(1, Math.max(0, -rect.top / distance));
       const timeline = timelineState(progress);
@@ -341,8 +360,9 @@ export function HeroFrameSequence({
         activeService.style.setProperty("--service-presence", String(Math.max(0, edgeFade)));
       }
 
+      const positionChanged = nextPosition !== currentPosition;
       currentPosition = nextPosition;
-      draw();
+      if (positionChanged || !root.classList.contains("hero-sequence--ready")) draw();
 
       const currentIndex = Math.floor(currentPosition);
       if (currentIndex !== lastScheduledIndex || direction !== lastScheduledDirection) {
@@ -353,8 +373,16 @@ export function HeroFrameSequence({
     };
 
     const requestUpdate = () => {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = requestAnimationFrame(updateFromScroll);
+      if (animationFrame) return;
+      animationFrame = requestAnimationFrame(() => {
+        animationFrame = 0;
+        updateFromScroll();
+      });
+    };
+
+    const handleResize = () => {
+      if (resizeCanvas() && wasInView) draw();
+      requestUpdate();
     };
 
     const scheduleWheelRelease = () => {
@@ -414,7 +442,7 @@ export function HeroFrameSequence({
     const resetSequence = () => {
       const nextFrames = mobileMedia.matches && mobileFrames.length ? mobileFrames : desktopFrames;
       if (nextFrames === frames) {
-        requestUpdate();
+        handleResize();
         return;
       }
 
@@ -428,15 +456,17 @@ export function HeroFrameSequence({
       lastScheduledIndex = -1;
       lastScheduledDirection = 1;
       root.classList.remove("hero-sequence--ready", "hero-sequence--failed");
+      resizeCanvas();
       requestUpdate();
     };
 
+    resizeCanvas();
     updateFromScroll();
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("wheel", handleServiceWheel, { passive: false });
-    window.addEventListener("resize", requestUpdate, { passive: true });
+    window.addEventListener("resize", handleResize, { passive: true });
     window.addEventListener("orientationchange", resetSequence, { passive: true });
-    window.visualViewport?.addEventListener("resize", requestUpdate, { passive: true });
+    window.visualViewport?.addEventListener("resize", handleResize, { passive: true });
     mobileMedia.addEventListener("change", resetSequence);
 
     return () => {
@@ -445,9 +475,9 @@ export function HeroFrameSequence({
       window.clearTimeout(wheelReleaseTimer);
       window.removeEventListener("scroll", requestUpdate);
       window.removeEventListener("wheel", handleServiceWheel);
-      window.removeEventListener("resize", requestUpdate);
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener("orientationchange", resetSequence);
-      window.visualViewport?.removeEventListener("resize", requestUpdate);
+      window.visualViewport?.removeEventListener("resize", handleResize);
       mobileMedia.removeEventListener("change", resetSequence);
       delete section.dataset.sequencePhase;
       delete section.dataset.snapTarget;

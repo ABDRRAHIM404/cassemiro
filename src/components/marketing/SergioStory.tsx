@@ -14,12 +14,16 @@ export function SergioStory({ content = defaultHomepageContent }: { content?: ty
     const update = () => {
       const rect = section.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
+      if (rect.bottom <= 0 || rect.top >= viewportHeight) return;
       const progress = Math.min(1, Math.max(0, (viewportHeight - rect.top) / (viewportHeight + rect.height)));
       section.style.setProperty("--story-progress", String(progress));
     };
     const requestUpdate = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
     };
     update();
     window.addEventListener("scroll", requestUpdate, { passive: true });

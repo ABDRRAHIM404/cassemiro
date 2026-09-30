@@ -40,6 +40,7 @@ export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
     const update = () => {
       const rect = section.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
+      if (rect.bottom <= 0 || rect.top >= viewportHeight) return;
       if (mobile.matches) {
         const items = section.querySelectorAll<HTMLElement>(".why__pillar");
         let nearest = 0;
@@ -61,8 +62,11 @@ export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
       }
     };
     const requestUpdate = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
     };
     requestUpdate();
     window.addEventListener("scroll", requestUpdate, { passive: true });

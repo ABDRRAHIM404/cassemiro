@@ -25,6 +25,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
     const update = () => {
       const rect = section.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
+      if (rect.bottom <= 0 || rect.top >= viewportHeight) return;
       const distance = Math.max(1, section.offsetHeight - viewportHeight);
       const progress = Math.min(1, Math.max(0, -rect.top / distance));
       const travel = Math.max(0, rail.scrollWidth - window.innerWidth + 48);
@@ -36,8 +37,11 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
       });
     };
     const requestUpdate = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        update();
+      });
     };
     update();
     window.addEventListener("scroll", requestUpdate, { passive: true });
