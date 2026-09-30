@@ -1,109 +1,109 @@
-# Guia do painel administrativo
+# Admin panel guide
 
-Este guia foi escrito para o uso diário da CASSEMIRO.
+This guide covers CASSEMIRO's day-to-day administrative tasks.
 
-## Entrar
+## Sign in
 
-1. Abra `/admin/login` no site.
-2. Digite o seu e-mail e a sua senha individual.
-3. Clique em **Acessar painel**.
+1. Open `/admin/login` on the website.
+2. Enter your email address and individual password.
+3. Click `Acessar painel` (Access panel).
 
-Se ainda não tiver definido uma senha, use **Entrar sem senha**. Informe o e-mail autorizado e abra o link de acesso enviado para a sua caixa de entrada. O link é individual e temporário.
+If you have not set a password yet, use `Entrar sem senha` (Sign in without a password). Enter an authorized email address, then open the access link sent to your inbox. The link is individual and temporary.
 
-Cada pessoa deve usar sua própria conta. Não compartilhe senhas. Uma conta autenticada só entra no painel quando também possui um perfil administrativo autorizado.
+Everyone must use their own account. Do not share passwords. An authenticated account can access the panel only when it also has an authorized administrative profile.
 
-## Visão geral
+## Overview
 
-A primeira tela mostra:
+The first screen shows:
 
-- pedidos com status **Novo**;
-- total de pedidos recebidos;
-- quantidade de projetos cadastrados;
-- quantidade de depoimentos cadastrados;
-- os cinco pedidos mais recentes.
+- requests with the `Novo` (New) status;
+- the total number of requests received;
+- the number of registered projects;
+- the number of registered testimonials;
+- the five most recent requests.
 
-## Orçamentos
+## Quotes
 
-Abra **Orçamentos** no menu lateral para ver os contatos enviados pelo site.
+Open `Orçamentos` (Quotes) in the side menu to view contacts submitted through the website.
 
-É possível:
+You can:
 
-- buscar por nome, cidade ou telefone;
-- filtrar por status;
-- abrir os dados completos do projeto;
-- ligar para o cliente;
-- iniciar uma conversa no WhatsApp;
-- atualizar o andamento.
+- search by name, city, or phone number;
+- filter by status;
+- open the complete project details;
+- call the customer;
+- start a WhatsApp conversation;
+- update progress.
 
-### Status disponíveis
+### Available statuses
 
-- **Novo:** ainda não atendido.
-- **Em contato:** a conversa com o cliente começou.
-- **Orçamento:** o orçamento está sendo preparado ou foi enviado.
-- **Fechado:** serviço confirmado.
-- **Arquivado:** contato encerrado ou sem continuidade.
+- `Novo` (New): not handled yet.
+- `Em contato` (In contact): the conversation with the customer has started.
+- `Orçamento` (Quote): the quote is being prepared or has been sent.
+- `Fechado` (Closed): the job has been confirmed.
+- `Arquivado` (Archived): the contact has ended or will not proceed.
 
-Atualize o status depois de cada etapa importante. Isso mantém a visão geral organizada.
+Update the status after every important step. This keeps the overview organized.
 
-## Projetos
+## Projects
 
-Abra **Projetos** para administrar o portfólio real da CASSEMIRO.
+Open `Projetos` (Projects) to manage CASSEMIRO's real portfolio.
 
-1. Clique em **Novo projeto**.
-2. Preencha somente informações confirmadas sobre a obra.
-3. Deixe **Projeto publicado** desmarcado enquanto o cadastro estiver incompleto.
-4. Depois de criar, envie as fotos e vídeos na seção **Galeria do projeto**.
-5. Escolha uma foto de capa, revise os textos e publique.
+1. Click `Novo projeto` (New project).
+2. Enter only confirmed information about the project.
+3. Leave `Projeto publicado` (Published project) unchecked while the entry is incomplete.
+4. After creating the project, upload photos and videos in `Galeria do projeto` (Project gallery).
+5. Choose a cover image, review the text, and publish the project.
 
-As mídias podem ser classificadas como imagem, vídeo, antes ou depois. Para formar um comparativo, use o mesmo nome em **Grupo comparativo** nas fotos de antes e depois.
+Media can be classified as an image, video, before image, or after image. To create a comparison, use the same name in `Grupo comparativo` (Comparison group) for the before and after images.
 
-O link público **Projetos** só aparece quando existe pelo menos um projeto publicado. Excluir um projeto também remove permanentemente seus arquivos.
+The public `Projetos` (Projects) link appears only when at least one project is published. Deleting a project also permanently deletes its files.
 
-## Serviços
+## Services
 
-Abra **Serviços** para controlar as áreas de atuação exibidas no site.
+Open `Serviços` (Services) to manage the service areas shown on the website.
 
-- Use as setas para mudar a ordem do catálogo.
-- Clique em **Visível/Oculto** para publicar ou esconder um serviço.
-- Abra **Editar** para alterar título, descrições e dados de SEO.
-- O preço de cada serviço fica oculto por padrão.
-- Para publicar um preço, preencha o texto do preço e marque **Mostrar preço**.
+- Use the arrows to change the catalog order.
+- Click `Visível/Oculto` (Visible/Hidden) to publish or hide a service.
+- Open `Editar` (Edit) to change the title, descriptions, and SEO data.
+- The price of each service is hidden by default.
+- To publish a price, enter the price text and select `Mostrar preço` (Show price).
 
-Evite preços rígidos quando o valor depender de escopo, materiais ou condições da obra. Textos como “Sob consulta” ou “A partir de…” podem ser usados quando forem comercialmente corretos.
+Avoid fixed prices when the cost depends on scope, materials, or site conditions. Text such as `Sob consulta` (Contact us) or `A partir de…` (Starting at…) can be used when commercially appropriate.
 
-## Depoimentos
+## Testimonials
 
-Abra **Depoimentos** para cadastrar avaliações recebidas de clientes reais.
+Open `Depoimentos` (Testimonials) to register reviews received from real customers.
 
-1. Informe o nome exatamente como o cliente autorizou.
-2. Copie o depoimento sem alterar o sentido original.
-3. Registre a fonte, como WhatsApp ou Google, quando conhecida.
-4. Use a nota apenas quando o cliente realmente tiver dado uma avaliação numérica.
-5. Marque **Publicar agora** somente depois de revisar a autoria e o texto.
+1. Enter the customer's name exactly as authorized.
+2. Copy the testimonial without changing its original meaning.
+3. Record the source, such as WhatsApp or Google, when known.
+4. Use a rating only when the customer actually provided a numerical score.
+5. Select `Publicar agora` (Publish now) only after reviewing the author and text.
 
-Depoimentos pendentes permanecem no painel, mas nunca aparecem no site. Quando nenhum depoimento estiver aprovado, toda a seção pública fica oculta automaticamente.
+Pending testimonials remain in the panel but never appear on the website. When no testimonial is approved, the entire public section is hidden automatically.
 
-## Conteúdo
+## Content
 
-Use **Conteúdo** para alterar os textos principais da página inicial. As animações e o layout permanecem preservados. Revise títulos longos em computador e celular depois de publicar.
+Use `Conteúdo` (Content) to change the homepage's main text. Animations and layout remain unchanged. Review long headings on desktop and mobile after publishing.
 
-## Configurações
+## Settings
 
-Use **Configurações** para atualizar telefone, WhatsApp, e-mail, razão social, cidades atendidas e mensagens padrão.
+Use `Configurações` (Settings) to update the phone number, WhatsApp number, email address, legal business name, service cities, and default messages.
 
-- Deixe CNPJ, Instagram e Facebook vazios enquanto não estiverem confirmados.
-- Informe o telefone internacional somente com números, incluindo `55` e o DDD.
-- Links sociais vazios não aparecem no site.
-- Mudanças publicadas afetam o rodapé, contatos rápidos, formulário e páginas de serviços.
+- Leave the CNPJ, Instagram, and Facebook fields empty until they are confirmed.
+- Enter the international phone number using digits only, including `55` and the area code.
+- Empty social links do not appear on the website.
+- Published changes affect the footer, quick-contact actions, form, and service pages.
 
-## Sair
+## Sign out
 
-Clique em **Sair** no canto superior direito. Sempre encerre a sessão em computadores compartilhados.
+Click `Sair` (Sign out) in the upper-right corner. Always end the session on shared computers.
 
-## Segurança
+## Security
 
-- Nunca envie sua senha por WhatsApp ou e-mail.
-- Links de acesso são individuais e temporários; não os encaminhe a outras pessoas.
-- Não publique a chave secreta do Supabase.
-- Se suspeitar que alguém acessou sua conta, altere a senha imediatamente.
-- Contas e permissões devem ser criadas individualmente para Sérgio, Abderrahim e qualquer outra pessoa autorizada.
+- Never send your password through WhatsApp or email.
+- Access links are individual and temporary; do not forward them to anyone else.
+- Never publish the Supabase secret key.
+- If you suspect that someone accessed your account, change the password immediately.
+- Accounts and permissions must be created individually for Sérgio, Abderrahim, and every other authorized person.
