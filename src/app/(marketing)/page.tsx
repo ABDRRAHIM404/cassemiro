@@ -1,31 +1,22 @@
-import { Authority } from "@/components/marketing/Authority";
 import { ContactCta } from "@/components/marketing/ContactCta";
 import { Hero } from "@/components/marketing/Hero";
-import { ProcessScene } from "@/components/marketing/ProcessScene";
-import { RotatingCatalog } from "@/components/marketing/RotatingCatalog";
+import { ProjectsJourney } from "@/components/marketing/ProjectsJourney";
 import { SergioStory } from "@/components/marketing/SergioStory";
-import { Values } from "@/components/marketing/Values";
 import { Testimonials } from "@/components/marketing/Testimonials";
+import { WhyCassemiro } from "@/components/marketing/WhyCassemiro";
 import { siteConfig } from "@/config/site";
 import { createPublicClient } from "@/lib/supabase/public";
 import { parseBusinessSettings, parseHomepageContent } from "@/lib/site-settings";
 
 export default async function HomePage() {
   const supabase = createPublicClient();
-  const [{ data: services }, { data: testimonials }, { data: settingsRows }] = await Promise.all([
-    supabase.from("services").select("slug, title, short_description, content").eq("is_visible", true).order("sort_order"),
+  const [{ data: testimonials }, { data: settingsRows }, { data: projects }] = await Promise.all([
     supabase.from("testimonials").select("id, customer_name, text, rating, source").eq("is_approved", true).order("created_at", { ascending: false }),
-    supabase.from("site_settings").select("key, value")
+    supabase.from("site_settings").select("key, value"),
+    supabase.from("projects").select("id, slug, title, city, category, hero_image").eq("is_published", true).order("created_at", { ascending: false })
   ]);
   const homepageContent = parseHomepageContent(settingsRows ?? []);
   const businessSettings = parseBusinessSettings(settingsRows ?? []);
-  const catalogServices = (services ?? []).map((service) => ({
-    slug: service.slug,
-    title: service.title,
-    shortTitle: service.title.replace("Construção ", ""),
-    description: service.short_description,
-    details: service.content
-  }));
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "GeneralContractor",
@@ -41,11 +32,9 @@ export default async function HomePage() {
   return (
     <main id="conteudo">
       <Hero content={homepageContent} />
-      <Authority />
-      <RotatingCatalog items={catalogServices} />
-      <ProcessScene />
-      <Values />
       <SergioStory content={homepageContent} />
+      <WhyCassemiro />
+      <ProjectsJourney items={projects ?? []} />
       <Testimonials items={testimonials ?? []} />
       <ContactCta content={homepageContent} business={businessSettings} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />

@@ -30,7 +30,7 @@ export function Hero({ content = defaultHomepageContent }: { content?: typeof de
           </div>
         </div>
         <div className="hero__scroll" aria-hidden="true"><span>Role para construir</span><i /></div>
-        <div className="hero__index" aria-hidden="true"><span>01</span><i /><span>10</span></div>
+        <div className="hero__index" aria-hidden="true"><span>01</span><i /><span>06</span></div>
       </div>
     </section>
   );

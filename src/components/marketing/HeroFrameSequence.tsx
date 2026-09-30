@@ -19,6 +19,55 @@ const PRELOAD_AHEAD = 12;
 const MAX_CONCURRENT_LOADS = 4;
 const ABORT_DISTANCE = 24;
 
+const SERVICE_START_PROGRESS = 0.1;
+const HOLD_START = 0.3;
+const HOLD_END = 0.67;
+const WHEEL_DELTA_THRESHOLD = 4;
+const WHEEL_GESTURE_IDLE_MS = 1100;
+const MIN_SNAP_LOCK_MS = 1100;
+
+const constructionServices = [
+  { title: "Fundações", text: "Precisão começa no que sustenta.", frameStart: 0.08, frameHold: 0.15, frameEnd: 0.22 },
+  { title: "Estruturas", text: "Força calculada para permanecer.", frameStart: 0.22, frameHold: 0.36, frameEnd: 0.44 },
+  { title: "Alvenaria", text: "Forma, prumo e cuidado em cada parede.", frameStart: 0.44, frameHold: 0.58, frameEnd: 0.67 },
+  { title: "Instalações", text: "Soluções integradas antes de fechar.", frameStart: 0.67, frameHold: 0.71, frameEnd: 0.76 },
+  { title: "Acabamentos", text: "O detalhe transforma construção em espaço.", frameStart: 0.76, frameHold: 0.87, frameEnd: 0.95 },
+  { title: "Construção Completa", text: "Da primeira marca à entrega final.", frameStart: 0.95, frameHold: 0.99, frameEnd: 1 },
+] as const;
+
+const serviceSnapProgresses = constructionServices.map((_, index) => (
+  SERVICE_START_PROGRESS + ((index + 0.5) / constructionServices.length) * (1 - SERVICE_START_PROGRESS)
+));
+
+function lerp(start: number, end: number, amount: number) {
+  return start + (end - start) * amount;
+}
+
+function timelineState(rawProgress: number) {
+  if (rawProgress < SERVICE_START_PROGRESS) {
+    return {
+      sourceProgress: (rawProgress / SERVICE_START_PROGRESS) * constructionServices[0].frameStart,
+      stage: -1,
+      stageProgress: 0,
+    };
+  }
+
+  const serviceProgress = (rawProgress - SERVICE_START_PROGRESS) / (1 - SERVICE_START_PROGRESS);
+  const scaledProgress = Math.min(constructionServices.length - 0.000001, serviceProgress * constructionServices.length);
+  const stage = Math.floor(scaledProgress);
+  const stageProgress = scaledProgress - stage;
+  const phase = constructionServices[stage];
+  let sourceProgress: number = phase.frameHold;
+
+  if (stageProgress < HOLD_START) {
+    sourceProgress = lerp(phase.frameStart, phase.frameHold, stageProgress / HOLD_START);
+  } else if (stageProgress > HOLD_END) {
+    sourceProgress = lerp(phase.frameHold, phase.frameEnd, (stageProgress - HOLD_END) / (1 - HOLD_END));
+  }
+
+  return { sourceProgress, stage, stageProgress };
+}
+
 interface NavigatorWithDeviceHints extends Navigator {
   connection?: { saveData?: boolean };
   deviceMemory?: number;
@@ -125,6 +174,13 @@ export function HeroFrameSequence({
     let animationFrame = 0;
     let consecutiveFailures = 0;
     let destroyed = false;
+    let lastServiceStage = -2;
+    let wheelGestureLocked = false;
+    let wheelReleaseTimer = 0;
+    let snapLockedUntil = 0;
+
+    const serviceItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-service"));
+    const serviceProgressItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-services__progress i"));
 
     const maxCacheSize = () => mobileMedia.matches
       ? MAX_DECODED_MOBILE_FRAMES
@@ -264,8 +320,26 @@ export function HeroFrameSequence({
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
       const distance = Math.max(1, section.offsetHeight - viewportHeight);
       const progress = Math.min(1, Math.max(0, -rect.top / distance));
-      const nextPosition = progress * (frames.length - 1);
+      const timeline = timelineState(progress);
+      const nextPosition = timeline.sourceProgress * (frames.length - 1);
       const direction = nextPosition === currentPosition ? 1 : Math.sign(nextPosition - currentPosition);
+
+      if (timeline.stage !== lastServiceStage) {
+        lastServiceStage = timeline.stage;
+        section.dataset.sequencePhase = timeline.stage < 0 ? "intro" : "services";
+        serviceItems.forEach((item, index) => {
+          const isActive = index === timeline.stage;
+          item.classList.toggle("is-active", isActive);
+          item.setAttribute("aria-hidden", String(!isActive));
+        });
+        serviceProgressItems.forEach((item, index) => item.classList.toggle("is-active", index <= timeline.stage));
+      }
+
+      const activeService = timeline.stage >= 0 ? serviceItems[timeline.stage] : null;
+      if (activeService) {
+        const edgeFade = Math.min(1, timeline.stageProgress / 0.1, (1 - timeline.stageProgress) / 0.1);
+        activeService.style.setProperty("--service-presence", String(Math.max(0, edgeFade)));
+      }
 
       currentPosition = nextPosition;
       draw();
@@ -281,6 +355,60 @@ export function HeroFrameSequence({
     const requestUpdate = () => {
       cancelAnimationFrame(animationFrame);
       animationFrame = requestAnimationFrame(updateFromScroll);
+    };
+
+    const scheduleWheelRelease = () => {
+      window.clearTimeout(wheelReleaseTimer);
+      const remainingLock = Math.max(0, snapLockedUntil - performance.now());
+      wheelReleaseTimer = window.setTimeout(() => {
+        wheelGestureLocked = false;
+      }, Math.max(WHEEL_GESTURE_IDLE_MS, remainingLock));
+    };
+
+    const handleServiceWheel = (event: WheelEvent) => {
+      if (mobileMedia.matches) return;
+
+      if (wheelGestureLocked) {
+        event.preventDefault();
+        scheduleWheelRelease();
+        return;
+      }
+
+      if (Math.abs(event.deltaY) < WHEEL_DELTA_THRESHOLD) return;
+
+      const rect = section.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const distance = Math.max(1, section.offsetHeight - viewportHeight);
+      const progress = Math.min(1, Math.max(0, -rect.top / distance));
+      const isPinned = rect.top <= 1 && rect.bottom >= viewportHeight - 1;
+
+      if (!isPinned) return;
+
+      const direction = event.deltaY > 0 ? 1 : -1;
+      if (progress < SERVICE_START_PROGRESS && direction < 0) return;
+      const tolerance = 0.012;
+      const targetStage = direction > 0
+        ? serviceSnapProgresses.findIndex((snapProgress) => snapProgress > progress + tolerance)
+        : serviceSnapProgresses.findLastIndex((snapProgress) => snapProgress < progress - tolerance);
+
+      event.preventDefault();
+      wheelGestureLocked = true;
+      snapLockedUntil = performance.now() + MIN_SNAP_LOCK_MS;
+      scheduleWheelRelease();
+
+      let targetTop: number;
+      if (direction > 0 && targetStage === -1) {
+        targetTop = section.offsetTop + distance + Math.min(220, viewportHeight * 0.25);
+        section.dataset.snapTarget = "next";
+      } else if (direction < 0 && targetStage === -1) {
+        targetTop = section.offsetTop + distance * (SERVICE_START_PROGRESS * 0.45);
+        section.dataset.snapTarget = "intro";
+      } else {
+        targetTop = section.offsetTop + distance * serviceSnapProgresses[targetStage];
+        section.dataset.snapTarget = String(targetStage);
+      }
+
+      window.scrollTo({ top: targetTop, behavior: "smooth" });
     };
 
     const resetSequence = () => {
@@ -305,6 +433,7 @@ export function HeroFrameSequence({
 
     updateFromScroll();
     window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("wheel", handleServiceWheel, { passive: false });
     window.addEventListener("resize", requestUpdate, { passive: true });
     window.addEventListener("orientationchange", resetSequence, { passive: true });
     window.visualViewport?.addEventListener("resize", requestUpdate, { passive: true });
@@ -313,11 +442,15 @@ export function HeroFrameSequence({
     return () => {
       destroyed = true;
       cancelAnimationFrame(animationFrame);
+      window.clearTimeout(wheelReleaseTimer);
       window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("wheel", handleServiceWheel);
       window.removeEventListener("resize", requestUpdate);
       window.removeEventListener("orientationchange", resetSequence);
       window.visualViewport?.removeEventListener("resize", requestUpdate);
       mobileMedia.removeEventListener("change", resetSequence);
+      delete section.dataset.sequencePhase;
+      delete section.dataset.snapTarget;
       controllers.forEach((controller) => controller.abort());
       cache.forEach(closeFrame);
     };
@@ -341,6 +474,19 @@ export function HeroFrameSequence({
         />
       </picture>
       <canvas ref={canvasRef} className="hero-sequence__canvas" aria-hidden="true" />
+      <div id="servicos" className="hero-services shell" aria-label="Serviços por etapa da construção">
+        <div className="hero-services__line" aria-hidden="true" />
+        {constructionServices.map((service, index) => (
+          <article className="hero-service" aria-hidden="true" key={service.title}>
+            <span>Etapa {String(index + 1).padStart(2, "0")}</span>
+            <h2>{service.title}</h2>
+            <p>{service.text}</p>
+          </article>
+        ))}
+        <div className="hero-services__progress" aria-hidden="true">
+          {constructionServices.map((service, index) => <i key={service.title}><span>{String(index + 1).padStart(2, "0")}</span></i>)}
+        </div>
+      </div>
     </div>
   );
 }
