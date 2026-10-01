@@ -27,6 +27,8 @@ const HOLD_END = 0.67;
 const WHEEL_DELTA_THRESHOLD = 4;
 const WHEEL_GESTURE_IDLE_MS = 1100;
 const MIN_SNAP_LOCK_MS = 1100;
+const REVERSE_WHEEL_THRESHOLD = 45;
+const REVERSE_WHEEL_WINDOW_MS = 350;
 
 const serviceSnapProgresses = constructionServices.map((_, index) => (
   SERVICE_START_PROGRESS + ((index + 0.5) / constructionServices.length) * (1 - SERVICE_START_PROGRESS)
@@ -171,6 +173,10 @@ export function HeroFrameSequence({
     let wheelGestureLocked = false;
     let wheelReleaseTimer = 0;
     let snapLockedUntil = 0;
+    let snapTargetIndex: number | null = null;
+    let snapDirection = 0;
+    let reverseWheelDelta = 0;
+    let lastReverseWheelAt = 0;
     let wasInView = false;
 
     const serviceItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-service"));
@@ -382,45 +388,25 @@ export function HeroFrameSequence({
       const remainingLock = Math.max(0, snapLockedUntil - performance.now());
       wheelReleaseTimer = window.setTimeout(() => {
         wheelGestureLocked = false;
+        snapTargetIndex = null;
+        snapDirection = 0;
+        reverseWheelDelta = 0;
       }, Math.max(WHEEL_GESTURE_IDLE_MS, remainingLock));
     };
 
-    const handleServiceWheel = (event: WheelEvent) => {
-      if (mobileMedia.matches) return;
-
-      if (wheelGestureLocked) {
-        event.preventDefault();
-        scheduleWheelRelease();
-        return;
-      }
-
-      if (Math.abs(event.deltaY) < WHEEL_DELTA_THRESHOLD) return;
-
-      const rect = section.getBoundingClientRect();
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const distance = Math.max(1, section.offsetHeight - viewportHeight);
-      const progress = Math.min(1, Math.max(0, -rect.top / distance));
-      const isPinned = rect.top <= 1 && rect.bottom >= viewportHeight - 1;
-
-      if (!isPinned) return;
-
-      const direction = event.deltaY > 0 ? 1 : -1;
-      if (progress < SERVICE_START_PROGRESS && direction < 0) return;
-      const tolerance = 0.012;
-      const targetStage = direction > 0
-        ? serviceSnapProgresses.findIndex((snapProgress) => snapProgress > progress + tolerance)
-        : serviceSnapProgresses.findLastIndex((snapProgress) => snapProgress < progress - tolerance);
-
-      event.preventDefault();
+    const snapToStage = (targetStage: number, direction: number, distance: number, viewportHeight: number) => {
       wheelGestureLocked = true;
+      snapTargetIndex = targetStage;
+      snapDirection = direction;
+      reverseWheelDelta = 0;
       snapLockedUntil = performance.now() + MIN_SNAP_LOCK_MS;
       scheduleWheelRelease();
 
       let targetTop: number;
-      if (direction > 0 && targetStage === -1) {
+      if (targetStage === serviceSnapProgresses.length) {
         targetTop = section.offsetTop + distance + Math.min(220, viewportHeight * 0.25);
         section.dataset.snapTarget = "next";
-      } else if (direction < 0 && targetStage === -1) {
+      } else if (targetStage === -1) {
         targetTop = section.offsetTop + distance * (SERVICE_START_PROGRESS * 0.45);
         section.dataset.snapTarget = "intro";
       } else {
@@ -429,6 +415,61 @@ export function HeroFrameSequence({
       }
 
       window.scrollTo({ top: targetTop, behavior: "smooth" });
+    };
+
+    const handleServiceWheel = (event: WheelEvent) => {
+      if (mobileMedia.matches || (!wasInView && !wheelGestureLocked)) return;
+
+      const rect = section.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const isPinned = rect.top <= 1 && rect.bottom >= viewportHeight - 1;
+      if (!isPinned) {
+        wheelGestureLocked = false;
+        snapTargetIndex = null;
+        snapDirection = 0;
+        reverseWheelDelta = 0;
+        window.clearTimeout(wheelReleaseTimer);
+        return;
+      }
+
+      const distance = Math.max(1, section.offsetHeight - viewportHeight);
+      const direction = event.deltaY > 0 ? 1 : -1;
+
+      if (wheelGestureLocked) {
+        event.preventDefault();
+        if (Math.abs(event.deltaY) < WHEEL_DELTA_THRESHOLD) {
+          scheduleWheelRelease();
+          return;
+        }
+        if (direction !== snapDirection && snapTargetIndex !== null) {
+          const now = performance.now();
+          reverseWheelDelta = now - lastReverseWheelAt <= REVERSE_WHEEL_WINDOW_MS
+            ? reverseWheelDelta + Math.abs(event.deltaY)
+            : Math.abs(event.deltaY);
+          lastReverseWheelAt = now;
+          if (reverseWheelDelta >= REVERSE_WHEEL_THRESHOLD) {
+            const adjacentStage = Math.max(-1, Math.min(serviceSnapProgresses.length, snapTargetIndex - snapDirection));
+            snapToStage(adjacentStage, direction, distance, viewportHeight);
+            return;
+          }
+        } else {
+          reverseWheelDelta = 0;
+        }
+        scheduleWheelRelease();
+        return;
+      }
+
+      if (Math.abs(event.deltaY) < WHEEL_DELTA_THRESHOLD) return;
+
+      const progress = Math.min(1, Math.max(0, -rect.top / distance));
+      if (progress < SERVICE_START_PROGRESS && direction < 0) return;
+      const tolerance = 0.012;
+      const targetStage = direction > 0
+        ? serviceSnapProgresses.findIndex((snapProgress) => snapProgress > progress + tolerance)
+        : serviceSnapProgresses.findLastIndex((snapProgress) => snapProgress < progress - tolerance);
+
+      event.preventDefault();
+      snapToStage(targetStage === -1 && direction > 0 ? serviceSnapProgresses.length : targetStage, direction, distance, viewportHeight);
     };
 
     const resetSequence = () => {
