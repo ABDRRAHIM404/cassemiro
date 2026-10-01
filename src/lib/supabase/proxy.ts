@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/supabase";
 
+const publicAdminRoutes = new Set(["/admin/login", "/admin/esqueci-senha", "/admin/redefinir-senha"]);
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -23,7 +25,7 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
-  const isProtectedAdminRoute = request.nextUrl.pathname.startsWith("/admin") && !request.nextUrl.pathname.startsWith("/admin/login");
+  const isProtectedAdminRoute = request.nextUrl.pathname.startsWith("/admin") && !publicAdminRoutes.has(request.nextUrl.pathname);
 
   if (isProtectedAdminRoute && !data?.claims) {
     const url = request.nextUrl.clone();

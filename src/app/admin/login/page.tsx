@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { login, logout, sendMagicLink } from "../actions";
 
 type LoginPageProps = {
-  searchParams: Promise<{ error?: string; next?: string; sent?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; sent?: string; reset?: string }>;
 };
 
 export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
@@ -43,6 +43,9 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
               Se o e-mail estiver autorizado, você receberá um link de acesso. Verifique também a pasta de spam.
             </div>
           )}
+          {params.reset === "1" && (
+            <div className="admin-alert admin-alert--success" role="status">Senha alterada. Entre com a sua nova senha.</div>
+          )}
           {userId && params.error === "unauthorized" ? (
             <form action={logout}>
               <button className="button button--bronze" type="submit">Sair desta conta</button>
@@ -57,6 +60,7 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
               <button className="button button--bronze" type="submit">Acessar painel</button>
             </form>
           )}
+          {!userId && <Link href="/admin/esqueci-senha" className="admin-login__utility-link">Esqueceu a senha?</Link>}
           {!userId && (
             <>
               <div className="admin-login__divider"><span>ou</span></div>
