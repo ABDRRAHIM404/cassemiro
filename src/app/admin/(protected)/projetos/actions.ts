@@ -53,28 +53,48 @@ function revalidateProjects(slug?: string) {
   if (slug) revalidatePath(`/projetos/${slug}`);
 }
 
-export async function createProject(formData: FormData) {
+export async function createProjectForUpload(formData: FormData) {
   const parsed = parseProject(formData);
-  if (!parsed.success || !parsed.data.slug) redirect("/admin/projetos/novo?error=Revise+os+campos+obrigatórios.");
+  if (!parsed.success || !parsed.data.slug) return { error: "Revise os campos obrigatórios." };
 
-  const { service_ids, ...project } = parsed.data;
+  const { service_ids, is_published, ...project } = parsed.data;
   const { supabase } = await requireAdmin();
-  const { data, error } = await supabase.from("projects").insert(project).select("id").single();
+  const { data, error } = await supabase.from("projects").insert({ ...project, is_published: false }).select("id").single();
 
   if (error || !data) {
     const message = error?.code === "23505" ? "Este endereço já está em uso. Escolha outro slug." : "Não foi possível criar o projeto.";
-    redirect(`/admin/projetos/novo?error=${encodeURIComponent(message)}`);
+    return { error: message };
   }
 
+  let warning: string | undefined;
   if (service_ids.length) {
     const { error: servicesError } = await supabase.from("project_services").insert(
       service_ids.map((service_id) => ({ project_id: data.id, service_id }))
     );
-    if (servicesError) redirect(`/admin/projetos/${data.id}?error=Projeto+criado,+mas+os+serviços+não+foram+associados.`);
+    if (servicesError) warning = "Projeto criado, mas os serviços não foram associados.";
   }
 
   revalidateProjects(project.slug);
-  redirect(`/admin/projetos/${data.id}?created=1`);
+  return { id: data.id, publishRequested: is_published, warning };
+}
+
+export async function completeProjectCreation(projectId: string, publish: boolean, coverUrl: string | null) {
+  const id = z.uuid().safeParse(projectId);
+  if (!id.success) return { error: "Identificador do projeto inválido." };
+  const { supabase } = await requireAdmin();
+
+  if (coverUrl) {
+    const { data: cover, error: coverError } = await supabase.from("project_media")
+      .select("id").eq("project_id", id.data).eq("url", coverUrl).eq("type", "image").maybeSingle();
+    if (coverError || !cover) return { error: "As imagens foram enviadas, mas a capa não foi encontrada." };
+  }
+
+  const { data, error } = await supabase.from("projects")
+    .update({ hero_image: coverUrl, is_published: publish })
+    .eq("id", id.data).select("slug").single();
+  if (error || !data) return { error: "Projeto criado, mas não foi possível concluir a publicação." };
+  revalidateProjects(data.slug);
+  return { success: true };
 }
 
 export async function updateProject(projectId: string, formData: FormData) {

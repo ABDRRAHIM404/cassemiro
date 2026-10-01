@@ -27,7 +27,7 @@ export default async function EditProjectPage({ params, searchParams }: { params
         <div><p className="eyebrow eyebrow--dark">Editar projeto</p><h1>{project.title}</h1></div>
         <span className={`status status--large ${project.is_published ? "status--published" : "status--draft"}`}>{project.is_published ? "Publicado" : "Oculto"}</span>
       </div>
-      {(query.saved === "1" || query.created === "1") && <div className="admin-notice">{query.created === "1" ? "Projeto criado. Agora você pode enviar as mídias." : "Alterações salvas."}</div>}
+      {(query.saved === "1" || query.created === "1") && <div className="admin-notice">{query.created === "1" ? "Projeto e imagens guardados. Pode gerir a galeria abaixo." : "Alterações salvas."}</div>}
       {query.error && <div className="admin-alert">{query.error}</div>}
       <ProjectForm action={updateProject.bind(null, project.id)} project={project} services={servicesResult.data ?? []} selectedServices={(selectedResult.data ?? []).map((item) => item.service_id)} />
       <ProjectMediaManager projectId={project.id} initialMedia={mediaResult.data ?? []} heroImage={project.hero_image} />
