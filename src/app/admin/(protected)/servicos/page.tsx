@@ -2,13 +2,16 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { moveService, toggleServiceVisibility } from "./actions";
 
-export default async function AdminServicesPage() {
+export default async function AdminServicesPage({ searchParams }: { searchParams: Promise<{ updated?: string; reordered?: string; error?: string }> }) {
+  const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: services } = await supabase.from("services").select("*").order("sort_order").order("title");
 
   return (
     <main id="conteudo" className="admin-content">
       <div className="admin-page-heading"><div><p className="eyebrow eyebrow--dark">Catálogo</p><h1>Serviços</h1></div><p>Edite os serviços, defina a ordem no site e controle individualmente a visibilidade de preços.</p></div>
+      {(params.updated === "1" || params.reordered === "1") && <div className="admin-notice">{params.reordered === "1" ? "Ordem dos serviços atualizada." : "Visibilidade atualizada."}</div>}
+      {params.error && <div className="admin-alert" role="alert">{params.error}</div>}
       <section className="admin-panel">
         <div className="admin-panel__heading"><div><span>{String(services?.length ?? 0).padStart(2, "0")} SERVIÇOS</span><h2>Áreas de atuação</h2></div><Link href="/servicos" target="_blank">Ver no site ↗</Link></div>
         <div className="admin-services-list">

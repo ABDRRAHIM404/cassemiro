@@ -129,10 +129,12 @@ export async function updateProject(projectId: string, formData: FormData) {
 
 export async function toggleProjectPublished(projectId: string, publish: boolean) {
   const id = z.uuid().safeParse(projectId);
-  if (!id.success) return;
+  if (!id.success) redirect("/admin/projetos?error=Projeto+inválido.");
   const { supabase } = await requireAdmin();
-  const { data } = await supabase.from("projects").update({ is_published: publish }).eq("id", id.data).select("slug").single();
-  revalidateProjects(data?.slug);
+  const { data, error } = await supabase.from("projects").update({ is_published: publish }).eq("id", id.data).select("slug").single();
+  if (error || !data) redirect("/admin/projetos?error=Não+foi+possível+alterar+a+publicação.");
+  revalidateProjects(data.slug);
+  redirect("/admin/projetos?updated=1");
 }
 
 export async function deleteProject(projectId: string) {

@@ -325,6 +325,10 @@ export type Database = {
         Args: { p_key_hash: string; p_max_attempts?: number; p_window_seconds?: number }
         Returns: boolean
       }
+      swap_service_order: {
+        Args: { p_service_id: string; p_direction: number }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

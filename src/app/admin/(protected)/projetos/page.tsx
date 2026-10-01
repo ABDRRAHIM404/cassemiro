@@ -6,7 +6,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
-export default async function AdminProjectsPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
+export default async function AdminProjectsPage({ searchParams }: { searchParams: Promise<{ deleted?: string; updated?: string; error?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: projects } = await supabase.from("projects")
@@ -20,6 +20,8 @@ export default async function AdminProjectsPage({ searchParams }: { searchParams
         <Link className="button button--bronze" href="/admin/projetos/novo">Novo projeto</Link>
       </div>
       {params.deleted === "1" && <div className="admin-notice">Projeto e arquivos removidos.</div>}
+      {params.updated === "1" && <div className="admin-notice">Publicação atualizada.</div>}
+      {params.error && <div className="admin-alert" role="alert">{params.error}</div>}
       <section className="admin-panel">
         <div className="admin-panel__heading"><div><span>{String(projects?.length ?? 0).padStart(2, "0")} PROJETOS</span><h2>Obras cadastradas</h2></div></div>
         {projects?.length ? (

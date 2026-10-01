@@ -2,14 +2,15 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createTestimonial, toggleTestimonial } from "./actions";
 
-export default async function TestimonialsAdminPage({ searchParams }: { searchParams: Promise<{ created?: string; deleted?: string; error?: string }> }) {
+export default async function TestimonialsAdminPage({ searchParams }: { searchParams: Promise<{ created?: string; deleted?: string; updated?: string; error?: string }> }) {
   const query = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: testimonials } = await supabase.from("testimonials").select("*").order("created_at", { ascending: false });
   return <main id="conteudo" className="admin-content">
     <div className="admin-page-heading"><div><p className="eyebrow eyebrow--dark">Confiança</p><h1>Depoimentos</h1></div><p>Cadastre somente avaliações reais e publique apenas após confirmar o texto e a autoria.</p></div>
     {(query.created === "1" || query.deleted === "1") && <div className="admin-notice">{query.deleted ? "Depoimento removido." : "Depoimento criado."}</div>}
-    {query.error && <div className="admin-alert">{query.error}</div>}
+    {query.updated === "1" && <div className="admin-notice">Publicação atualizada.</div>}
+    {query.error && <div className="admin-alert" role="alert">{query.error}</div>}
     <section className="admin-panel testimonial-create"><div className="admin-panel__heading"><div><span>NOVO DEPOIMENTO</span><h2>Adicionar avaliação real</h2></div></div>
       <form action={createTestimonial} className="testimonial-form">
         <label className="admin-field"><span>Nome do cliente *</span><input name="customer_name" minLength={2} maxLength={100} required /></label>

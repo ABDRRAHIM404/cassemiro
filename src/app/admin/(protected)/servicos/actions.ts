@@ -55,24 +55,20 @@ export async function updateService(serviceId: string, formData: FormData) {
 
 export async function toggleServiceVisibility(serviceId: string, visible: boolean) {
   const id = z.uuid().safeParse(serviceId);
-  if (!id.success) return;
+  if (!id.success) redirect("/admin/servicos?error=Serviço+inválido.");
   const { supabase } = await requireAdmin();
-  const { data } = await supabase.from("services").update({ is_visible: visible }).eq("id", id.data).select("slug").single();
-  revalidateService(data?.slug);
+  const { data, error } = await supabase.from("services").update({ is_visible: visible }).eq("id", id.data).select("slug").single();
+  if (error || !data) redirect("/admin/servicos?error=Não+foi+possível+alterar+a+visibilidade.");
+  revalidateService(data.slug);
+  redirect("/admin/servicos?updated=1");
 }
 
 export async function moveService(serviceId: string, direction: -1 | 1) {
   const id = z.uuid().safeParse(serviceId);
-  if (!id.success || ![-1, 1].includes(direction)) return;
+  if (!id.success || ![-1, 1].includes(direction)) redirect("/admin/servicos?error=Ordem+inválida.");
   const { supabase } = await requireAdmin();
-  const { data: services } = await supabase.from("services").select("id, sort_order").order("sort_order").order("title");
-  const index = services?.findIndex((service) => service.id === id.data) ?? -1;
-  const other = services?.[index + direction];
-  const current = services?.[index];
-  if (!current || !other) return;
-  await Promise.all([
-    supabase.from("services").update({ sort_order: other.sort_order }).eq("id", current.id),
-    supabase.from("services").update({ sort_order: current.sort_order }).eq("id", other.id)
-  ]);
+  const { data, error } = await supabase.rpc("swap_service_order", { p_service_id: id.data, p_direction: direction });
+  if (error || !data) redirect("/admin/servicos?error=Não+foi+possível+reordenar+os+serviços.");
   revalidateService();
+  redirect("/admin/servicos?reordered=1");
 }

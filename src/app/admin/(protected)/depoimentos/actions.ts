@@ -50,17 +50,20 @@ export async function updateTestimonial(idValue: string, formData: FormData) {
 
 export async function toggleTestimonial(idValue: string, approved: boolean) {
   const id = z.uuid().safeParse(idValue);
-  if (!id.success) return;
+  if (!id.success) redirect("/admin/depoimentos?error=Depoimento+inválido.");
   const { supabase } = await requireAdmin();
-  await supabase.from("testimonials").update({ is_approved: approved }).eq("id", id.data);
+  const { data, error } = await supabase.from("testimonials").update({ is_approved: approved }).eq("id", id.data).select("id").single();
+  if (error || !data) redirect("/admin/depoimentos?error=Não+foi+possível+alterar+a+publicação.");
   refresh();
+  redirect("/admin/depoimentos?updated=1");
 }
 
 export async function deleteTestimonial(idValue: string) {
   const id = z.uuid().safeParse(idValue);
-  if (!id.success) return;
+  if (!id.success) redirect("/admin/depoimentos?error=Depoimento+inválido.");
   const { supabase } = await requireAdmin();
-  await supabase.from("testimonials").delete().eq("id", id.data);
+  const { data, error } = await supabase.from("testimonials").delete().eq("id", id.data).select("id").single();
+  if (error || !data) redirect("/admin/depoimentos?error=Não+foi+possível+excluir+o+depoimento.");
   refresh();
   redirect("/admin/depoimentos?deleted=1");
 }
