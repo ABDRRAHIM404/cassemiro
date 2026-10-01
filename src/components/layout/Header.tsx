@@ -6,7 +6,6 @@ import { Logo } from "@/components/brand/Logo";
 
 export function Header({ showProjects = false }: { showProjects?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [solid, setSolid] = useState(false);
   const links = [
     ["Início", "/"],
     ["Sobre", "/#sobre"],
@@ -16,26 +15,25 @@ export function Header({ showProjects = false }: { showProjects?: boolean }) {
   ];
 
   useEffect(() => {
-    const update = () => {
-      setSolid(window.scrollY > window.innerHeight * 0.55);
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const closeOnDesktop = () => {
       if (window.innerWidth > 960) setOpen(false);
     };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update, { passive: true });
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", closeOnDesktop);
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", closeOnDesktop);
     };
-  }, []);
-
-  useEffect(() => {
-    document.body.toggleAttribute("data-menu-open", open);
-    return () => document.body.removeAttribute("data-menu-open");
   }, [open]);
 
   return (
-    <header className={`site-header ${solid ? "site-header--solid" : ""} ${open ? "site-header--open" : ""}`}>
+    <>
+      {open && <button type="button" className="site-menu-scrim" tabIndex={-1} aria-label="Fechar menu" onClick={() => setOpen(false)} />}
+      <header className={`site-header${open ? " site-header--open" : ""}`}>
       <div className="site-header__inner shell">
         <Link href="/" className="site-header__logo" onClick={() => setOpen(false)}>
           <Logo />
@@ -59,6 +57,7 @@ export function Header({ showProjects = false }: { showProjects?: boolean }) {
           <span /><span />
         </button>
       </div>
-    </header>
+      </header>
+    </>
   );
 }
