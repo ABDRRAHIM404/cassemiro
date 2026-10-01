@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { MobileContactBar } from "@/components/layout/MobileContactBar";
+import { SmoothAnchorNavigation } from "@/components/layout/SmoothAnchorNavigation";
 import { createPublicClient } from "@/lib/supabase/public";
 import { parseBusinessSettings } from "@/lib/site-settings";
 
@@ -20,6 +21,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
       {children}
       <Footer showProjects={showProjects} settings={settings} />
       <MobileContactBar settings={settings} />
+      <SmoothAnchorNavigation />
     </>
   );
 }
