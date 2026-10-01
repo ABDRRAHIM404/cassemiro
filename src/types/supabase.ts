@@ -289,6 +289,7 @@ export type Database = {
           customer_name: string
           id: string
           is_approved: boolean
+          permission_attested_at: string | null
           rating: number | null
           source: string | null
           text: string
@@ -299,6 +300,7 @@ export type Database = {
           customer_name: string
           id?: string
           is_approved?: boolean
+          permission_attested_at?: string | null
           rating?: number | null
           source?: string | null
           text: string
@@ -309,6 +311,7 @@ export type Database = {
           customer_name?: string
           id?: string
           is_approved?: boolean
+          permission_attested_at?: string | null
           rating?: number | null
           source?: string | null
           text?: string
