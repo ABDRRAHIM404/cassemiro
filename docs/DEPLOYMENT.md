@@ -24,6 +24,8 @@ Deploy the Next.js application to Vercel and keep Supabase as the database, auth
 - Vercel Analytics records public pages but not `/admin`.
 - Sentry receives a controlled test error, then the test error is removed.
 - Phone and WhatsApp links work on a real mobile device.
+- Quote requests receive a shared 429 limit after five attempts in 15 minutes; malformed and direct API requests are counted too.
+- Draft project images are inaccessible anonymously, published images load, and unpublishing denies new anonymous requests. See `MEDIA_GUIDE.md` for the migration and backfill order.
 
 ## Rollback
 

@@ -1,18 +1,27 @@
-type RateLimitEntry = { count: number; resetsAt: number };
+import "server-only";
 
-const store = new Map<string, RateLimitEntry>();
+import { createHmac } from "node:crypto";
+import { isIP } from "node:net";
+import type { createSupabaseAdmin } from "@/lib/supabase/admin";
 
-export function checkRateLimit(key: string, limit = 5, windowMs = 15 * 60 * 1000) {
-  const now = Date.now();
-  const current = store.get(key);
+type AdminClient = NonNullable<ReturnType<typeof createSupabaseAdmin>>;
 
-  if (!current || current.resetsAt <= now) {
-    store.set(key, { count: 1, resetsAt: now + windowMs });
-    return { allowed: true, remaining: limit - 1 };
-  }
+export function quoteClientIdentity(forwardedFor: string | null): string | null {
+  if (process.env.VERCEL !== "1") return process.env.NODE_ENV === "development" ? "local-development" : null;
+  const ip = forwardedFor?.split(",")[0]?.trim();
+  return ip && isIP(ip) ? ip : null;
+}
 
-  if (current.count >= limit) return { allowed: false, remaining: 0 };
+export async function checkQuoteRateLimit(clientIdentity: string, supabase: AdminClient) {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) return { allowed: false, error: true };
 
-  current.count += 1;
-  return { allowed: true, remaining: limit - current.count };
+  const keyHash = createHmac("sha256", secret).update(`quote:v1:${clientIdentity}`).digest("hex");
+  const { data, error } = await supabase.rpc("consume_quote_rate_limit", {
+    p_key_hash: keyHash,
+    p_max_attempts: 5,
+    p_window_seconds: 15 * 60
+  });
+
+  return { allowed: data === true, error: Boolean(error) };
 }

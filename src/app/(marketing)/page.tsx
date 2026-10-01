@@ -5,6 +5,7 @@ import { SergioStory } from "@/components/marketing/SergioStory";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { WhyCassemiro } from "@/components/marketing/WhyCassemiro";
 import { siteConfig } from "@/config/site";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { createPublicClient } from "@/lib/supabase/public";
 import { parseBusinessSettings, parseHomepageContent } from "@/lib/site-settings";
 
@@ -37,7 +38,7 @@ export default async function HomePage() {
       <ProjectsJourney items={projects ?? []} />
       <Testimonials items={testimonials ?? []} />
       <ContactCta content={homepageContent} business={businessSettings} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} />
     </main>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { whatsappUrl } from "@/config/site";
+import { whatsappUrlForPhone } from "@/lib/phone";
 import { updateQuoteStatus } from "../actions";
 
 const statuses = ["Novo", "Em contato", "Orçamento", "Fechado", "Arquivado"] as const;
@@ -17,6 +17,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   if (!quote) notFound();
 
   const message = `Olá, ${quote.name}. Recebemos sua solicitação de orçamento para ${quote.work_type} pelo site da CASSEMIRO.`;
+  const whatsappUrl = whatsappUrlForPhone(quote.phone, message);
 
   return (
     <main id="conteudo" className="admin-content">
@@ -41,7 +42,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
           <section className="admin-panel quote-contact">
             <span>CONTATO</span>
             <a href={`tel:${quote.phone}`} className="quote-contact__phone">{quote.phone}</a>
-            <a href={whatsappUrl(message)} target="_blank" rel="noreferrer" className="button button--bronze">Abrir WhatsApp</a>
+            {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noreferrer" className="button button--bronze">Abrir WhatsApp</a> : <p>Confirme o DDD e o número antes de abrir o WhatsApp.</p>}
           </section>
           <section className="admin-panel quote-status-form">
             <span>ANDAMENTO</span>

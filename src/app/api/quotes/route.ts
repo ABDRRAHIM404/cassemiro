@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { quoteRequestSchema } from "@/features/quotes/validation";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkQuoteRateLimit, quoteClientIdentity } from "@/lib/rate-limit";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 
@@ -12,9 +12,16 @@ function escapeHtml(value: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const clientKey = forwardedFor || request.headers.get("x-real-ip") || "unknown";
-  const rateLimit = checkRateLimit(clientKey);
+  const clientKey = quoteClientIdentity(request.headers.get("x-forwarded-for"));
+  const supabase = createSupabaseAdmin();
+  if (!supabase || !clientKey) {
+    return NextResponse.json({ error: "O formulário ainda não está disponível. Continue pelo WhatsApp." }, { status: 503 });
+  }
+
+  const rateLimit = await checkQuoteRateLimit(clientKey, supabase);
+  if (rateLimit.error) {
+    return NextResponse.json({ error: "Não foi possível registrar a solicitação agora. Continue pelo WhatsApp." }, { status: 503 });
+  }
 
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." }, { status: 429 });
@@ -34,11 +41,6 @@ export async function POST(request: NextRequest) {
 
   if (parsed.data.company) {
     return NextResponse.json({ ok: true });
-  }
-
-  const supabase = createSupabaseAdmin();
-  if (!supabase) {
-    return NextResponse.json({ error: "O formulário ainda não está configurado. Continue pelo WhatsApp." }, { status: 503 });
   }
 
   const quote = parsed.data;

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { completeProjectCreation, createProjectForUpload } from "@/app/admin/(protected)/projetos/actions";
 import { createClient } from "@/lib/supabase/client";
+import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
 import type { Database } from "@/types/supabase";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
@@ -54,24 +55,27 @@ export function ProjectForm({
         setMessage(`A enviar imagem ${index + 1} de ${photos.length}…`);
         const extension = photo.type === "image/jpeg" ? "jpg" : photo.type.split("/")[1];
         const path = `${projectId}/${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage.from("project-media")
+        const mediaId = crypto.randomUUID();
+        const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET)
           .upload(path, photo, { contentType: photo.type, upsert: false });
         if (uploadError) throw new Error(`Não foi possível enviar ${photo.name}.`);
 
-        const { data } = supabase.storage.from("project-media").getPublicUrl(path);
+        const url = projectMediaUrl(mediaId);
         const { error: recordError } = await supabase.from("project_media").insert({
+          id: mediaId,
           project_id: projectId,
           type: "image",
-          url: data.publicUrl,
+          url,
+          storage_path: path,
           alt_text: "",
           sort_order: index,
           before_after_group: null
         });
         if (recordError) {
-          await supabase.storage.from("project-media").remove([path]);
+          await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
           throw new Error(`Não foi possível guardar ${photo.name} na galeria.`);
         }
-        coverUrl ??= data.publicUrl;
+        coverUrl ??= url;
       }
 
       setMessage("A concluir projeto…");

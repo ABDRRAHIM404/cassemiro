@@ -43,6 +43,7 @@ export type Database = {
           id: string
           project_id: string
           sort_order: number
+          storage_path: string | null
           type: string
           url: string
         }
@@ -53,6 +54,7 @@ export type Database = {
           id?: string
           project_id: string
           sort_order?: number
+          storage_path?: string | null
           type: string
           url: string
         }
@@ -63,6 +65,7 @@ export type Database = {
           id?: string
           project_id?: string
           sort_order?: number
+          storage_path?: string | null
           type?: string
           url?: string
         }
@@ -318,7 +321,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      consume_quote_rate_limit: {
+        Args: { p_key_hash: string; p_max_attempts?: number; p_window_seconds?: number }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

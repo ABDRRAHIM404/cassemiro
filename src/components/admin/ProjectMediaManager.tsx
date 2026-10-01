@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
 import type { Database } from "@/types/supabase";
 
 type Media = Database["public"]["Tables"]["project_media"]["Row"];
@@ -43,26 +44,29 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
 
       const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || (isVideo ? "mp4" : "jpg");
       const path = `${projectId}/${crypto.randomUUID()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from("project-media").upload(path, file, { contentType: file.type, upsert: false });
+      const mediaId = crypto.randomUUID();
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) { failed = true; setMessage(`Falha ao enviar ${file.name}.`); break; }
 
-      const { data: publicUrl } = supabase.storage.from("project-media").getPublicUrl(path);
+      const url = projectMediaUrl(mediaId);
       const type: MediaType = isVideo ? "video" : mediaType;
       const { error: recordError } = await supabase.from("project_media").insert({
+        id: mediaId,
         project_id: projectId,
         type,
-        url: publicUrl.publicUrl,
+        url,
+        storage_path: path,
         alt_text: altText.trim(),
         sort_order: nextOrder++,
         before_after_group: type === "before" || type === "after" ? group.trim() || "comparativo-1" : null
       });
       if (recordError) {
-        await supabase.storage.from("project-media").remove([path]);
+        await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
         failed = true;
         setMessage(`Falha ao registrar ${file.name}.`);
         break;
       }
-      if (!isVideo && !firstImageUrl) firstImageUrl = publicUrl.publicUrl;
+      if (!isVideo && !firstImageUrl) firstImageUrl = url;
     }
 
     if (!heroImage && firstImageUrl) await supabase.from("projects").update({ hero_image: firstImageUrl }).eq("id", projectId);
@@ -76,11 +80,16 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
     if (!window.confirm("Remover este arquivo do projeto?")) return;
     setBusy(true);
     const supabase = createClient();
-    const path = storagePath(item.url);
-    if (path) await supabase.storage.from("project-media").remove([path]);
+    if (heroImage === item.url) {
+      const { error: coverError } = await supabase.from("projects").update({ hero_image: null }).eq("id", projectId);
+      if (coverError) { setMessage("Não foi possível remover a capa."); setBusy(false); return; }
+    }
     const { error } = await supabase.from("project_media").delete().eq("id", item.id);
-    if (heroImage === item.url) await supabase.from("projects").update({ hero_image: null }).eq("id", projectId);
-    setMessage(error ? "Não foi possível remover o arquivo." : "Arquivo removido.");
+    if (error) { setMessage("Não foi possível remover o arquivo."); setBusy(false); router.refresh(); return; }
+    const path = item.storage_path ?? storagePath(item.url);
+    const bucket = item.storage_path ? PRIVATE_PROJECT_MEDIA_BUCKET : "project-media";
+    const { error: storageError } = path ? await supabase.storage.from(bucket).remove([path]) : { error: null };
+    setMessage(storageError ? "Registro removido, mas a limpeza do arquivo falhou. Contacte o suporte." : "Arquivo removido.");
     setBusy(false);
     router.refresh();
   }

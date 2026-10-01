@@ -11,7 +11,7 @@ export function Footer({ showProjects = false, settings = defaultBusinessSetting
           <p>Construção e reformas com experiência, cuidado e responsabilidade.</p>
         </div>
         <div className="footer__links">
-          <div><span>Explore</span><Link href="/#sobre">Sobre</Link><Link href="/servicos">Serviços</Link>{showProjects && <Link href="/projetos">Projetos</Link>}<Link href="/#processo">Como trabalhamos</Link></div>
+          <div><span>Explore</span><Link href="/#sobre">Sobre</Link><Link href="/servicos">Serviços</Link>{showProjects && <Link href="/projetos">Projetos</Link>}</div>
           <div><span>Fale conosco</span><a href={`tel:+${settings.phoneE164}`}>{settings.phoneDisplay}</a><a href={`mailto:${settings.email}`}>{settings.email}</a>{settings.instagram && <a href={settings.instagram} target="_blank" rel="noreferrer">Instagram ↗</a>}{settings.facebook && <a href={settings.facebook} target="_blank" rel="noreferrer">Facebook ↗</a>}</div>
           <div><span>Atendimento</span><p>{settings.serviceAreas.join(" · ")}</p><p>e região, em um raio aproximado de {settings.serviceRadiusKm} km.</p></div>
         </div>

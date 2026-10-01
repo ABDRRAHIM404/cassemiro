@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { PRIVATE_PROJECT_MEDIA_BUCKET } from "@/lib/project-media";
 
 const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || null);
 const projectSchema = z.object({
@@ -139,8 +140,14 @@ export async function deleteProject(projectId: string) {
   if (!id.success) return;
   const { supabase } = await requireAdmin();
   const { data: project } = await supabase.from("projects").select("slug").eq("id", id.data).maybeSingle();
-  const { data: files } = await supabase.storage.from("project-media").list(id.data, { limit: 1000 });
-  if (files?.length) await supabase.storage.from("project-media").remove(files.map((file) => `${id.data}/${file.name}`));
+  for (const bucket of ["project-media", PRIVATE_PROJECT_MEDIA_BUCKET]) {
+    const { data: files, error: listError } = await supabase.storage.from(bucket).list(id.data, { limit: 1000 });
+    if (listError) throw new Error("Não foi possível verificar os arquivos do projeto.");
+    if (files?.length) {
+      const { error: removeError } = await supabase.storage.from(bucket).remove(files.map((file) => `${id.data}/${file.name}`));
+      if (removeError) throw new Error("Não foi possível remover todos os arquivos do projeto.");
+    }
+  }
   const { error } = await supabase.from("projects").delete().eq("id", id.data);
   if (error) throw new Error("Não foi possível excluir o projeto.");
   revalidateProjects(project?.slug);

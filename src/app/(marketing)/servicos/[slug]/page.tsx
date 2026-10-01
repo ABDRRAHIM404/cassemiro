@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
 import { siteConfig } from "@/config/site";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { parseBusinessSettings } from "@/lib/site-settings";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -45,7 +46,7 @@ export default async function ServiceDetailPage({ params }: Props) {
       <section className="service-detail__body shell"><div><span>COMO PODEMOS AJUDAR</span><p>{service.content}</p></div><aside>{service.show_price && service.price_label && <div><span>INVESTIMENTO</span><strong>{service.price_label}</strong></div>}<p>Cada obra é avaliada individualmente conforme escopo, materiais, local e prazo.</p><a className="button button--bronze" href={`https://wa.me/${business.phoneE164}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer">Pedir orçamento no WhatsApp</a></aside></section>
       {projects.length > 0 && <section className="service-projects shell"><p className="eyebrow eyebrow--dark">Projetos relacionados</p><div>{projects.map((project) => <Link href={`/projetos/${project.slug}`} key={project.slug}><span style={project.hero_image ? { backgroundImage: `url(${project.hero_image})` } : undefined} /><h2>{project.title}</h2><p>{project.city}</p></Link>)}</div></section>}
       <section className="service-detail__cta"><div className="shell"><h2>Seu projeto começa<br />com uma conversa.</h2><Link className="button button--bronze" href="/contato">Solicitar orçamento</Link></div></section>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} />
     </main>
   );
 }
