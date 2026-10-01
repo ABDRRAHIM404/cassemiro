@@ -8,7 +8,7 @@ import { updateProject } from "../actions";
 
 type Params = { id: string };
 
-export default async function EditProjectPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<{ saved?: string; created?: string; error?: string }> }) {
+export default async function EditProjectPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<{ saved?: string; created?: string; alt?: string; error?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const { supabase } = await requireAdmin();
   const [projectResult, mediaResult, servicesResult, selectedResult] = await Promise.all([
@@ -19,6 +19,8 @@ export default async function EditProjectPage({ params, searchParams }: { params
   ]);
   if (!projectResult.data) notFound();
   const project = projectResult.data;
+  const media = mediaResult.data ?? [];
+  const missingAltCount = media.filter((item) => item.type !== "video" && item.alt_text.trim().length < 5).length;
 
   return (
     <main id="conteudo" className="admin-content">
@@ -28,9 +30,11 @@ export default async function EditProjectPage({ params, searchParams }: { params
         <span className={`status status--large ${project.is_published ? "status--published" : "status--draft"}`}>{project.is_published ? "Publicado" : "Oculto"}</span>
       </div>
       {(query.saved === "1" || query.created === "1") && <div className="admin-notice">{query.created === "1" ? "Projeto e imagens guardados. Pode gerir a galeria abaixo." : "Alterações salvas."}</div>}
-      {query.error && <div className="admin-alert">{query.error}</div>}
+      {query.alt === "1" && <div className="admin-notice">Descrição da imagem guardada.</div>}
+      {query.error && <div className="admin-alert" role="alert">{query.error}</div>}
+      {missingAltCount > 0 && <div className="admin-alert" role="status">{missingAltCount} {missingAltCount === 1 ? "imagem precisa" : "imagens precisam"} de descrição. Complete o texto alternativo na galeria abaixo.</div>}
       <ProjectForm action={updateProject.bind(null, project.id)} project={project} services={servicesResult.data ?? []} selectedServices={(selectedResult.data ?? []).map((item) => item.service_id)} />
-      <ProjectMediaManager projectId={project.id} initialMedia={mediaResult.data ?? []} heroImage={project.hero_image} />
+      <ProjectMediaManager projectId={project.id} initialMedia={media} heroImage={project.hero_image} />
       <section className="admin-delete-zone"><div><strong>Excluir projeto</strong><p>Remove permanentemente o cadastro e todos os arquivos enviados.</p></div><DeleteProjectButton projectId={project.id} title={project.title} /></section>
     </main>
   );

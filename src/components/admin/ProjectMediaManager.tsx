@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { updateProjectMediaAlt } from "@/app/admin/(protected)/projetos/actions";
 import { createClient } from "@/lib/supabase/client";
 import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
 import type { Database } from "@/types/supabase";
@@ -15,7 +16,7 @@ type UploadSession = {
   nextOrder: number;
   firstImageUrl: string | null;
   mediaType: MediaType;
-  altText: string;
+  altTexts: string[];
   group: string;
 };
 const allowedFileTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif", "video/mp4", "video/webm"]);
@@ -34,7 +35,8 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
   const [message, setMessage] = useState("");
   const [retryPending, setRetryPending] = useState(false);
   const [mediaType, setMediaType] = useState<MediaType>("image");
-  const [altText, setAltText] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<Array<{ name: string; type: string }>>([]);
+  const [altDrafts, setAltDrafts] = useState<string[]>([]);
   const [group, setGroup] = useState("");
 
   async function upload() {
@@ -43,6 +45,10 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
     if (!files.length) return setMessage("Selecione pelo menos um arquivo.");
     if (files.some((file) => file.size > 50 * 1024 * 1024)) return setMessage("Cada arquivo pode ter no máximo 50 MB.");
     if (files.some((file) => !allowedFileTypes.has(file.type))) return setMessage("Use imagens JPG, PNG, WebP ou AVIF, ou vídeos MP4/WebM.");
+    const altTexts = uploadSessionRef.current?.altTexts ?? files.map((_, index) => altDrafts[index]?.trim() ?? "");
+    if (files.some((file, index) => !file.type.startsWith("video/") && altTexts[index].length < 5)) {
+      return setMessage("Descreva cada imagem em pelo menos 5 caracteres antes de enviar.");
+    }
 
     setBusy(true);
     setMessage(uploadSessionRef.current ? "A continuar o envio…" : "A enviar arquivos…");
@@ -54,7 +60,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
         nextOrder: initialMedia.reduce((max, item) => Math.max(max, item.sort_order), -1) + 1,
         firstImageUrl: null,
         mediaType,
-        altText: altText.trim(),
+        altTexts,
         group: group.trim()
       };
     }
@@ -79,7 +85,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
           type,
           url,
           storage_path: path,
-          alt_text: session.altText,
+          alt_text: session.altTexts[index],
           sort_order: session.nextOrder,
           before_after_group: type === "before" || type === "after" ? session.group || "comparativo-1" : null
         });
@@ -103,6 +109,8 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
       uploadSessionRef.current = null;
       setRetryPending(false);
       if (inputRef.current) inputRef.current.value = "";
+      setSelectedFiles([]);
+      setAltDrafts([]);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Não foi possível concluir o envio.";
       setMessage(`${detail} ${session.uploaded.size} de ${session.files.length} arquivos guardados. Tente novamente para continuar sem duplicar os já enviados.`);
@@ -159,9 +167,18 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
     <section className="admin-panel project-media">
       <div className="admin-panel__heading"><div><span>IMAGENS E VÍDEOS</span><h2>Galeria do projeto</h2></div></div>
       <div className="project-media__upload">
-        <label className="admin-field admin-field--file"><span>Arquivos</span><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" multiple disabled={retryPending || busy} /></label>
+        <label className="admin-field admin-field--file"><span>Arquivos</span><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" multiple disabled={retryPending || busy} onChange={(event) => {
+          const selected = Array.from(event.target.files ?? [], (file) => ({ name: file.name, type: file.type }));
+          setSelectedFiles(selected);
+          setAltDrafts(selected.map(() => ""));
+        }} /></label>
         <label className="admin-field"><span>Tipo</span><select value={mediaType} onChange={(event) => setMediaType(event.target.value as MediaType)} disabled={retryPending || busy}><option value="image">Imagem</option><option value="before">Antes</option><option value="after">Depois</option></select></label>
-        <label className="admin-field"><span>Texto alternativo</span><input value={altText} onChange={(event) => setAltText(event.target.value)} maxLength={180} placeholder="Descreva o que aparece" disabled={retryPending || busy} /></label>
+        {!!selectedFiles.length && <div className="project-media__alt-inputs">
+          {selectedFiles.map((file, index) => !file.type.startsWith("video/") && <label className="admin-field" key={`${file.name}-${index}`}>
+            <span>Descrição da imagem {index + 1}: {file.name}</span>
+            <input value={altDrafts[index] ?? ""} onChange={(event) => setAltDrafts((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))} maxLength={180} disabled={retryPending || busy} placeholder="Descreva o que aparece na fotografia" />
+          </label>)}
+        </div>}
         {(mediaType === "before" || mediaType === "after") && <label className="admin-field"><span>Grupo comparativo</span><input value={group} onChange={(event) => setGroup(event.target.value)} maxLength={80} placeholder="Ex.: fachada" disabled={retryPending || busy} /></label>}
         <button type="button" onClick={upload} disabled={busy}>{busy ? "Enviando…" : retryPending ? "Tentar novamente" : "Enviar arquivos"}</button>
         {message && <p role={retryPending ? "alert" : "status"}>{message}</p>}
@@ -175,6 +192,10 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
                 <span>{heroImage === item.url ? "CAPA" : item.type.toUpperCase()}</span>
               </div>
               <p>{item.alt_text || "Sem texto alternativo"}</p>
+              {item.type !== "video" && <form action={updateProjectMediaAlt.bind(null, projectId, item.id)} className="project-media__alt-editor">
+                <label className="admin-field"><span>Texto alternativo</span><input name="alt_text" defaultValue={item.alt_text} minLength={5} maxLength={180} required aria-label={`Descrição da imagem ${index + 1}`} /></label>
+                <button type="submit" disabled={busy}>Guardar descrição</button>
+              </form>}
               <div className="project-media__actions">
                 <button type="button" onClick={() => move(index, -1)} disabled={busy || index === 0} aria-label="Mover para trás">←</button>
                 <button type="button" onClick={() => move(index, 1)} disabled={busy || index === initialMedia.length - 1} aria-label="Mover para frente">→</button>

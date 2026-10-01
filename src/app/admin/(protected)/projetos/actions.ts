@@ -54,6 +54,21 @@ function revalidateProjects(slug?: string) {
   if (slug) revalidatePath(`/projetos/${slug}`);
 }
 
+async function publicationMediaError(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  projectId: string
+) {
+  const { data, error } = await supabase.from("project_media")
+    .select("type, alt_text").eq("project_id", projectId);
+  if (error) return "Não foi possível verificar as imagens do projeto.";
+  const images = (data ?? []).filter((item) => item.type !== "video");
+  if (!images.length) return "Adicione uma imagem real antes de publicar.";
+  if (images.some((item) => item.alt_text.trim().length < 5)) {
+    return "Descreva todas as imagens na galeria antes de publicar.";
+  }
+  return null;
+}
+
 export async function createProjectForUpload(formData: FormData) {
   const parsed = parseProject(formData);
   if (!parsed.success || !parsed.data.slug) return { error: "Revise os campos obrigatórios." };
@@ -89,6 +104,10 @@ export async function completeProjectCreation(projectId: string, publish: boolea
       .select("id").eq("project_id", id.data).eq("url", coverUrl).eq("type", "image").maybeSingle();
     if (coverError || !cover) return { error: "As imagens foram enviadas, mas a capa não foi encontrada." };
   }
+  if (publish) {
+    const mediaError = await publicationMediaError(supabase, id.data);
+    if (mediaError) return { error: `${mediaError} O projeto permanece como rascunho.` };
+  }
 
   const { data, error } = await supabase.from("projects")
     .update({ hero_image: coverUrl, is_published: publish })
@@ -105,7 +124,11 @@ export async function updateProject(projectId: string, formData: FormData) {
 
   const { service_ids, ...project } = parsed.data;
   const { supabase } = await requireAdmin();
-  const { data: previous } = await supabase.from("projects").select("slug").eq("id", id.data).maybeSingle();
+  const { data: previous } = await supabase.from("projects").select("slug, is_published").eq("id", id.data).maybeSingle();
+  if (project.is_published && !previous?.is_published) {
+    const mediaError = await publicationMediaError(supabase, id.data);
+    if (mediaError) redirect(`/admin/projetos/${id.data}?error=${encodeURIComponent(mediaError)}`);
+  }
   const { error } = await supabase.from("projects").update(project).eq("id", id.data);
 
   if (error) {
@@ -131,10 +154,33 @@ export async function toggleProjectPublished(projectId: string, publish: boolean
   const id = z.uuid().safeParse(projectId);
   if (!id.success) redirect("/admin/projetos?error=Projeto+inválido.");
   const { supabase } = await requireAdmin();
+  if (publish) {
+    const mediaError = await publicationMediaError(supabase, id.data);
+    if (mediaError) redirect(`/admin/projetos?error=${encodeURIComponent(mediaError)}`);
+  }
   const { data, error } = await supabase.from("projects").update({ is_published: publish }).eq("id", id.data).select("slug").single();
   if (error || !data) redirect("/admin/projetos?error=Não+foi+possível+alterar+a+publicação.");
   revalidateProjects(data.slug);
   redirect("/admin/projetos?updated=1");
+}
+
+export async function updateProjectMediaAlt(projectId: string, mediaId: string, formData: FormData) {
+  const project = z.uuid().safeParse(projectId);
+  const media = z.uuid().safeParse(mediaId);
+  const altText = z.string().trim().min(5).max(180).safeParse(String(formData.get("alt_text") ?? ""));
+  if (!project.success || !media.success || !altText.success) {
+    redirect(`/admin/projetos/${projectId}?error=${encodeURIComponent("Descreva a imagem em 5 a 180 caracteres.")}`);
+  }
+
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase.from("project_media")
+    .update({ alt_text: altText.data })
+    .eq("id", media.data).eq("project_id", project.data).neq("type", "video")
+    .select("id").single();
+  if (error || !data) redirect(`/admin/projetos/${project.data}?error=Não+foi+possível+guardar+a+descrição+da+imagem.`);
+  const { data: savedProject } = await supabase.from("projects").select("slug").eq("id", project.data).maybeSingle();
+  revalidateProjects(savedProject?.slug);
+  redirect(`/admin/projetos/${project.data}?alt=1`);
 }
 
 export async function deleteProject(projectId: string) {

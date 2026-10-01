@@ -28,10 +28,13 @@ export function ProjectForm({
     publishRequested: boolean;
     warning?: string;
     files: File[];
+    altTexts: string[];
     uploaded: Set<number>;
     coverUrl: string | null;
   } | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
+  const [photoNames, setPhotoNames] = useState<string[]>([]);
+  const [photoAlts, setPhotoAlts] = useState<string[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [uploadedCount, setUploadedCount] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -44,6 +47,11 @@ export function ProjectForm({
     if (photos.some((photo) => !allowedTypes.has(photo.type) || photo.size > 50 * 1024 * 1024)) {
       setMessage("Use imagens JPG, PNG, WebP ou AVIF de até 50 MB cada.");
       return;
+    }
+    const altTexts = draftRef.current?.altTexts ?? photos.map((_, index) => photoAlts[index]?.trim() ?? "");
+    if (!draftRef.current && formData.get("is_published") === "on") {
+      if (!photos.length) return setMessage("Selecione pelo menos uma imagem antes de publicar.");
+      if (altTexts.some((alt) => alt.length < 5)) return setMessage("Descreva cada imagem antes de publicar.");
     }
 
     setBusy(true);
@@ -61,6 +69,7 @@ export function ProjectForm({
           publishRequested: created.publishRequested ?? false,
           warning: created.warning,
           files: photos,
+          altTexts,
           uploaded: new Set(),
           coverUrl: null
         };
@@ -86,7 +95,7 @@ export function ProjectForm({
           type: "image",
           url,
           storage_path: path,
-          alt_text: "",
+          alt_text: draft.altTexts[index],
           sort_order: index,
           before_after_group: null
         });
@@ -131,10 +140,21 @@ export function ProjectForm({
           <label className="admin-field admin-field--full"><span>URL de vídeo externo</span><input name="video_url" type="url" defaultValue={project?.video_url ?? ""} placeholder="https://…" /></label>
         </div>
         {!project && <div className="project-form__photos">
-          <label className="admin-field admin-field--file"><span>Fotografias do projeto</span><input ref={photosRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple disabled={!!draftId} onChange={(event) => setPhotoCount(event.target.files?.length ?? 0)} /></label>
+          <label className="admin-field admin-field--file"><span>Fotografias do projeto</span><input ref={photosRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple disabled={!!draftId} onChange={(event) => {
+            const names = Array.from(event.target.files ?? [], (file) => file.name);
+            setPhotoCount(names.length);
+            setPhotoNames(names);
+            setPhotoAlts(names.map(() => ""));
+          }} /></label>
           <p>{photoCount ? `${photoCount} ${photoCount === 1 ? "imagem selecionada" : "imagens selecionadas"}. A primeira será a capa.` : "Selecione as imagens reais agora; serão enviadas e associadas ao projeto ao guardar."}</p>
+          {!!photoNames.length && <div className="project-form__photo-alts">
+            {photoNames.map((name, index) => <label className="admin-field" key={`${name}-${index}`}>
+              <span>Descrição da imagem {index + 1}: {name}</span>
+              <input value={photoAlts[index] ?? ""} onChange={(event) => setPhotoAlts((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))} maxLength={180} disabled={!!draftId} placeholder="Descreva o que aparece na fotografia" />
+            </label>)}
+          </div>}
           {draftId && <p>{uploadedCount} de {photoCount} imagens guardadas neste rascunho. Os dados principais já foram guardados; edite-os no rascunho, se necessário.</p>}
-          <small>JPG, PNG, WebP ou AVIF · até 50 MB por imagem.</small>
+          <small>JPG, PNG, WebP ou AVIF · até 50 MB por imagem. Para publicar agora, descreva cada fotografia.</small>
         </div>}
       </section>
 
