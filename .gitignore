@@ -13,3 +13,4 @@ npm-debug.log*
 public/media/hero/frames/
 /ChatGPT Image*.png
 /ChatGPT Image*.jpg
+.audit/
