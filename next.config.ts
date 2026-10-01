@@ -3,7 +3,14 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  images: { formats: ["image/avif", "image/webp"] },
+  images: {
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: [{
+      protocol: "https",
+      hostname: "zjjepitczgffszbilfte.supabase.co",
+      pathname: "/storage/v1/object/public/project-media/**"
+    }]
+  },
   async headers() {
     return [
       {
