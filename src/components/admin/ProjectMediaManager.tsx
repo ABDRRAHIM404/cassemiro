@@ -9,6 +9,16 @@ import type { Database } from "@/types/supabase";
 
 type Media = Database["public"]["Tables"]["project_media"]["Row"];
 type MediaType = "image" | "video" | "before" | "after";
+type UploadSession = {
+  files: File[];
+  uploaded: Set<number>;
+  nextOrder: number;
+  firstImageUrl: string | null;
+  mediaType: MediaType;
+  altText: string;
+  group: string;
+};
+const allowedFileTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif", "video/mp4", "video/webm"]);
 
 function storagePath(url: string) {
   const marker = "/project-media/";
@@ -19,61 +29,88 @@ function storagePath(url: string) {
 export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { projectId: string; initialMedia: Media[]; heroImage: string | null }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadSessionRef = useRef<UploadSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [retryPending, setRetryPending] = useState(false);
   const [mediaType, setMediaType] = useState<MediaType>("image");
   const [altText, setAltText] = useState("");
   const [group, setGroup] = useState("");
 
   async function upload() {
-    const files = Array.from(inputRef.current?.files ?? []);
+    if (busy) return;
+    const files = uploadSessionRef.current?.files ?? Array.from(inputRef.current?.files ?? []);
     if (!files.length) return setMessage("Selecione pelo menos um arquivo.");
     if (files.some((file) => file.size > 50 * 1024 * 1024)) return setMessage("Cada arquivo pode ter no máximo 50 MB.");
+    if (files.some((file) => !allowedFileTypes.has(file.type))) return setMessage("Use imagens JPG, PNG, WebP ou AVIF, ou vídeos MP4/WebM.");
 
     setBusy(true);
-    setMessage("");
+    setMessage(uploadSessionRef.current ? "A continuar o envio…" : "A enviar arquivos…");
     const supabase = createClient();
-    let nextOrder = initialMedia.reduce((max, item) => Math.max(max, item.sort_order), -1) + 1;
-    let firstImageUrl: string | null = null;
-    let failed = false;
-
-    for (const file of files) {
-      const isVideo = file.type.startsWith("video/");
-      const valid = file.type.startsWith("image/") || isVideo;
-      if (!valid) { failed = true; setMessage("Use imagens JPG, PNG, WebP ou AVIF, ou vídeos MP4/WebM."); break; }
-
-      const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || (isVideo ? "mp4" : "jpg");
-      const path = `${projectId}/${crypto.randomUUID()}.${extension}`;
-      const mediaId = crypto.randomUUID();
-      const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-      if (uploadError) { failed = true; setMessage(`Falha ao enviar ${file.name}.`); break; }
-
-      const url = projectMediaUrl(mediaId);
-      const type: MediaType = isVideo ? "video" : mediaType;
-      const { error: recordError } = await supabase.from("project_media").insert({
-        id: mediaId,
-        project_id: projectId,
-        type,
-        url,
-        storage_path: path,
-        alt_text: altText.trim(),
-        sort_order: nextOrder++,
-        before_after_group: type === "before" || type === "after" ? group.trim() || "comparativo-1" : null
-      });
-      if (recordError) {
-        await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
-        failed = true;
-        setMessage(`Falha ao registrar ${file.name}.`);
-        break;
-      }
-      if (!isVideo && !firstImageUrl) firstImageUrl = url;
+    if (!uploadSessionRef.current) {
+      uploadSessionRef.current = {
+        files,
+        uploaded: new Set(),
+        nextOrder: initialMedia.reduce((max, item) => Math.max(max, item.sort_order), -1) + 1,
+        firstImageUrl: null,
+        mediaType,
+        altText: altText.trim(),
+        group: group.trim()
+      };
     }
+    const session = uploadSessionRef.current;
 
-    if (!heroImage && firstImageUrl) await supabase.from("projects").update({ hero_image: firstImageUrl }).eq("id", projectId);
-    if (!failed) setMessage("Arquivos enviados com sucesso.");
-    if (inputRef.current) inputRef.current.value = "";
-    setBusy(false);
-    router.refresh();
+    try {
+      for (const [index, file] of session.files.entries()) {
+        if (session.uploaded.has(index)) continue;
+        setMessage(`A enviar arquivo ${index + 1} de ${session.files.length}…`);
+        const isVideo = file.type.startsWith("video/");
+        const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
+        const path = `${projectId}/${crypto.randomUUID()}.${extension}`;
+        const mediaId = crypto.randomUUID();
+        const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+        if (uploadError) throw new Error(`Falha ao enviar ${file.name}.`);
+
+        const url = projectMediaUrl(mediaId);
+        const type: MediaType = isVideo ? "video" : session.mediaType;
+        const { error: recordError } = await supabase.from("project_media").insert({
+          id: mediaId,
+          project_id: projectId,
+          type,
+          url,
+          storage_path: path,
+          alt_text: session.altText,
+          sort_order: session.nextOrder,
+          before_after_group: type === "before" || type === "after" ? session.group || "comparativo-1" : null
+        });
+        if (recordError) {
+          const { error: cleanupError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
+          throw new Error(cleanupError
+            ? `Falha ao registrar ${file.name} e limpar o arquivo enviado. Contacte o suporte.`
+            : `Falha ao registrar ${file.name}.`);
+        }
+        session.uploaded.add(index);
+        session.nextOrder += 1;
+        if (!isVideo && !session.firstImageUrl) session.firstImageUrl = url;
+      }
+
+      if (!heroImage && session.firstImageUrl) {
+        const { error: coverError } = await supabase.from("projects")
+          .update({ hero_image: session.firstImageUrl }).eq("id", projectId).select("id").single();
+        if (coverError) throw new Error("Arquivos guardados, mas não foi possível definir a capa.");
+      }
+      setMessage(`${session.uploaded.size} ${session.uploaded.size === 1 ? "arquivo enviado" : "arquivos enviados"} com sucesso.`);
+      uploadSessionRef.current = null;
+      setRetryPending(false);
+      if (inputRef.current) inputRef.current.value = "";
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Não foi possível concluir o envio.";
+      setMessage(`${detail} ${session.uploaded.size} de ${session.files.length} arquivos guardados. Tente novamente para continuar sem duplicar os já enviados.`);
+      setRetryPending(true);
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   async function remove(item: Media) {
@@ -104,16 +141,16 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
   }
 
   async function move(index: number, direction: -1 | 1) {
-    const other = initialMedia[index + direction];
     const current = initialMedia[index];
-    if (!other || !current) return;
+    if (!initialMedia[index + direction] || !current) return;
     setBusy(true);
     const supabase = createClient();
-    const [first, second] = await Promise.all([
-      supabase.from("project_media").update({ sort_order: other.sort_order }).eq("id", current.id),
-      supabase.from("project_media").update({ sort_order: current.sort_order }).eq("id", other.id)
-    ]);
-    setMessage(first.error || second.error ? "Não foi possível reordenar." : "Ordem atualizada.");
+    const { data, error } = await supabase.rpc("swap_project_media_order", {
+      p_project_id: projectId,
+      p_media_id: current.id,
+      p_direction: direction
+    });
+    setMessage(error || !data ? "Não foi possível reordenar." : "Ordem atualizada.");
     setBusy(false);
     router.refresh();
   }
@@ -122,12 +159,12 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
     <section className="admin-panel project-media">
       <div className="admin-panel__heading"><div><span>IMAGENS E VÍDEOS</span><h2>Galeria do projeto</h2></div></div>
       <div className="project-media__upload">
-        <label className="admin-field admin-field--file"><span>Arquivos</span><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" multiple /></label>
-        <label className="admin-field"><span>Tipo</span><select value={mediaType} onChange={(event) => setMediaType(event.target.value as MediaType)}><option value="image">Imagem</option><option value="before">Antes</option><option value="after">Depois</option></select></label>
-        <label className="admin-field"><span>Texto alternativo</span><input value={altText} onChange={(event) => setAltText(event.target.value)} maxLength={180} placeholder="Descreva o que aparece" /></label>
-        {(mediaType === "before" || mediaType === "after") && <label className="admin-field"><span>Grupo comparativo</span><input value={group} onChange={(event) => setGroup(event.target.value)} maxLength={80} placeholder="Ex.: fachada" /></label>}
-        <button type="button" onClick={upload} disabled={busy}>{busy ? "Enviando…" : "Enviar arquivos"}</button>
-        {message && <p role="status">{message}</p>}
+        <label className="admin-field admin-field--file"><span>Arquivos</span><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" multiple disabled={retryPending || busy} /></label>
+        <label className="admin-field"><span>Tipo</span><select value={mediaType} onChange={(event) => setMediaType(event.target.value as MediaType)} disabled={retryPending || busy}><option value="image">Imagem</option><option value="before">Antes</option><option value="after">Depois</option></select></label>
+        <label className="admin-field"><span>Texto alternativo</span><input value={altText} onChange={(event) => setAltText(event.target.value)} maxLength={180} placeholder="Descreva o que aparece" disabled={retryPending || busy} /></label>
+        {(mediaType === "before" || mediaType === "after") && <label className="admin-field"><span>Grupo comparativo</span><input value={group} onChange={(event) => setGroup(event.target.value)} maxLength={80} placeholder="Ex.: fachada" disabled={retryPending || busy} /></label>}
+        <button type="button" onClick={upload} disabled={busy}>{busy ? "Enviando…" : retryPending ? "Tentar novamente" : "Enviar arquivos"}</button>
+        {message && <p role={retryPending ? "alert" : "status"}>{message}</p>}
       </div>
       {initialMedia.length ? (
         <div className="project-media__grid">

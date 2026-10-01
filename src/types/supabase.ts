@@ -329,6 +329,10 @@ export type Database = {
         Args: { p_service_id: string; p_direction: number }
         Returns: boolean
       }
+      swap_project_media_order: {
+        Args: { p_project_id: string; p_media_id: string; p_direction: number }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
