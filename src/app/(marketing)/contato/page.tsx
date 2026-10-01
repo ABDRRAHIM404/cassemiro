@@ -5,7 +5,8 @@ import { parseBusinessSettings } from "@/lib/site-settings";
 
 export const metadata: Metadata = {
   title: "Solicitar orçamento",
-  description: "Fale com a CASSEMIRO sobre sua construção ou reforma em Sorocaba e região."
+  description: "Fale com a CASSEMIRO sobre sua construção ou reforma em Sorocaba e região.",
+  alternates: { canonical: "/contato" }
 };
 
 export default async function ContactPage() {

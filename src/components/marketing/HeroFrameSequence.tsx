@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { constructionServices } from "@/config/construction-services";
 
 type DecodedFrame = ImageBitmap | HTMLImageElement;
 
@@ -26,15 +27,6 @@ const HOLD_END = 0.67;
 const WHEEL_DELTA_THRESHOLD = 4;
 const WHEEL_GESTURE_IDLE_MS = 1100;
 const MIN_SNAP_LOCK_MS = 1100;
-
-const constructionServices = [
-  { title: "Fundações", text: "Precisão começa no que sustenta.", frameStart: 0.08, frameHold: 0.15, frameEnd: 0.22 },
-  { title: "Estruturas", text: "Força calculada para permanecer.", frameStart: 0.22, frameHold: 0.36, frameEnd: 0.44 },
-  { title: "Alvenaria", text: "Forma, prumo e cuidado em cada parede.", frameStart: 0.44, frameHold: 0.58, frameEnd: 0.67 },
-  { title: "Instalações", text: "Soluções integradas antes de fechar.", frameStart: 0.67, frameHold: 0.71, frameEnd: 0.76 },
-  { title: "Acabamentos", text: "O detalhe transforma construção em espaço.", frameStart: 0.76, frameHold: 0.87, frameEnd: 0.95 },
-  { title: "Construção Completa", text: "Da primeira marca à entrega final.", frameStart: 0.95, frameHold: 0.99, frameEnd: 1 },
-] as const;
 
 const serviceSnapProgresses = constructionServices.map((_, index) => (
   SERVICE_START_PROGRESS + ((index + 0.5) / constructionServices.length) * (1 - SERVICE_START_PROGRESS)

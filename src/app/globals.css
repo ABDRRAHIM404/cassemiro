@@ -81,6 +81,7 @@ h2 em, h3 em { font-family: var(--serif); font-weight: 400; }
 .hero h1 span:last-child { margin-left: clamp(36px, 8vw, 130px); color: var(--ivory); font-style: italic; }
 .hero__intro { max-width: 480px; margin: 0 0 42px clamp(36px, 8vw, 130px); color: rgba(255,255,255,.78); font-size: clamp(.95rem, 1.2vw, 1.12rem); }
 .hero__actions { display: flex; align-items: center; gap: 35px; margin-left: clamp(36px, 8vw, 130px); }
+.hero__reduced-services-link, .hero__reduced-stages { display: none; }
 .hero__scroll { position: absolute; z-index: 2; right: 48px; bottom: 46px; display: flex; align-items: center; gap: 18px; color: rgba(255,255,255,.58); font-size: .56rem; letter-spacing: .2em; text-transform: uppercase; transform: rotate(90deg) translateX(-100%); transform-origin: left bottom; }
 .hero__scroll i { position: relative; display: block; width: 70px; height: 1px; overflow: hidden; background: rgba(255,255,255,.25); }
 .hero__scroll i::after { position: absolute; inset: 0; background: white; content: ""; animation: scroll-line 2s ease-in-out infinite; }
@@ -346,6 +347,7 @@ h2 em, h3 em { font-family: var(--serif); font-weight: 400; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--bronze-light); }
 .field input[aria-invalid="true"], .field select[aria-invalid="true"], .field textarea[aria-invalid="true"] { border-color: #e89684; }
 .field small { margin-top: 7px; color: #f3a493; font-size: .7rem; }
+.quote-form__validation-summary { margin: 0; color: #f3a493; font-size: .84rem; }
 .quote-form__footer { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 8px; }
 .quote-form__footer p { max-width: 310px; margin: 0; color: rgba(255,255,255,.4); font-size: .72rem; }
 .quote-form__footer .button { border: 0; cursor: pointer; }
@@ -910,12 +912,26 @@ body:has(.admin-shell), body:has(.admin-login) { padding-bottom: 0; background: 
   .why__content { min-height: 100svh; }
   .why__heading { opacity: 1; transform: none; }
   .why__image, .why__grid, .why__glow { transform: none; }
-  .hero--sequence { height: 100svh; }
+  .hero--sequence { height: auto; }
+  .hero__sticky { position: relative; }
+  .hero__services-link { display: none; }
+  .hero__reduced-services-link { display: inline-flex; }
   .hero-services { display: none; }
+  .hero__reduced-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 42px 32px; padding-top: 54px; padding-bottom: 74px; }
+  .hero__reduced-stages > div { border-top: 1px solid rgba(210,174,120,.38); padding-top: 17px; }
+  .hero__reduced-stages span { color: var(--bronze-light); font-size: .62rem; letter-spacing: .18em; }
+  .hero__reduced-stages h2 { margin: 13px 0 8px; font-family: var(--serif); font-size: clamp(1.7rem, 3vw, 2.6rem); font-weight: 400; }
+  .hero__reduced-stages p { max-width: 280px; margin: 0; color: rgba(255,255,255,.68); font-size: .88rem; line-height: 1.55; }
   .process { height: auto; }
   .process__sticky { position: relative; height: auto; min-height: 760px; }
   .values__heading, .value-card { position: relative; top: auto; }
   .catalog__rail-item { transition: none; }
   .story__portrait-layer, .story__copy { transform: none; }
   .projects-journey__slide, .projects-journey__meter b, .projects-journey__image img { transition-duration: .01ms; }
+}
+
+@media (prefers-reduced-motion: reduce) and (max-width: 700px) {
+  .hero__reduced-stages { grid-template-columns: 1fr 1fr; gap: 28px 18px; padding-top: 36px; padding-bottom: 52px; }
+  .hero__reduced-stages h2 { font-size: clamp(1.45rem, 6vw, 2rem); }
+  .hero__reduced-stages p { font-size: .78rem; }
 }

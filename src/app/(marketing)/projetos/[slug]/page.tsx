@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
+import { titleWithSingleBrand } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -18,7 +19,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!project) return {};
   const title = project.seo_title || project.title;
   const description = project.seo_description || project.summary;
-  return { title, description, openGraph: { title, description, images: project.hero_image ? [project.hero_image] : undefined } };
+  return {
+    title: titleWithSingleBrand(title),
+    description,
+    alternates: { canonical: `/projetos/${project.slug}` },
+    openGraph: { title, description, images: project.hero_image ? [project.hero_image] : undefined }
+  };
 }
 
 export default async function ProjectDetailPage({ params }: Props) {

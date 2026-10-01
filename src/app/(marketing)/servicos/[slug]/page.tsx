@@ -5,6 +5,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { siteConfig } from "@/config/site";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { parseBusinessSettings } from "@/lib/site-settings";
+import { titleWithSingleBrand } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -18,7 +19,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const service = await getService(slug);
   if (!service) return {};
-  return { title: service.seo_title || service.title, description: service.seo_description || service.short_description };
+  return {
+    title: titleWithSingleBrand(service.seo_title || service.title),
+    description: service.seo_description || service.short_description,
+    alternates: { canonical: `/servicos/${service.slug}` }
+  };
 }
 
 export default async function ServiceDetailPage({ params }: Props) {

@@ -5,7 +5,8 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 
 export const metadata: Metadata = {
   title: "Serviços de construção e reformas",
-  description: "Construção residencial e comercial, reformas, estruturas, instalações e acabamentos em Sorocaba e região."
+  description: "Construção residencial e comercial, reformas, estruturas, instalações e acabamentos em Sorocaba e região.",
+  alternates: { canonical: "/servicos" }
 };
 
 export default async function ServicesPage() {

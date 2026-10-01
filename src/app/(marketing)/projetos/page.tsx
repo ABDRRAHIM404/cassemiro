@@ -4,7 +4,8 @@ import { TrackedLink } from "@/components/analytics/TrackedLink";
 
 export const metadata: Metadata = {
   title: "Projetos realizados",
-  description: "Conheça obras e reformas realizadas pela CASSEMIRO em Sorocaba e região."
+  description: "Conheça obras e reformas realizadas pela CASSEMIRO em Sorocaba e região.",
+  alternates: { canonical: "/projetos" }
 };
 
 export default async function ProjectsPage() {

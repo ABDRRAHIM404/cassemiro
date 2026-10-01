@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { ContactCta } from "@/components/marketing/ContactCta";
 import { Hero } from "@/components/marketing/Hero";
 import { ProjectsJourney } from "@/components/marketing/ProjectsJourney";
@@ -8,6 +9,8 @@ import { siteConfig } from "@/config/site";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { createPublicClient } from "@/lib/supabase/public";
 import { parseBusinessSettings, parseHomepageContent } from "@/lib/site-settings";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function HomePage() {
   const supabase = createPublicClient();

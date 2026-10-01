@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
 import { parseBusinessSettings } from "@/lib/site-settings";
 
-export const metadata: Metadata = { title: "Política de privacidade", robots: { index: true, follow: true } };
+export const metadata: Metadata = {
+  title: "Política de privacidade",
+  alternates: { canonical: "/politica-de-privacidade" },
+  robots: { index: true, follow: true }
+};
 
 export default async function PrivacyPage() {
   const supabase = createPublicClient();
