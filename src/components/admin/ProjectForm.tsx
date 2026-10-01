@@ -23,13 +23,23 @@ export function ProjectForm({
 }) {
   const router = useRouter();
   const photosRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef<{
+    id: string;
+    publishRequested: boolean;
+    warning?: string;
+    files: File[];
+    uploaded: Set<number>;
+    coverUrl: string | null;
+  } | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [uploadedCount, setUploadedCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   async function createWithPhotos(formData: FormData) {
     if (busy) return;
-    const photos = Array.from(photosRef.current?.files ?? []);
+    const photos = draftRef.current?.files ?? Array.from(photosRef.current?.files ?? []);
     const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
     if (photos.some((photo) => !allowedTypes.has(photo.type) || photo.size > 50 * 1024 * 1024)) {
       setMessage("Use imagens JPG, PNG, WebP ou AVIF de até 50 MB cada.");
@@ -37,24 +47,33 @@ export function ProjectForm({
     }
 
     setBusy(true);
-    setMessage("A criar projeto…");
-    let projectId: string | undefined;
-
+    setMessage(draftRef.current ? "A continuar o envio…" : "A criar projeto…");
     try {
       // The files are deliberately not in FormData: Server Actions have a small request limit.
-      const created = await createProjectForUpload(formData);
-      if (!created.id) {
-        setMessage(created.error ?? "Não foi possível criar o projeto.");
-        return;
+      if (!draftRef.current) {
+        const created = await createProjectForUpload(formData);
+        if (!created.id) {
+          setMessage(created.error ?? "Não foi possível criar o projeto.");
+          return;
+        }
+        draftRef.current = {
+          id: created.id,
+          publishRequested: created.publishRequested ?? false,
+          warning: created.warning,
+          files: photos,
+          uploaded: new Set(),
+          coverUrl: null
+        };
+        setDraftId(created.id);
       }
-      projectId = created.id;
+      const draft = draftRef.current;
 
       const supabase = createClient();
-      let coverUrl: string | null = null;
       for (const [index, photo] of photos.entries()) {
+        if (draft.uploaded.has(index)) continue;
         setMessage(`A enviar imagem ${index + 1} de ${photos.length}…`);
         const extension = photo.type === "image/jpeg" ? "jpg" : photo.type.split("/")[1];
-        const path = `${projectId}/${crypto.randomUUID()}.${extension}`;
+        const path = `${draft.id}/${crypto.randomUUID()}.${extension}`;
         const mediaId = crypto.randomUUID();
         const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET)
           .upload(path, photo, { contentType: photo.type, upsert: false });
@@ -63,7 +82,7 @@ export function ProjectForm({
         const url = projectMediaUrl(mediaId);
         const { error: recordError } = await supabase.from("project_media").insert({
           id: mediaId,
-          project_id: projectId,
+          project_id: draft.id,
           type: "image",
           url,
           storage_path: path,
@@ -72,23 +91,26 @@ export function ProjectForm({
           before_after_group: null
         });
         if (recordError) {
-          await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
-          throw new Error(`Não foi possível guardar ${photo.name} na galeria.`);
+          const { error: cleanupError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
+          throw new Error(cleanupError
+            ? `Não foi possível guardar ${photo.name} na galeria nem limpar o arquivo enviado. Contacte o suporte.`
+            : `Não foi possível guardar ${photo.name} na galeria.`);
         }
-        coverUrl ??= url;
+        draft.uploaded.add(index);
+        setUploadedCount(draft.uploaded.size);
+        draft.coverUrl ??= url;
       }
 
       setMessage("A concluir projeto…");
-      const completed = await completeProjectCreation(projectId, created.publishRequested ?? false, coverUrl);
-      const warning = [created.warning, completed.error].filter(Boolean).join(" ");
-      router.replace(`/admin/projetos/${projectId}?${warning ? `error=${encodeURIComponent(warning)}` : "created=1"}`);
+      const completed = await completeProjectCreation(draft.id, draft.publishRequested, draft.coverUrl);
+      if (completed.error) throw new Error(completed.error);
+      router.replace(`/admin/projetos/${draft.id}?${draft.warning ? `error=${encodeURIComponent(draft.warning)}` : "created=1"}`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Não foi possível concluir o envio das imagens.";
-      if (projectId) {
-        router.replace(`/admin/projetos/${projectId}?error=${encodeURIComponent(`${detail} O projeto foi guardado como rascunho; pode enviar as restantes imagens aqui.`)}`);
-      } else {
-        setMessage(detail);
-      }
+      const draft = draftRef.current;
+      setMessage(draft
+        ? `${detail} ${draft.uploaded.size} de ${draft.files.length} imagens guardadas. O projeto permanece como rascunho; tente novamente para continuar.`
+        : detail);
     } finally {
       setBusy(false);
     }
@@ -109,8 +131,9 @@ export function ProjectForm({
           <label className="admin-field admin-field--full"><span>URL de vídeo externo</span><input name="video_url" type="url" defaultValue={project?.video_url ?? ""} placeholder="https://…" /></label>
         </div>
         {!project && <div className="project-form__photos">
-          <label className="admin-field admin-field--file"><span>Fotografias do projeto</span><input ref={photosRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple onChange={(event) => setPhotoCount(event.target.files?.length ?? 0)} /></label>
+          <label className="admin-field admin-field--file"><span>Fotografias do projeto</span><input ref={photosRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple disabled={!!draftId} onChange={(event) => setPhotoCount(event.target.files?.length ?? 0)} /></label>
           <p>{photoCount ? `${photoCount} ${photoCount === 1 ? "imagem selecionada" : "imagens selecionadas"}. A primeira será a capa.` : "Selecione as imagens reais agora; serão enviadas e associadas ao projeto ao guardar."}</p>
+          {draftId && <p>{uploadedCount} de {photoCount} imagens guardadas neste rascunho. Os dados principais já foram guardados; edite-os no rascunho, se necessário.</p>}
           <small>JPG, PNG, WebP ou AVIF · até 50 MB por imagem.</small>
         </div>}
       </section>
@@ -132,8 +155,9 @@ export function ProjectForm({
           <label className="admin-field"><span>Título para busca</span><input name="seo_title" defaultValue={project?.seo_title ?? ""} maxLength={70} /></label>
           <label className="admin-field"><span>Descrição para busca</span><textarea name="seo_description" defaultValue={project?.seo_description ?? ""} maxLength={170} rows={4} /></label>
         </section>
-        <button className="button button--bronze project-form__save" type="submit" disabled={busy}>{busy ? "A guardar…" : project ? "Salvar projeto" : "Guardar projeto e imagens"}</button>
+        <button className="button button--bronze project-form__save" type="submit" disabled={busy}>{busy ? "A guardar…" : project ? "Salvar projeto" : draftId ? "Tentar novamente" : "Guardar projeto e imagens"}</button>
         {!project && message && <p className="project-form__status" role="status" aria-live="polite">{message}</p>}
+        {!project && draftId && <a href={`/admin/projetos/${draftId}`}>Abrir rascunho e completar manualmente</a>}
       </aside>
     </form>
   );
