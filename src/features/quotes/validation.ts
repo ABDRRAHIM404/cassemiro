@@ -12,7 +12,7 @@ export const quoteRequestSchema = z.object({
   utmSource: optionalTrackingField,
   utmMedium: optionalTrackingField,
   utmCampaign: optionalTrackingField,
-  company: z.string().max(0).optional()
+  company: z.string().max(200).optional()
 });
 
 export type QuoteRequestInput = z.infer<typeof quoteRequestSchema>;

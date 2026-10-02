@@ -1797,3 +1797,9 @@ At the same time, never let visual effects obscure the company's real strengths:
 The final reaction should be:
 
 > “This company looks serious. Their work feels thoughtful. I want to contact them.”
+
+---
+
+# 43. LIVE AUDIT REMEDIATION RECORD
+
+The 1 October 2026 `.audit/` reports describe the site at commit `5ed4f02`; they are not a current-state checklist. Track every subsequent fix, its verification, and remaining gates in [docs/AUDIT_REMEDIATION_PROGRESS.md](docs/AUDIT_REMEDIATION_PROGRESS.md). Update that record with each fix before committing it. Later homepage decisions (integrated hero services and the stationary project carousel) supersede older, incompatible scene descriptions above.
