@@ -77,7 +77,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
   }
 
   return (
-    <section id="projetos" className="projects-journey" aria-labelledby="projects-title">
+    <section id="projetos" className="projects-journey" aria-labelledby="projects-title" aria-roledescription="carrossel">
       <header className="shell projects-journey__header">
         <div><p className="eyebrow">Projetos selecionados</p><h2 id="projects-title">Obras que<br /><em>permanecem.</em></h2></div>
         <div className="projects-journey__meter" aria-label={`Projeto ${active + 1} de ${projects.length}`}>
@@ -89,8 +89,9 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
         <div
           ref={stageRef}
           className="projects-journey__stage"
+          role="group"
           tabIndex={canRotate ? 0 : undefined}
-          aria-label="Catálogo de projetos. Use as setas para navegar."
+          aria-label="Use as setas para navegar pelos projetos"
           onKeyDown={(event) => {
             if (event.key === "ArrowRight") { event.preventDefault(); select(active + 1); }
             if (event.key === "ArrowLeft") { event.preventDefault(); select(active - 1); }

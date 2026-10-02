@@ -21,7 +21,8 @@ Updated: 2 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 | Baseline CSP protection | `97d6bc5` | Production header verified on `/`, `/contato`, `/admin/login`, and `/admin`; those pages render at 390 px with no error overlay/overflow. Blocks object embeds, cross-site base URLs, outside form actions, and cross-site framing. A restrictive script/style policy remains open. |
 | Admin warning for missing quote email | `c6ded5c` | An authorized admin sees a warning when any required Resend/destination setting is absent; it does not imply delivery has been tested. Deployment is READY; production signed-in rendering remains to be checked. |
 | Additional dark-surface text contrast | `bb0fd3a` | Production computed styles verified for trust footnote, testimonial source, and quote privacy note at 390 px; no horizontal overflow. Admin sidebar and full contrast audit remain to be checked. |
-| Portuguese quote date entry | This tracker commit | Replaced browser-locale `mm/dd/yyyy` display with `DD/MM/AAAA` text entry, validates real calendar dates, and sends ISO `YYYY-MM-DD` to the existing API. Unit tests added; browser validation without sending a real quote remains to be verified. |
+| Portuguese quote date entry | `9ff48fc` | Production at 390 px shows `DD/MM/AAAA`. An impossible date displays an associated error, receives focus, and makes zero fetch calls; parser tests prove ISO conversion. No real quote was submitted. |
+| Carousel landmark and keyboard context | This tracker commit | Added a localized carousel role description and an instructed focusable group; production keyboard Right Arrow previously changed title/index while retaining focus and no page overflow. Screen-reader announcement quality remains unverified. |
 
 ## Remaining work, in priority order
 
