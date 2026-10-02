@@ -16,15 +16,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const admin = createSupabaseAdmin();
   if (!admin) return new Response(null, { status: 503, headers: { "Cache-Control": "no-store" } });
 
-  const { data: media } = await admin.from("project_media")
-    .select("project_id, storage_path").eq("id", id).maybeSingle();
-  if (!media?.storage_path) return notFound();
+  const { data: media, error: mediaError } = await admin.from("project_media")
+    .select("storage_path, projects(is_published)").eq("id", id).maybeSingle();
+  if (mediaError) {
+    console.error("Project media lookup failed", mediaError.message);
+    return new Response(null, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!media?.storage_path || !media.projects) return notFound();
 
-  const { data: project } = await admin.from("projects")
-    .select("is_published").eq("id", media.project_id).maybeSingle();
-  if (!project) return notFound();
-
-  if (!project.is_published) {
+  if (!media.projects.is_published) {
     const session = await createClient();
     const { data: claims } = await session.auth.getClaims();
     const userId = claims?.claims?.sub;
