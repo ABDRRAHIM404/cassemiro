@@ -22,6 +22,13 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" }
         ]
+      },
+      {
+        source: "/auth/callback",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "Referrer-Policy", value: "no-referrer" }
+        ]
       }
     ];
   }

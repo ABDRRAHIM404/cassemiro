@@ -25,6 +25,7 @@ Updated: 2 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 | Carousel landmark and keyboard context | `1c8f459` | Production DOM exposes localized `carrossel` region, instructed focusable group, and polite live caption. After hydration, Right Arrow changes 1/2 to 2/2 without moving focus or causing page overflow. Actual screen-reader announcement quality remains unverified. |
 | Reuse loaded hero poster as frame 001 | `4cd00bd` | Before: a live 390 px session fetched frame 001 twice. After: local production build/browser at 390 px and 1366 px requests it once (`img`), the canvas becomes ready, the service phase advances, and neither viewport overflows. Avoids one approximately 41 KB mobile / 132 KB desktop image transfer in these tests. Cross-device field performance remains unmeasured. |
 | Compact static sequence on constrained devices | Pending commit | Before: simulated 1 GiB/2-core device suppressed canvas decoding but kept a roughly 5064 px hero and hid the service list. After: local production build/browser with simulated low memory or `saveData` shows the six static stages and services link in a roughly 1387 px hero at 390 px; normal motion remains unchanged. Reduced-motion CSS was also checked at 390/1366 px. Real device testing remains open. |
+| Private, uncached auth callback redirects | Pending commit | An invalid recovery code previously produced a public-cacheable 307. After the fix, the local production build returns a 307 with `Cache-Control: private, no-store, max-age=0` and `Referrer-Policy: no-referrer`; production verification remains. This does not prove a real recovery email or successful code exchange. |
 
 ## Remaining work, in priority order
 
@@ -33,6 +34,8 @@ Performance measurement note (2 Oct): `next experimental-analyze --output` was s
 Vercel environment-name check (2 Oct, values not decrypted): Production and Preview each have `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. No `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, or `QUOTE_NOTIFICATION_EMAIL` is configured, so the quote endpoint currently skips notification email. Sentry variables are also absent; do not claim Sentry monitoring is active. This resolves the environment *inventory* part of D-03 but not delivery verification.
 
 Vercel build-log check (2 Oct, deployment `97d6bc5`): 81 build events were available. Next 16.3.6 completed its build and deployed successfully. The only actionable warning is npm's unapproved `unrs-resolver@1.12.2` postinstall script; investigate whether its fallback affects build/lint performance before approving any dependency script. D-03's build-log visibility is now closed; the missing notification/monitoring configuration remains separate work.
+
+Rendered SEO check (2 Oct, production `51a359d`): all 13 sitemap URLs returned HTTP 200 with a matching canonical and title. The homepage JSON-LD parsed as `GeneralContractor`, and `robots.txt` links the sitemap while excluding `/admin/`. Factual service-area and business claims still need owner confirmation. An invalid auth callback code and an unauthenticated password-reset page both redirected to login; this does not test real recovery delivery.
 
 | Priority | Audit references | Required proof / next action |
 | --- | --- | --- |
