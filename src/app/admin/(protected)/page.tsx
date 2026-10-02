@@ -7,6 +7,9 @@ function formatDate(value: string) {
 
 export default async function AdminOverviewPage() {
   const { supabase, profile } = await requireAdmin();
+  const emailNotificationsConfigured = Boolean(
+    process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL && process.env.QUOTE_NOTIFICATION_EMAIL
+  );
   const [newQuotes, totalQuotes, projects, testimonials, recent] = await Promise.all([
     supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "Novo"),
     supabase.from("quote_requests").select("id", { count: "exact", head: true }),
@@ -28,6 +31,12 @@ export default async function AdminOverviewPage() {
         <div><p className="eyebrow eyebrow--dark">Visão geral</p><h1>Olá, {profile.display_name.split(" ")[0]}.</h1></div>
         <p>Acompanhe os novos contatos e mantenha o atendimento em movimento.</p>
       </div>
+      {!emailNotificationsConfigured && (
+        <div className="admin-email-warning" role="status">
+          <strong>Alertas por e-mail ainda não configurados.</strong>
+          <span>Os pedidos são guardados aqui no painel, mas nenhum aviso por e-mail é enviado. Verifique esta lista regularmente até o envio ser configurado.</span>
+        </div>
+      )}
       <section className="admin-metrics" aria-label="Indicadores">
         {cards.map((card, index) => <article key={card.label} className={card.accent ? "is-accent" : ""}><span>0{index + 1}</span><strong>{card.value}</strong><p>{card.label}</p></article>)}
       </section>

@@ -399,6 +399,8 @@ body:has(.admin-shell), body:has(.admin-login) { padding-bottom: 0; background: 
 .admin-alert--success { border-color: rgba(38, 115, 70, .28); color: #215f3b; background: rgba(38, 115, 70, .08); }
 .admin-login__back { display: inline-block; margin-top: 34px; color: #706c65; font-size: .72rem; }
 .admin-alert { margin: -20px 0 18px; padding: 13px 15px; border-left: 2px solid #a84632; color: #7e3021; background: #f1ded8; font-size: .78rem; }
+.admin-email-warning { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 26px; padding: 16px 18px; border-left: 2px solid #a46b34; color: #49311e; background: #f1e8da; font-size: .82rem; line-height: 1.5; }
+.admin-email-warning strong { font-weight: 700; }
 
 .admin-shell { display: grid; min-height: 100svh; grid-template-columns: 260px 1fr; background: #efede7; }
 .admin-sidebar { position: fixed; z-index: 5; inset: 0 auto 0 0; display: flex; width: 260px; flex-direction: column; padding: 34px 26px 28px; color: white; background: #111; }

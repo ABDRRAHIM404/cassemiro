@@ -47,6 +47,8 @@ You can:
 
 Update the status after every important step. This keeps the overview organized.
 
+If the overview displays “Alertas por e-mail ainda não configurados”, new requests are still saved in this panel, but no email notification is sent. Check `Orçamentos` regularly and ask the site administrator to configure and test the notification sender.
+
 ## Projects
 
 Open `Projetos` (Projects) to manage CASSEMIRO's real portfolio.
