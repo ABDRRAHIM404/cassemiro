@@ -17,6 +17,8 @@ Updated: 2 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 | Avoid below-fold project image preload | `b45ad85` | Production HTML and image loading verified. |
 | Readability of project hint/footer small text | `f082e67` | Production computed styles: 0.58 white opacity, 11.5 px; 390 px layout has no horizontal overflow. Full contrast audit remains. |
 | Quote honeypot validation | This tracker commit | A nonempty hidden field now parses so the route can return its quiet success without saving a quote. Added regression tests; production/staging abuse checks remain. |
+| Admin operating guide corrected | This tracker commit | Guide now matches the one-form photo upload/retry flow and states the owner's full-access role decision. Staged workflow tests remain. |
+| Baseline CSP protection | This tracker commit | Blocks object embeds, cross-site base URLs, outside form actions, and cross-site framing. A restrictive script/style policy still requires compatibility testing and is not claimed complete. |
 
 ## Remaining work, in priority order
 
@@ -27,7 +29,7 @@ Performance measurement note (2 Oct): `next experimental-analyze --output` was s
 | P1 | D-01, A-06, A-05, S-07 | Run safe staging fixtures through quote submission, email, admin create/edit/publish/delete, failed upload retry, honeypot behavior, and rate limiting. Never use real production leads for destructive tests. |
 | P2 | S-01, S-06 | Owner decision (2 Oct): all admin roles have full access. Current shared authorization matches that policy; still verify direct-action access with separate staging identities and document the meaning of each role label. |
 | P2 | S-05 | Verify Supabase Auth's current leaked-password protection setting and availability; enable and recheck if supported. |
-| P2 | S-02 | Add and test a compatible CSP across public/admin responses without breaking Next scripts or analytics. |
+| P2 | S-02 | Verify the baseline enforcing CSP on public/admin responses, then test a restrictive script/style policy without breaking prerendered Next scripts, Supabase uploads, analytics, or Sentry. |
 | P2 | S-03, A-03, U-04 | Owner decision (2 Oct): quote requests should be kept for 12 months after last contact. Implement reliable last-contact tracking and deletion/anonymization before stating this as operational fact; confirm business claims, service radius, and project stage with the owner. |
 | P2 | P-01, P-02, P-03, M-01 | Gather repeatable mobile/desktop performance data, frame decoding/transfer, JS attribution, and field Core Web Vitals where available. Optimize only demonstrated costs. |
 | P2 | X-01, X-03, M-03 | Complete keyboard/screen-reader carousel check, measured contrast survey, reduced-motion/low-memory device check, and exact viewport review. |

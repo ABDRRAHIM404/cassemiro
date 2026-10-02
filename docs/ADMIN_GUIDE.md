@@ -12,6 +12,8 @@ If you have not set a password yet, use `Entrar sem senha` (Sign in without a pa
 
 Everyone must use their own account. Do not share passwords. An authenticated account can access the panel only when it also has an authorized administrative profile.
 
+The authorized `owner`, `admin`, and `editor` profiles currently have the same full panel access, by the owner's decision. These labels do not restrict an editor to content-only work. Give an account to a person only when they should be trusted with settings, quotes, publishing, and deletion; remove its administrative profile when access should end.
+
 ## Overview
 
 The first screen shows:
@@ -52,8 +54,11 @@ Open `Projetos` (Projects) to manage CASSEMIRO's real portfolio.
 1. Click `Novo projeto` (New project).
 2. Enter only confirmed information about the project.
 3. Leave `Projeto publicado` (Published project) unchecked while the entry is incomplete.
-4. After creating the project, upload photos and videos in `Galeria do projeto` (Project gallery).
-5. Choose a cover image, review the text, and publish the project.
+4. Select the real project photos in the same form and add a short description for each image. The first selected photo becomes the cover. Photos upload and attach to the project when you click `Guardar projeto e imagens` (Save project and images).
+5. If an upload fails, the project remains a draft. Use `Tentar novamente` (Try again) to continue the remaining photos, or open the draft to complete it manually. Do not create a second copy of the project.
+6. Review the text, gallery, and cover before publishing. A published project needs at least one image and descriptions for its images.
+
+Additional photos and videos can be managed later in `Galeria do projeto` (Project gallery) on the edit screen.
 
 Media can be classified as an image, video, before image, or after image. To create a comparison, use the same name in `Grupo comparativo` (Comparison group) for the before and after images.
 
