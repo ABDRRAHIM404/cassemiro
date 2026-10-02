@@ -130,7 +130,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
                 }}
               >
                 <span className="projects-journey__image">
-                  <Image src={item.hero_image} alt={item.title} fill sizes="(max-width: 700px) 88vw, (max-width: 1100px) 76vw, 1060px" quality={78} priority={isActive && index === 0} unoptimized={item.hero_image.startsWith("/api/project-media/")} draggable={false} />
+                  <Image src={item.hero_image} alt={item.title} fill sizes="(max-width: 700px) 88vw, (max-width: 1100px) 76vw, 1060px" unoptimized={item.hero_image.startsWith("/api/project-media/")} draggable={false} />
                   <span className="projects-journey__image-index">{String(index + 1).padStart(2, "0")} / {String(projects.length).padStart(2, "0")}</span>
                 </span>
               </Link>
