@@ -154,17 +154,34 @@ export function HeroFrameSequence({
     const context = canvas?.getContext("2d", { alpha: false });
 
     if (!root || !canvas || !section || !context) return;
+    const earlyWheelWindow = window as Window & { __cassemiroEarlyWheel?: number; __cassemiroEarlyWheelTimer?: number; __cassemiroEarlyWheelHero?: HTMLElement };
+    const clearEarlyWheel = () => {
+      window.clearTimeout(earlyWheelWindow.__cassemiroEarlyWheelTimer);
+      delete earlyWheelWindow.__cassemiroEarlyWheelTimer;
+      delete earlyWheelWindow.__cassemiroEarlyWheel;
+      delete earlyWheelWindow.__cassemiroEarlyWheelHero;
+    };
 
     if (shouldUseStaticFallback()) {
       section.classList.add("hero--static-sequence");
-      return () => section.classList.remove("hero--static-sequence");
+      section.dataset.sequenceReady = "true";
+      clearEarlyWheel();
+      return () => {
+        section.classList.remove("hero--static-sequence");
+        delete section.dataset.sequenceReady;
+      };
     }
 
     const mobileMedia = window.matchMedia(MOBILE_QUERY);
     let frames = mobileMedia.matches && mobileFrames.length ? mobileFrames : desktopFrames;
     if (frames.length < 2) {
       section.classList.add("hero--static-sequence");
-      return () => section.classList.remove("hero--static-sequence");
+      section.dataset.sequenceReady = "true";
+      clearEarlyWheel();
+      return () => {
+        section.classList.remove("hero--static-sequence");
+        delete section.dataset.sequenceReady;
+      };
     }
 
     let cache = new Map<number, DecodedFrame>();
@@ -541,6 +558,12 @@ export function HeroFrameSequence({
     updateFromScroll();
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("wheel", handleServiceWheel, { passive: false });
+    section.dataset.sequenceReady = "true";
+    const earlyWheelDelta = earlyWheelWindow.__cassemiroEarlyWheel ?? 0;
+    clearEarlyWheel();
+    if (Math.abs(earlyWheelDelta) >= WHEEL_DELTA_THRESHOLD) {
+      handleServiceWheel(new WheelEvent("wheel", { deltaY: earlyWheelDelta, cancelable: true }));
+    }
     window.addEventListener("resize", handleResize, { passive: true });
     window.addEventListener("orientationchange", resetSequence, { passive: true });
     window.visualViewport?.addEventListener("resize", handleResize, { passive: true });
@@ -559,6 +582,7 @@ export function HeroFrameSequence({
       removePosterListeners();
       delete section.dataset.sequencePhase;
       delete section.dataset.snapTarget;
+      delete section.dataset.sequenceReady;
       controllers.forEach((controller) => controller.abort());
       cache.forEach(closeFrame);
     };
