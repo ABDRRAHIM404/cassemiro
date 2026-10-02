@@ -583,7 +583,7 @@ export function HeroFrameSequence({
         />
       </picture>
       <canvas ref={canvasRef} className="hero-sequence__canvas" aria-hidden="true" />
-      <div id="servicos" className="hero-services shell" aria-label="Serviços por etapa da construção">
+      <div id="servicos" className="hero-services shell" role="region" aria-label="Serviços por etapa da construção">
         <div className="hero-services__line" aria-hidden="true" />
         {constructionServices.map((service, index) => (
           <article className="hero-service" aria-hidden="true" key={service.title}>
