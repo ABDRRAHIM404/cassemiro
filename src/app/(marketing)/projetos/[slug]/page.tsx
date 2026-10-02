@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { titleWithSingleBrand } from "@/lib/seo";
+import { getVerifiedProjectContext } from "@/lib/project-photo-context";
+import { getVisibleServicesForProject } from "@/lib/public-project-links";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -33,21 +35,21 @@ export default async function ProjectDetailPage({ params }: Props) {
   if (!project) notFound();
 
   const supabase = createPublicClient();
-  const [mediaResult, linksResult] = await Promise.all([
+  const [mediaResult, services] = await Promise.all([
     supabase.from("project_media").select("*").eq("project_id", project.id).order("sort_order"),
-    supabase.from("project_services").select("service_id, services(title)").eq("project_id", project.id)
+    getVisibleServicesForProject(project.id)
   ]);
   const media = requirePublicData(mediaResult, "project media") ?? [];
   const galleryMedia = media.filter((item) => item.type !== "before" && item.type !== "after");
   const comparisonGroups = Array.from(new Set(media.filter((item) => item.type === "before" || item.type === "after").map((item) => item.before_after_group || "comparativo-1")))
     .map((name) => ({ name, before: media.find((item) => (item.before_after_group || "comparativo-1") === name && item.type === "before"), after: media.find((item) => (item.before_after_group || "comparativo-1") === name && item.type === "after") }))
     .filter((group) => group.before || group.after);
-  const services = (requirePublicData(linksResult, "project services") ?? []).flatMap((item) => item.services ? [item.services.title] : []);
+  const verifiedContext = getVerifiedProjectContext(project.slug, project.hero_image);
 
   return (
     <main id="conteudo" className="project-detail">
       <section className="project-detail__hero" style={project.hero_image ? { backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.2), rgba(0,0,0,.72)), url(${project.hero_image})` } : undefined}>
-        <div className="shell"><Link href="/projetos">← Todos os projetos</Link><p>{[project.category, project.city].filter(Boolean).join(" · ")}</p><h1>{project.title}</h1></div>
+        <div className="shell"><Link href="/projetos">← Todos os projetos</Link><p>{[project.category, project.city, verifiedContext?.status, verifiedContext?.photo?.caption].filter(Boolean).join(" · ")}</p><h1>{project.title}</h1></div>
       </section>
       <section className="project-detail__intro shell">
         <div><span>O PROJETO</span><p>{project.summary}</p></div>

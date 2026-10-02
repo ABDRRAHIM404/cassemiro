@@ -8,6 +8,7 @@ export function createSupabaseAdmin() {
   if (!url || !serviceRoleKey) return null;
 
   return createClient<Database>(url, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) }
   });
 }

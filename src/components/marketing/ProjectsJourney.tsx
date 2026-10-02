@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { getVerifiedProjectContext } from "@/lib/project-photo-context";
 
 export type HomepageProject = {
   id: string;
@@ -75,6 +76,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
       </section>
     );
   }
+  const activeContext = getVerifiedProjectContext(project.slug, project.hero_image);
 
   return (
     <section id="projetos" className="projects-journey" aria-labelledby="projects-title" aria-roledescription="carrossel">
@@ -103,6 +105,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
           onDragStart={(event) => event.preventDefault()}
         >
           {projects.map((item, index) => {
+            const context = getVerifiedProjectContext(item.slug, item.hero_image);
             const offset = projectOffset(index, active, projects.length);
             const isActive = offset === 0;
             const isVisible = Math.abs(offset) <= 1;
@@ -131,7 +134,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
                 }}
               >
                 <span className="projects-journey__image">
-                  <Image src={item.hero_image} alt={item.title} fill sizes="(max-width: 700px) 88vw, (max-width: 1100px) 76vw, 1060px" unoptimized={item.hero_image.startsWith("/api/project-media/")} draggable={false} />
+                  <Image src={item.hero_image} alt={context?.photo?.alt ?? item.title} fill sizes="(max-width: 700px) 88vw, (max-width: 1100px) 76vw, 1060px" unoptimized={item.hero_image.startsWith("/api/project-media/")} draggable={false} />
                   <span className="projects-journey__image-index">{String(index + 1).padStart(2, "0")} / {String(projects.length).padStart(2, "0")}</span>
                 </span>
               </Link>
@@ -147,7 +150,9 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
       <div className="shell projects-journey__footer">
         <div className="projects-journey__caption" aria-live="polite" aria-atomic="true">
           <span>{String(active + 1).padStart(2, "0")}</span>
-          <div><h3>{project.title}</h3><p>{[project.category, project.city].filter(Boolean).join(" · ") || "Projeto CASSEMIRO"}</p></div>
+          <div><h3>{project.title}</h3><p>{[project.category, project.city].filter(Boolean).join(" · ") || "Projeto CASSEMIRO"}</p>
+            {activeContext && <p className="projects-journey__photo-note">{activeContext.status}{activeContext.photo && ` · ${activeContext.photo.caption}`}</p>}
+          </div>
         </div>
         <Link className="projects-journey__view" href={`/projetos/${project.slug}`}>Ver projeto <span aria-hidden="true">↗</span></Link>
       </div>
