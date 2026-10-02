@@ -153,11 +153,19 @@ export function HeroFrameSequence({
     const section = root?.closest<HTMLElement>(".hero");
     const context = canvas?.getContext("2d", { alpha: false });
 
-    if (!root || !canvas || !section || !context || shouldUseStaticFallback()) return;
+    if (!root || !canvas || !section || !context) return;
+
+    if (shouldUseStaticFallback()) {
+      section.classList.add("hero--static-sequence");
+      return () => section.classList.remove("hero--static-sequence");
+    }
 
     const mobileMedia = window.matchMedia(MOBILE_QUERY);
     let frames = mobileMedia.matches && mobileFrames.length ? mobileFrames : desktopFrames;
-    if (frames.length < 2) return;
+    if (frames.length < 2) {
+      section.classList.add("hero--static-sequence");
+      return () => section.classList.remove("hero--static-sequence");
+    }
 
     let cache = new Map<number, DecodedFrame>();
     let controllers = new Map<number, AbortController>();

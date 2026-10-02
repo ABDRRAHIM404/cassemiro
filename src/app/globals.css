@@ -948,3 +948,23 @@ body:has(.admin-shell), body:has(.admin-login) { padding-bottom: 0; background: 
   .hero__reduced-stages h2 { font-size: clamp(1.45rem, 6vw, 2rem); }
   .hero__reduced-stages p { font-size: .78rem; }
 }
+
+.hero--static-sequence { height: auto; }
+.hero--static-sequence .hero__sticky { position: relative; }
+.hero--static-sequence .hero__services-link,
+.hero--static-sequence .hero-services,
+.hero--static-sequence .hero__scroll,
+.hero--static-sequence .hero__index,
+.hero--static-sequence .hero-sequence__canvas { display: none; }
+.hero--static-sequence .hero__reduced-services-link { display: inline-flex; }
+.hero--static-sequence .hero__reduced-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 42px 32px; padding-top: 54px; padding-bottom: 74px; }
+.hero--static-sequence .hero__reduced-stages > div { border-top: 1px solid rgba(210,174,120,.38); padding-top: 17px; }
+.hero--static-sequence .hero__reduced-stages span { color: var(--bronze-light); font-size: .62rem; letter-spacing: .18em; }
+.hero--static-sequence .hero__reduced-stages h2 { margin: 13px 0 8px; font-family: var(--serif); font-size: clamp(1.7rem, 3vw, 2.6rem); font-weight: 400; }
+.hero--static-sequence .hero__reduced-stages p { max-width: 280px; margin: 0; color: rgba(255,255,255,.68); font-size: .88rem; line-height: 1.55; }
+
+@media (max-width: 700px) {
+  .hero--static-sequence .hero__reduced-stages { grid-template-columns: 1fr 1fr; gap: 28px 18px; padding-top: 36px; padding-bottom: 52px; }
+  .hero--static-sequence .hero__reduced-stages h2 { font-size: clamp(1.45rem, 6vw, 2rem); }
+  .hero--static-sequence .hero__reduced-stages p { font-size: .78rem; }
+}
