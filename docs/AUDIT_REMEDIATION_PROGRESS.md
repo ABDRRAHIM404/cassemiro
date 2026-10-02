@@ -41,7 +41,9 @@ Vercel environment-name check (2 Oct, values not decrypted): Production and Prev
 
 Vercel build-log check (2 Oct, deployment `97d6bc5`): 81 build events were available. Next 16.3.6 completed its build and deployed successfully. The only actionable warning is npm's unapproved `unrs-resolver@1.12.2` postinstall script; investigate whether its fallback affects build/lint performance before approving any dependency script. D-03's build-log visibility is now closed; the missing notification/monitoring configuration remains separate work.
 
-Rendered SEO check (2 Oct, production `51a359d`): all 13 sitemap URLs returned HTTP 200 with a matching canonical and title. The homepage JSON-LD parsed as `GeneralContractor`, and `robots.txt` links the sitemap while excluding `/admin/`. Factual service-area and business claims still need owner confirmation. An invalid auth callback code and an unauthenticated password-reset page both redirected to login; this does not test real recovery delivery.
+Rendered SEO check (2 Oct, production `51a359d`): all 13 sitemap URLs returned HTTP 200 with a matching canonical and title. The homepage JSON-LD parsed as `GeneralContractor`, and `robots.txt` links the sitemap while excluding `/admin/`. An invalid auth callback code and an unauthenticated password-reset page both redirected to login; this does not test real recovery delivery.
+
+Owner fact check (2 Oct): the owner confirmed the public legal name “CASSEMIRO CONSTRUÇÕES LTDA,” the approximate 50 km Sorocaba service radius, and that both published projects are completed. The “Residência Contemporânea Linear” hero photo visibly records construction work, so the photo should not be interpreted as the project's current status. No photo or Sérgio portrait was altered.
 
 | Priority | Audit references | Required proof / next action |
 | --- | --- | --- |
@@ -49,7 +51,7 @@ Rendered SEO check (2 Oct, production `51a359d`): all 13 sitemap URLs returned H
 | P2 | S-01, S-06 | Owner decision (2 Oct): all admin roles have full access. Current shared authorization matches that policy; still verify direct-action access with separate staging identities and document the meaning of each role label. |
 | P2 | S-05 | Verify Supabase Auth's current leaked-password protection setting and availability; enable and recheck if supported. |
 | P2 | S-02 | Verify the baseline enforcing CSP on public/admin responses, then test a restrictive script/style policy without breaking prerendered Next scripts, Supabase uploads, analytics, or Sentry. |
-| P2 | S-03, A-03, U-04 | Owner decision (2 Oct): quote requests should be kept for 12 months after last contact. Implement reliable last-contact tracking and deletion/anonymization before stating this as operational fact; confirm business claims, service radius, and project stage with the owner. |
+| P2 | S-03, A-03, U-04 | Owner decision (2 Oct): quote requests should be kept for 12 months after last contact. Implement reliable last-contact tracking and deletion/anonymization before stating this as operational fact. Legal name, approximate service radius, and both projects' completed status are owner-confirmed; image-stage captions/alt text remain editorial work. |
 | P2 | P-01, P-02, P-03, M-01 | Duplicate first-frame request fixed locally; gather repeatable mobile/desktop frame decoding/transfer, JS attribution, and field Core Web Vitals where available. Optimize only demonstrated costs. |
 | P2 | X-01, X-03, M-03 | Complete real screen-reader carousel check, visual image-overlay contrast review, real low-memory device check, and exact viewport review. Automated axe scans now pass on tested routes/states at 390/1366 px; simulated reduced-motion, 1 GiB/2-core, and data-saver fallbacks passed local production browser checks. |
 | P2 | D-02, D-03 | Test password recovery/expired links with a safe account. Build logs and environment-variable names/targets were checked without decrypting values; investigate the `unrs-resolver` install-script warning. |
@@ -63,5 +65,5 @@ Rendered SEO check (2 Oct, production `51a359d`): all 13 sitemap URLs returned H
 - Production deployment SHA matches the tracked commit for deployed fixes.
 - Staging tests prove quote/email and admin write workflows without modifying customer data.
 - Separate owner/editor identities prove the agreed full-access policy.
-- The 12-month-after-last-contact retention policy is implemented and verified, not just written in the privacy notice; owner confirms other factual claims and any portrait edit.
+- The 12-month-after-last-contact retention policy is implemented and verified, not just written in the privacy notice; verified business/project facts are reflected accurately and any portrait edit requires separate owner authorization.
 - Performance and accessibility are measured at representative phone/desktop widths; remaining failures are fixed and rechecked.
