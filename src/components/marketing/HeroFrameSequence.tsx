@@ -145,6 +145,7 @@ export function HeroFrameSequence({
 }: HeroFrameSequenceProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const posterRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -178,6 +179,8 @@ export function HeroFrameSequence({
     let reverseWheelDelta = 0;
     let lastReverseWheelAt = 0;
     let wasInView = false;
+    let waitingForPoster = false;
+    let removePosterListeners = () => {};
 
     const serviceItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-service"));
     const serviceProgressItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-services__progress i"));
@@ -310,6 +313,7 @@ export function HeroFrameSequence({
           index >= 0 &&
           index < frames.length &&
           !cache.has(index) &&
+          !(index === 0 && waitingForPoster) &&
           !controllers.has(index)
         ),
       );
@@ -318,6 +322,36 @@ export function HeroFrameSequence({
         if (Math.abs(index - lowerIndex) > ABORT_DISTANCE) controller.abort();
       });
       pumpQueue();
+    };
+
+    const attachLoadedPoster = () => {
+      removePosterListeners();
+      waitingForPoster = false;
+      const poster = posterRef.current;
+      if (!poster || !poster.currentSrc || new URL(poster.currentSrc).pathname !== frames[0]) return;
+
+      const finish = () => {
+        if (destroyed) return;
+        waitingForPoster = false;
+        if (poster.naturalWidth > 0) {
+          cache.set(0, poster);
+          if (currentPosition < 1) draw();
+        }
+        reprioritize(currentPosition, lastScheduledDirection);
+      };
+
+      if (poster.complete) {
+        finish();
+        return;
+      }
+
+      waitingForPoster = true;
+      poster.addEventListener("load", finish, { once: true });
+      poster.addEventListener("error", finish, { once: true });
+      removePosterListeners = () => {
+        poster.removeEventListener("load", finish);
+        poster.removeEventListener("error", finish);
+      };
     };
 
     const updateFromScroll = () => {
@@ -490,10 +524,12 @@ export function HeroFrameSequence({
       lastScheduledDirection = 1;
       root.classList.remove("hero-sequence--ready", "hero-sequence--failed");
       resizeCanvas();
+      attachLoadedPoster();
       requestUpdate();
     };
 
     resizeCanvas();
+    attachLoadedPoster();
     updateFromScroll();
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("wheel", handleServiceWheel, { passive: false });
@@ -512,6 +548,7 @@ export function HeroFrameSequence({
       window.removeEventListener("orientationchange", resetSequence);
       window.visualViewport?.removeEventListener("resize", handleResize);
       mobileMedia.removeEventListener("change", resetSequence);
+      removePosterListeners();
       delete section.dataset.sequencePhase;
       delete section.dataset.snapTarget;
       controllers.forEach((controller) => controller.abort());
@@ -529,6 +566,7 @@ export function HeroFrameSequence({
       <picture className="hero-sequence__poster">
         {mobilePoster ? <source media={MOBILE_QUERY} srcSet={mobilePoster} /> : null}
         <img
+          ref={posterRef}
           src={fallbackPoster}
           alt="Construção de uma residência, do alicerce ao acabamento"
           decoding="async"
