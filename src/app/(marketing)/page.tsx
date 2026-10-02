@@ -8,17 +8,21 @@ import { WhyCassemiro } from "@/components/marketing/WhyCassemiro";
 import { siteConfig } from "@/config/site";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { parseBusinessSettings, parseHomepageContent } from "@/lib/site-settings";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function HomePage() {
   const supabase = createPublicClient();
-  const [{ data: testimonials }, { data: settingsRows }, { data: projects }] = await Promise.all([
+  const [testimonialsResult, settingsResult, projectsResult] = await Promise.all([
     supabase.from("testimonials").select("id, customer_name, text, rating, source").eq("is_approved", true).order("created_at", { ascending: false }),
     supabase.from("site_settings").select("key, value"),
     supabase.from("projects").select("id, slug, title, city, category, hero_image").eq("is_published", true).order("created_at", { ascending: false })
   ]);
+  const testimonials = requirePublicData(testimonialsResult, "home testimonials");
+  const settingsRows = requirePublicData(settingsResult, "home settings");
+  const projects = requirePublicData(projectsResult, "home projects");
   const homepageContent = parseHomepageContent(settingsRows ?? []);
   const businessSettings = parseBusinessSettings(settingsRows ?? []);
   const structuredData = {

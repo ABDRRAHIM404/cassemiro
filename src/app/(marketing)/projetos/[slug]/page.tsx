@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { titleWithSingleBrand } from "@/lib/seo";
 
 type Props = { params: Promise<{ slug: string }> };
 
 async function getProject(slug: string) {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("projects").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
-  return data;
+  return requirePublicData(await supabase.from("projects").select("*").eq("slug", slug).eq("is_published", true).maybeSingle(), "project detail");
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -37,12 +37,12 @@ export default async function ProjectDetailPage({ params }: Props) {
     supabase.from("project_media").select("*").eq("project_id", project.id).order("sort_order"),
     supabase.from("project_services").select("service_id, services(title)").eq("project_id", project.id)
   ]);
-  const media = mediaResult.data ?? [];
+  const media = requirePublicData(mediaResult, "project media") ?? [];
   const galleryMedia = media.filter((item) => item.type !== "before" && item.type !== "after");
   const comparisonGroups = Array.from(new Set(media.filter((item) => item.type === "before" || item.type === "after").map((item) => item.before_after_group || "comparativo-1")))
     .map((name) => ({ name, before: media.find((item) => (item.before_after_group || "comparativo-1") === name && item.type === "before"), after: media.find((item) => (item.before_after_group || "comparativo-1") === name && item.type === "after") }))
     .filter((group) => group.before || group.after);
-  const services = (linksResult.data ?? []).flatMap((item) => item.services ? [item.services.title] : []);
+  const services = (requirePublicData(linksResult, "project services") ?? []).flatMap((item) => item.services ? [item.services.title] : []);
 
   return (
     <main id="conteudo" className="project-detail">

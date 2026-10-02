@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 
 export const metadata: Metadata = {
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 
 export default async function ServicesPage() {
   const supabase = createPublicClient();
-  const { data: services } = await supabase.from("services").select("id, slug, title, short_description, price_label, show_price").eq("is_visible", true).order("sort_order");
+  const servicesResult = await supabase.from("services").select("id, slug, title, short_description, price_label, show_price").eq("is_visible", true).order("sort_order");
+  const services = requirePublicData(servicesResult, "services index");
 
   return (
     <main id="conteudo" className="services-page">

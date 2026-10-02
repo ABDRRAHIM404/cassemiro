@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { QuoteForm } from "@/components/marketing/QuoteForm";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { parseBusinessSettings } from "@/lib/site-settings";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function ContactPage() {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("site_settings").select("key, value");
+  const data = requirePublicData(await supabase.from("site_settings").select("key, value"), "contact settings");
   const settings = parseBusinessSettings(data ?? []);
   return (
     <main id="conteudo" className="inner-page">

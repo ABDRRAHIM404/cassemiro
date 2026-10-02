@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
 
 export const metadata: Metadata = {
@@ -10,9 +11,10 @@ export const metadata: Metadata = {
 
 export default async function ProjectsPage() {
   const supabase = createPublicClient();
-  const { data: projects } = await supabase.from("projects")
+  const projectsResult = await supabase.from("projects")
     .select("id, slug, title, city, category, summary, hero_image")
     .eq("is_published", true).order("created_at", { ascending: false });
+  const projects = requirePublicData(projectsResult, "projects index");
 
   return (
     <main id="conteudo" className="projects-page">

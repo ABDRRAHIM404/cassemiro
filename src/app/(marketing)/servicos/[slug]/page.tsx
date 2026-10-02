@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { siteConfig } from "@/config/site";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { parseBusinessSettings } from "@/lib/site-settings";
@@ -11,8 +12,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 async function getService(slug: string) {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("services").select("*").eq("slug", slug).eq("is_visible", true).maybeSingle();
-  return data;
+  return requirePublicData(await supabase.from("services").select("*").eq("slug", slug).eq("is_visible", true).maybeSingle(), "service detail");
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -31,10 +31,12 @@ export default async function ServiceDetailPage({ params }: Props) {
   const service = await getService(slug);
   if (!service) notFound();
   const supabase = createPublicClient();
-  const [{ data: relatedLinks }, { data: settingsRows }] = await Promise.all([
+  const [relatedLinksResult, settingsResult] = await Promise.all([
     supabase.from("project_services").select("project_id, projects(slug, title, city, summary, hero_image, is_published)").eq("service_id", service.id),
     supabase.from("site_settings").select("key, value")
   ]);
+  const relatedLinks = requirePublicData(relatedLinksResult, "related service projects");
+  const settingsRows = requirePublicData(settingsResult, "service settings");
   const business = parseBusinessSettings(settingsRows ?? []);
   const projects = (relatedLinks ?? []).flatMap((item) => item.projects && item.projects.is_published ? [item.projects] : []);
   const message = `Olá, encontrei a CASSEMIRO pelo site e gostaria de solicitar um orçamento para ${service.title}.`;

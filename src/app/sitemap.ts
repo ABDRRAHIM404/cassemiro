@@ -1,13 +1,16 @@
 import type { MetadataRoute } from "next";
 import { siteConfig } from "@/config/site";
 import { createPublicClient } from "@/lib/supabase/public";
+import { requirePublicData } from "@/lib/supabase/require-public-data";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
-  const [{ data: projects }, { data: services }] = await Promise.all([
+  const [projectsResult, servicesResult] = await Promise.all([
     supabase.from("projects").select("slug, updated_at").eq("is_published", true),
     supabase.from("services").select("slug, updated_at").eq("is_visible", true)
   ]);
+  const projects = requirePublicData(projectsResult, "sitemap projects");
+  const services = requirePublicData(servicesResult, "sitemap services");
   const projectRoutes: MetadataRoute.Sitemap = (projects ?? []).map((project) => ({
     url: `${siteConfig.siteUrl}/projetos/${project.slug}`,
     lastModified: project.updated_at,
