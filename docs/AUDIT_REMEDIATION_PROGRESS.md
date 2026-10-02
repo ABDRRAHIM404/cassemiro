@@ -19,7 +19,8 @@ Updated: 2 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 | Quote honeypot validation | This tracker commit | A nonempty hidden field now parses so the route can return its quiet success without saving a quote. Added regression tests; production/staging abuse checks remain. |
 | Admin operating guide corrected | This tracker commit | Guide now matches the one-form photo upload/retry flow and states the owner's full-access role decision. Staged workflow tests remain. |
 | Baseline CSP protection | `97d6bc5` | Production header verified on `/`, `/contato`, `/admin/login`, and `/admin`; those pages render at 390 px with no error overlay/overflow. Blocks object embeds, cross-site base URLs, outside form actions, and cross-site framing. A restrictive script/style policy remains open. |
-| Admin warning for missing quote email | This tracker commit | An authorized admin sees a warning when any required Resend/destination setting is absent; it does not imply delivery has been tested. Production signed-in rendering remains to be checked. |
+| Admin warning for missing quote email | `c6ded5c` | An authorized admin sees a warning when any required Resend/destination setting is absent; it does not imply delivery has been tested. Deployment is READY; production signed-in rendering remains to be checked. |
+| Additional dark-surface text contrast | This tracker commit | Raised four active small-text labels (trust footnote, testimonial source, quote privacy note, admin sidebar note); verify computed styles and responsive layouts after deployment. Full contrast audit remains open. |
 
 ## Remaining work, in priority order
 
