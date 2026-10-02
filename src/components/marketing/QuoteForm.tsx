@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { whatsappUrl } from "@/config/site";
+import { parseBrazilianDate } from "@/features/quotes/date";
 import { track } from "@vercel/analytics";
 
 type QuoteData = { name: string; phone: string; city: string; workType: string; description: string; desiredStart: string };
@@ -19,7 +20,8 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
     phone: data.phone.trim().length < 8,
     city: data.city.trim().length < 2,
     workType: data.workType === "",
-    description: data.description.trim().length < 10
+    description: data.description.trim().length < 10,
+    desiredStart: data.desiredStart.trim() !== "" && !parseBrazilianDate(data.desiredStart)
   };
   const valid = !Object.values(errors).some(Boolean);
   const message = useMemo(
@@ -49,11 +51,13 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
         setServerMessage("");
 
         const query = new URLSearchParams(window.location.search);
+        const desiredStart = parseBrazilianDate(data.desiredStart) ?? "";
         fetch("/api/quotes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...data,
+            desiredStart,
             utmSource: query.get("utm_source"),
             utmMedium: query.get("utm_medium"),
             utmCampaign: query.get("utm_campaign"),
@@ -110,7 +114,9 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
       </div>
       <div className="field field--full">
         <label htmlFor="desiredStart">Quando gostaria de começar? <span>Opcional</span></label>
-        <input id="desiredStart" name="desiredStart" type="date" value={data.desiredStart} onChange={(e) => update("desiredStart", e.target.value)} />
+        <input id="desiredStart" name="desiredStart" type="text" inputMode="numeric" autoComplete="off" maxLength={10} placeholder="DD/MM/AAAA" value={data.desiredStart} onChange={(e) => update("desiredStart", e.target.value)} aria-invalid={attempted && errors.desiredStart} aria-describedby={`desiredStart-hint${attempted && errors.desiredStart ? " desiredStart-error" : ""}`} />
+        <small id="desiredStart-hint" className="field__hint">Use dia/mês/ano. Se preferir, deixe em branco.</small>
+        {attempted && errors.desiredStart && <small id="desiredStart-error">Informe uma data válida no formato DD/MM/AAAA.</small>}
       </div>
       <div className="quote-form__footer field--full">
         <div aria-live="polite">

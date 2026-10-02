@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { quoteRequestSchema } from "../src/features/quotes/validation.ts";
+import { parseBrazilianDate } from "../src/features/quotes/date.ts";
 
 const validQuote = {
   name: "Cliente Teste",
@@ -22,4 +23,16 @@ test("filled honeypot parses for the route's quiet-success branch", () => {
 
 test("oversized honeypot content remains invalid", () => {
   assert.equal(quoteRequestSchema.safeParse({ ...validQuote, company: "x".repeat(201) }).success, false);
+});
+
+test("Brazilian date entry converts to the unambiguous API date", () => {
+  assert.equal(parseBrazilianDate("01/10/2026"), "2026-10-01");
+  assert.equal(parseBrazilianDate(" 29/02/2028 "), "2028-02-29");
+  assert.equal(quoteRequestSchema.safeParse({ ...validQuote, desiredStart: parseBrazilianDate("01/10/2026") }).success, true);
+});
+
+test("Brazilian date entry rejects impossible and ambiguous dates", () => {
+  for (const value of ["31/02/2026", "29/02/2027", "13/13/2026", "1/10/2026", "10/01/26", "2026-10-01"]) {
+    assert.equal(parseBrazilianDate(value), null, value);
+  }
 });

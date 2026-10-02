@@ -20,7 +20,8 @@ Updated: 2 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 | Admin operating guide corrected | This tracker commit | Guide now matches the one-form photo upload/retry flow and states the owner's full-access role decision. Staged workflow tests remain. |
 | Baseline CSP protection | `97d6bc5` | Production header verified on `/`, `/contato`, `/admin/login`, and `/admin`; those pages render at 390 px with no error overlay/overflow. Blocks object embeds, cross-site base URLs, outside form actions, and cross-site framing. A restrictive script/style policy remains open. |
 | Admin warning for missing quote email | `c6ded5c` | An authorized admin sees a warning when any required Resend/destination setting is absent; it does not imply delivery has been tested. Deployment is READY; production signed-in rendering remains to be checked. |
-| Additional dark-surface text contrast | This tracker commit | Raised four active small-text labels (trust footnote, testimonial source, quote privacy note, admin sidebar note); verify computed styles and responsive layouts after deployment. Full contrast audit remains open. |
+| Additional dark-surface text contrast | `bb0fd3a` | Production computed styles verified for trust footnote, testimonial source, and quote privacy note at 390 px; no horizontal overflow. Admin sidebar and full contrast audit remain to be checked. |
+| Portuguese quote date entry | This tracker commit | Replaced browser-locale `mm/dd/yyyy` display with `DD/MM/AAAA` text entry, validates real calendar dates, and sends ISO `YYYY-MM-DD` to the existing API. Unit tests added; browser validation without sending a real quote remains to be verified. |
 
 ## Remaining work, in priority order
 

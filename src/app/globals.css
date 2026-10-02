@@ -347,6 +347,7 @@ h2 em, h3 em { font-family: var(--serif); font-weight: 400; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--bronze-light); }
 .field input[aria-invalid="true"], .field select[aria-invalid="true"], .field textarea[aria-invalid="true"] { border-color: #e89684; }
 .field small { margin-top: 7px; color: #f3a493; font-size: .7rem; }
+.field .field__hint { color: rgba(255,255,255,.72); }
 .quote-form__validation-summary { margin: 0; color: #f3a493; font-size: .84rem; }
 .quote-form__footer { display: flex; align-items: center; justify-content: space-between; gap: 30px; margin-top: 8px; }
 .quote-form__footer p { max-width: 310px; margin: 0; color: rgba(255,255,255,.65); font-size: .72rem; }
