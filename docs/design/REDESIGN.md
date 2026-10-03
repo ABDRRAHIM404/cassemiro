@@ -1,5 +1,19 @@
 # CASSEMIRO frontend rebuild
 
+## Deployed verification — 3 October 2026
+
+The complete frontend rebuild was pushed as `97a915f7c4bc7e3315c5cebf26caf5371bfbfad8`. Vercel production deployment `dpl_8UzJSCgLqzJcL6iDtTMbPi1WHGAn` reached READY in approximately 44 seconds and assigned `https://cassemiro-one.vercel.app/` without alias errors.
+
+Actual Playwright CLI repeated the 48-state public/auth route matrix against this live alias at 1366 × 768, 390 × 844 and 320 × 844. All 13 sitemap routes, the actual 404, login and recovery returned expected statuses, with decoded images, correct production canonicals, no document overflow and no JavaScript page errors. Founder, trust and catalogue compositions were recaptured on the deployed site; trust click/keyboard selection and catalogue arrows, keyboard, mouse drag, actual phone touch swipes and post-drag keyboard link activation all passed. The deployed closing sections also passed at all three widths; contact targets remain 44 px tall. Representative live section screenshots were visually reviewed.
+
+All six deployed construction phases passed independent 5,000-pixel wheel gestures, with immediate additional bursts staying on the current service. Source construction frames and the real portrait remain untouched. JavaScript-disabled live contexts passed all six static service headings, native mobile navigation and project-archive access at all three widths. The normal header remains dark rather than turning white. Additional local layout checks at 1920 × 1080, 1024 × 768, 768 × 600 and 683 × 384 found no horizontal overflow; the mobile menu closed with Escape at the smaller widths.
+
+The live Web Analytics script returns HTTP 200. Production CSP does not include the development-only `unsafe-eval` permission. Deployment-specific runtime scans through 21:14 UTC found no error/fatal logs in the queried 15-minute window; that is a short post-deploy check, not a claim of ongoing monitoring or guaranteed absence of future errors. No paid Speed Insights plan, drain, email service or domain was enabled.
+
+Protected-admin coverage is the authenticated local production-build matrix documented in `ADMIN_QA.md`, not a repeat of all authenticated routes on this new production alias. Quote/project/password UI pending/error checks intercepted requests; no business data or owner password was changed, and backend mutation/email integration was not re-exercised during the redesign. The existing backend actions, RLS, storage, atomic save and retention behavior are retained. The owner's test testimonial remains as requested. Those operational limitations do not imply that SMTP/email alerts have been configured.
+
+The design implementation and final public/deployed UI verification are complete. The earlier checkpoint paragraphs below are historical records, not outstanding implementation tasks.
+
 ## Final local regression — 3 October 2026
 
 The rebuilt homepage was rechecked with the actual Playwright CLI at 1366 × 768, 390 × 844 and 320 × 844. Founder, trust and project images decode; no document overflow or JavaScript page errors were reported. Trust selection works by click and keyboard. The stationary catalogue works with arrows, keyboard, mouse drag and actual touch swipes on both phone widths; keyboard image-link activation also works after dragging. Reduced-motion rendering remains available.
