@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { PRIVATE_PROJECT_MEDIA_BUCKET } from "@/lib/project-media";
+import { projectServiceLinkChanges } from "@/lib/project-service-links";
 
 const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || null);
 const projectSchema = z.object({
@@ -125,6 +126,12 @@ export async function updateProject(projectId: string, formData: FormData) {
   const { service_ids, ...project } = parsed.data;
   const { supabase } = await requireAdmin();
   const { data: previous } = await supabase.from("projects").select("slug, is_published").eq("id", id.data).maybeSingle();
+  const { data: currentLinks, error: linksReadError } = await supabase.from("project_services")
+    .select("service_id").eq("project_id", id.data);
+  if (linksReadError) redirect(`/admin/projetos/${id.data}?error=Não+foi+possível+verificar+os+serviços+atuais.`);
+  const { added, removed } = projectServiceLinkChanges(
+    (currentLinks ?? []).map((link) => link.service_id), service_ids
+  );
   if (project.is_published && !previous?.is_published) {
     const mediaError = await publicationMediaError(supabase, id.data);
     if (mediaError) redirect(`/admin/projetos/${id.data}?error=${encodeURIComponent(mediaError)}`);
@@ -136,13 +143,17 @@ export async function updateProject(projectId: string, formData: FormData) {
     redirect(`/admin/projetos/${id.data}?error=${encodeURIComponent(message)}`);
   }
 
-  const { error: clearError } = await supabase.from("project_services").delete().eq("project_id", id.data);
-  if (clearError) redirect(`/admin/projetos/${id.data}?error=O+projeto+foi+salvo,+mas+os+serviços+não.`);
-  if (service_ids.length) {
+  // Add before removing old links so an insert failure cannot erase the previous set.
+  if (added.length) {
     const { error: servicesError } = await supabase.from("project_services").insert(
-      service_ids.map((service_id) => ({ project_id: id.data, service_id }))
+      added.map((service_id) => ({ project_id: id.data, service_id }))
     );
     if (servicesError) redirect(`/admin/projetos/${id.data}?error=O+projeto+foi+salvo,+mas+os+serviços+não.`);
+  }
+  if (removed.length) {
+    const { error: removeError } = await supabase.from("project_services")
+      .delete().eq("project_id", id.data).in("service_id", removed);
+    if (removeError) redirect(`/admin/projetos/${id.data}?error=O+projeto+foi+salvo,+mas+os+serviços+não.`);
   }
 
   revalidateProjects(previous?.slug);
