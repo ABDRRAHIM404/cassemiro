@@ -20,10 +20,10 @@ export default async function PrivacyPage() {
         <h1>Política de privacidade</h1>
         <p>Esta política explica como a CASSEMIRO utiliza as informações fornecidas por pessoas que entram em contato pelo site.</p>
         <h2>Dados enviados</h2><p>Podemos receber nome, telefone, cidade, tipo de obra, descrição do projeto e data desejada para início. Esses dados são utilizados somente para responder à solicitação e conduzir o atendimento comercial.</p>
-        <h2>Compartilhamento e retenção</h2><p>Não vendemos dados pessoais. As informações podem ser processadas por serviços essenciais de hospedagem, banco de dados, e-mail e atendimento, sempre para operar o site e responder ao contato.</p>
+        <h2>Compartilhamento e retenção</h2><p>Não vendemos dados pessoais. As informações podem ser processadas por serviços essenciais de hospedagem, banco de dados, e-mail e atendimento, sempre para operar o site e responder ao contato. Após 12 meses sem contato registrado, uma rotina diária remove os dados de identificação e a descrição livre do pedido de orçamento; permanecem apenas o mês da solicitação, a categoria do serviço e o status para estatísticas anônimas.</p>
         <h2>Métricas e erros técnicos</h2><p>Utilizamos métricas agregadas e sem cookies para compreender o uso das páginas públicas. Falhas técnicas podem ser registradas para diagnóstico, sem envio intencional dos dados preenchidos no formulário. As rotas administrativas não participam das métricas públicas.</p>
         <h2>Seus direitos</h2><p>Para solicitar acesso, correção ou exclusão dos seus dados, entre em contato pelo e-mail <a href={`mailto:${settings.email}`}>{settings.email}</a>.</p>
-        <p className="legal-page__update">Última atualização: 26 de setembro de 2026.</p>
+        <p className="legal-page__update">Última atualização: 3 de outubro de 2026.</p>
       </div>
     </main>
   );

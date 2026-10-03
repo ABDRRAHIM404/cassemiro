@@ -165,11 +165,13 @@ export type Database = {
       }
       quote_requests: {
         Row: {
+          anonymized_at: string | null
           city: string
           created_at: string
           description: string
           desired_start_date: string | null
           id: string
+          last_contact_at: string
           name: string
           phone: string
           source: string
@@ -181,11 +183,13 @@ export type Database = {
           work_type: string
         }
         Insert: {
+          anonymized_at?: string | null
           city: string
           created_at?: string
           description: string
           desired_start_date?: string | null
           id?: string
+          last_contact_at?: string
           name: string
           phone: string
           source?: string
@@ -197,11 +201,13 @@ export type Database = {
           work_type: string
         }
         Update: {
+          anonymized_at?: string | null
           city?: string
           created_at?: string
           description?: string
           desired_start_date?: string | null
           id?: string
+          last_contact_at?: string
           name?: string
           phone?: string
           source?: string

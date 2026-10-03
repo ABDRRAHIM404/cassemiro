@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { whatsappUrlForPhone } from "@/lib/phone";
-import { updateQuoteStatus } from "../actions";
+import { recordQuoteContact, updateQuoteStatus } from "../actions";
 
 const statuses = ["Novo", "Em contato", "Orçamento", "Fechado", "Arquivado"] as const;
 
@@ -11,7 +11,7 @@ function formatDate(value: string, withTime = true) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", ...(withTime ? { timeStyle: "short" as const } : {}), timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
-export default async function QuoteDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> }) {
+export default async function QuoteDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; contacted?: string; error?: string }> }) {
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const notice = await searchParams;
@@ -20,6 +20,17 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
   if (error) return <main id="conteudo" className="admin-content"><Link href="/admin/orcamentos" className="admin-back">← Voltar aos orçamentos</Link><div className="admin-alert" role="alert">Não foi possível carregar este orçamento. Atualize a página ou tente novamente em alguns minutos.</div></main>;
   if (!quote) notFound();
 
+  if (quote.anonymized_at) return (
+    <main id="conteudo" className="admin-content">
+      <Link href="/admin/orcamentos" className="admin-back">← Voltar aos orçamentos</Link>
+      <div className="admin-page-heading"><div><p className="eyebrow eyebrow--dark">Histórico anônimo</p><h1>Solicitação anonimizada</h1></div></div>
+      <div className="admin-panel quote-detail-main">
+        <p>Os dados de contato e a descrição foram removidos após 12 meses sem contato registrado. Restam apenas o mês de recebimento, a categoria e o status para estatísticas.</p>
+        <dl className="quote-meta"><div><dt>Categoria</dt><dd>{quote.work_type}</dd></div><div><dt>Status</dt><dd>{quote.status}</dd></div><div><dt>Recebido em</dt><dd>{new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(quote.created_at))}</dd></div></dl>
+      </div>
+    </main>
+  );
+
   const message = `Olá, ${quote.name}. Recebemos sua solicitação de orçamento para ${quote.work_type} pelo site da CASSEMIRO.`;
   const whatsappUrl = whatsappUrlForPhone(quote.phone, message);
 
@@ -27,6 +38,7 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
     <main id="conteudo" className="admin-content">
       <Link href="/admin/orcamentos" className="admin-back">← Voltar aos orçamentos</Link>
       {notice.saved === "1" && <div className="admin-notice" role="status">Status atualizado.</div>}
+      {notice.contacted === "1" && <div className="admin-notice" role="status">Contato registrado. O prazo de retenção foi reiniciado.</div>}
       {notice.error === "1" && <div className="admin-alert" role="alert">Não foi possível atualizar o status. Tente novamente.</div>}
       <div className="admin-page-heading admin-page-heading--detail">
         <div><p className="eyebrow eyebrow--dark">Solicitação recebida em {formatDate(quote.created_at)}</p><h1>{quote.name}</h1></div>
@@ -49,6 +61,11 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
             <span>CONTATO</span>
             <a href={`tel:${quote.phone}`} className="quote-contact__phone">{quote.phone}</a>
             {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noreferrer" className="button button--bronze">Abrir WhatsApp</a> : <p>Confirme o DDD e o número antes de abrir o WhatsApp.</p>}
+            <p className="quote-contact__retention">Último contato registrado: {formatDate(quote.last_contact_at)}. Registre aqui cada contato real para contar corretamente os 12 meses de retenção.</p>
+            <form action={recordQuoteContact} className="quote-contact__record">
+              <input type="hidden" name="id" value={quote.id} />
+              <button type="submit">Registrar contato hoje</button>
+            </form>
           </section>
           <section className="admin-panel quote-status-form">
             <span>ANDAMENTO</span>

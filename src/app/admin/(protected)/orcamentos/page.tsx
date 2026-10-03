@@ -20,6 +20,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
 
   let query = supabase.from("quote_requests")
     .select("id, name, phone, city, work_type, status, created_at", { count: "exact" })
+    .is("anonymized_at", null)
     .order("created_at", { ascending: false }).order("id", { ascending: false })
     .range(first, first + QUOTES_PAGE_SIZE - 1);
   if (status) query = query.eq("status", status);

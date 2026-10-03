@@ -11,11 +11,11 @@ export default async function AdminOverviewPage() {
     process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL && process.env.QUOTE_NOTIFICATION_EMAIL
   );
   const [newQuotes, totalQuotes, projects, testimonials, recent] = await Promise.all([
-    supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "Novo"),
-    supabase.from("quote_requests").select("id", { count: "exact", head: true }),
+    supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "Novo").is("anonymized_at", null),
+    supabase.from("quote_requests").select("id", { count: "exact", head: true }).is("anonymized_at", null),
     supabase.from("projects").select("id", { count: "exact", head: true }),
     supabase.from("testimonials").select("id", { count: "exact", head: true }),
-    supabase.from("quote_requests").select("id, name, city, work_type, status, created_at").order("created_at", { ascending: false }).limit(5)
+    supabase.from("quote_requests").select("id, name, city, work_type, status, created_at").is("anonymized_at", null).order("created_at", { ascending: false }).limit(5)
   ]);
   const overviewReadFailed = [newQuotes, totalQuotes, projects, testimonials, recent]
     .some((result) => result.error)

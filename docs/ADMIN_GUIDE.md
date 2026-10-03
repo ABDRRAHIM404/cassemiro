@@ -47,6 +47,8 @@ You can:
 
 Update the status after every important step. This keeps the overview organized.
 
+When you actually speak with a lead by phone, WhatsApp, or email, open their request and click `Registrar contato hoje` (Record contact today). Changing the status or opening WhatsApp does **not** count as confirmed contact. The site anonymizes personal details 12 months after the last recorded contact, so record each real conversation promptly. Anonymous month/category/status statistics remain; contact details and the free-text description cannot be recovered afterward.
+
 If the overview displays “Alertas por e-mail ainda não configurados”, new requests are still saved in this panel, but no email notification is sent. Check `Orçamentos` regularly and ask the site administrator to configure and test the notification sender.
 
 ## Projects

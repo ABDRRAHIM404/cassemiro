@@ -407,6 +407,9 @@ body:has(.admin-shell), body:has(.admin-login) { padding-bottom: 0; background: 
 .quote-contact, .quote-status-form { padding: 28px; }
 .quote-contact__phone { display: block; margin: 18px 0 24px; font-family: var(--serif); font-size: 1.8rem; }
 .quote-contact .button { width: 100%; min-height: 48px; gap: 10px; }
+.quote-contact__retention { margin: 22px 0 0; color: #706b64; font-size: .72rem; line-height: 1.55; }
+.quote-contact__record button { width: 100%; min-height: 44px; margin-top: 12px; border: 1px solid #9f784a; color: #6b4d2a; background: transparent; font-size: .61rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.quote-contact__record button:hover { color: white; background: #8b6740; }
 .quote-status-form form { display: flex; flex-direction: column; margin-top: 20px; }
 .quote-status-form button { margin-top: 12px; }
 
