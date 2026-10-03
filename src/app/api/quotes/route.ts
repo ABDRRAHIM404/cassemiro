@@ -10,6 +10,13 @@ import * as Sentry from "@sentry/nextjs";
 export const runtime = "nodejs";
 const MAX_QUOTE_BODY_BYTES = 16 * 1024;
 
+function privateJson(body: unknown, status: number) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "private, no-store, max-age=0" }
+  });
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"]/gu, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character] ?? character);
 }
@@ -17,38 +24,38 @@ function escapeHtml(value: string) {
 export async function POST(request: NextRequest) {
   const clientKey = quoteClientIdentity(request.headers.get("x-forwarded-for"));
   if (!clientKey) {
-    return NextResponse.json({ error: "O formulário ainda não está disponível. Continue pelo WhatsApp." }, { status: 503 });
+    return privateJson({ error: "O formulário ainda não está disponível. Continue pelo WhatsApp." }, 503);
   }
 
   const body = await readLimitedJson(request, MAX_QUOTE_BODY_BYTES);
   if (!body.ok && body.reason === "too-large") {
-    return NextResponse.json({ error: "A solicitação é muito grande. Reduza o texto e tente novamente." }, { status: 413 });
+    return privateJson({ error: "A solicitação é muito grande. Reduza o texto e tente novamente." }, 413);
   }
   if (!body.ok) {
-    return NextResponse.json({ error: "Não foi possível ler os dados enviados." }, { status: 400 });
+    return privateJson({ error: "Não foi possível ler os dados enviados." }, 400);
   }
 
   const parsed = quoteRequestSchema.safeParse(body.value);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Revise os campos e tente novamente." }, { status: 400 });
+    return privateJson({ error: "Revise os campos e tente novamente." }, 400);
   }
 
   if (parsed.data.company) {
-    return NextResponse.json({ ok: true });
+    return privateJson({ ok: true }, 200);
   }
 
   const supabase = createSupabaseAdmin();
   if (!supabase) {
-    return NextResponse.json({ error: "O formulário ainda não está disponível. Continue pelo WhatsApp." }, { status: 503 });
+    return privateJson({ error: "O formulário ainda não está disponível. Continue pelo WhatsApp." }, 503);
   }
 
   const rateLimit = await checkQuoteRateLimit(clientKey, supabase);
   if (rateLimit.error) {
-    return NextResponse.json({ error: "Não foi possível registrar a solicitação agora. Continue pelo WhatsApp." }, { status: 503 });
+    return privateJson({ error: "Não foi possível registrar a solicitação agora. Continue pelo WhatsApp." }, 503);
   }
 
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." }, { status: 429 });
+    return privateJson({ error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." }, 429);
   }
 
   const quote = parsed.data;
@@ -72,7 +79,7 @@ export async function POST(request: NextRequest) {
   if (databaseError || !savedQuote) {
     console.error("Quote storage failed", databaseError?.message);
     Sentry.captureException(databaseError ?? new Error("Quote storage returned no record"), { tags: { operation: "quote_insert" } });
-    return NextResponse.json({ error: "Não foi possível registrar a solicitação. Tente novamente ou fale pelo WhatsApp." }, { status: 500 });
+    return privateJson({ error: "Não foi possível registrar a solicitação. Tente novamente ou fale pelo WhatsApp." }, 500);
   }
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -96,5 +103,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, id: savedQuote.id }, { status: 201 });
+  return privateJson({ ok: true, id: savedQuote.id }, 201);
 }
