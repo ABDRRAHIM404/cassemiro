@@ -330,6 +330,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_project_with_services: {
+        Args: { p_project_id: string | null; p_project: Json; p_service_ids: string[] }
+        Returns: { saved_id: string; previous_slug: string | null }[]
+      }
       consume_quote_rate_limit: {
         Args: { p_key_hash: string; p_max_attempts?: number; p_window_seconds?: number }
         Returns: boolean

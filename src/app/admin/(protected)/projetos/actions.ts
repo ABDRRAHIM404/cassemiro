@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { PRIVATE_PROJECT_MEDIA_BUCKET } from "@/lib/project-media";
-import { projectServiceLinkChanges } from "@/lib/project-service-links";
 
 const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || null);
 const projectSchema = z.object({
@@ -76,23 +75,19 @@ export async function createProjectForUpload(formData: FormData) {
 
   const { service_ids, is_published, ...project } = parsed.data;
   const { supabase } = await requireAdmin();
-  const { data, error } = await supabase.from("projects").insert({ ...project, is_published: false }).select("id").single();
+  const { data, error } = await supabase.rpc("save_project_with_services", {
+    p_project_id: null,
+    p_project: { ...project, is_published: false },
+    p_service_ids: service_ids
+  }).single();
 
   if (error || !data) {
     const message = error?.code === "23505" ? "Este endereço já está em uso. Escolha outro slug." : "Não foi possível criar o projeto.";
     return { error: message };
   }
 
-  let warning: string | undefined;
-  if (service_ids.length) {
-    const { error: servicesError } = await supabase.from("project_services").insert(
-      service_ids.map((service_id) => ({ project_id: data.id, service_id }))
-    );
-    if (servicesError) warning = "Projeto criado, mas os serviços não foram associados.";
-  }
-
   revalidateProjects(project.slug);
-  return { id: data.id, publishRequested: is_published, warning };
+  return { id: data.saved_id, publishRequested: is_published };
 }
 
 export async function completeProjectCreation(projectId: string, publish: boolean, coverUrl: string | null) {
@@ -125,38 +120,21 @@ export async function updateProject(projectId: string, formData: FormData) {
 
   const { service_ids, ...project } = parsed.data;
   const { supabase } = await requireAdmin();
-  const { data: previous } = await supabase.from("projects").select("slug, is_published").eq("id", id.data).maybeSingle();
-  const { data: currentLinks, error: linksReadError } = await supabase.from("project_services")
-    .select("service_id").eq("project_id", id.data);
-  if (linksReadError) redirect(`/admin/projetos/${id.data}?error=Não+foi+possível+verificar+os+serviços+atuais.`);
-  const { added, removed } = projectServiceLinkChanges(
-    (currentLinks ?? []).map((link) => link.service_id), service_ids
-  );
-  if (project.is_published && !previous?.is_published) {
-    const mediaError = await publicationMediaError(supabase, id.data);
-    if (mediaError) redirect(`/admin/projetos/${id.data}?error=${encodeURIComponent(mediaError)}`);
-  }
-  const { error } = await supabase.from("projects").update(project).eq("id", id.data);
+  const { data, error } = await supabase.rpc("save_project_with_services", {
+    p_project_id: id.data,
+    p_project: project,
+    p_service_ids: service_ids
+  }).single();
 
-  if (error) {
-    const message = error.code === "23505" ? "Este endereço já está em uso. Escolha outro slug." : "Não foi possível salvar o projeto.";
+  if (error || !data) {
+    const message = error?.code === "23505"
+      ? "Este endereço já está em uso. Escolha outro slug."
+      : error?.code === "23514"
+        ? "Adicione uma imagem real e descreva todas as imagens antes de publicar."
+        : "Não foi possível confirmar o salvamento do projeto. Tente novamente.";
     redirect(`/admin/projetos/${id.data}?error=${encodeURIComponent(message)}`);
   }
-
-  // Add before removing old links so an insert failure cannot erase the previous set.
-  if (added.length) {
-    const { error: servicesError } = await supabase.from("project_services").insert(
-      added.map((service_id) => ({ project_id: id.data, service_id }))
-    );
-    if (servicesError) redirect(`/admin/projetos/${id.data}?error=O+projeto+foi+salvo,+mas+os+serviços+não.`);
-  }
-  if (removed.length) {
-    const { error: removeError } = await supabase.from("project_services")
-      .delete().eq("project_id", id.data).in("service_id", removed);
-    if (removeError) redirect(`/admin/projetos/${id.data}?error=O+projeto+foi+salvo,+mas+os+serviços+não.`);
-  }
-
-  revalidateProjects(previous?.slug);
+  revalidateProjects(data.previous_slug ?? undefined);
   revalidateProjects(project.slug);
   redirect(`/admin/projetos/${id.data}?saved=1`);
 }

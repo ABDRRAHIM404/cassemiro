@@ -26,7 +26,6 @@ export function ProjectForm({
   const draftRef = useRef<{
     id: string;
     publishRequested: boolean;
-    warning?: string;
     files: File[];
     altTexts: string[];
     uploaded: Set<number>;
@@ -67,7 +66,6 @@ export function ProjectForm({
         draftRef.current = {
           id: created.id,
           publishRequested: created.publishRequested ?? false,
-          warning: created.warning,
           files: photos,
           altTexts,
           uploaded: new Set(),
@@ -113,7 +111,7 @@ export function ProjectForm({
       setMessage("A concluir projeto…");
       const completed = await completeProjectCreation(draft.id, draft.publishRequested, draft.coverUrl);
       if (completed.error) throw new Error(completed.error);
-      router.replace(`/admin/projetos/${draft.id}?${draft.warning ? `error=${encodeURIComponent(draft.warning)}` : "created=1"}`);
+      router.replace(`/admin/projetos/${draft.id}?created=1`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Não foi possível concluir o envio das imagens.";
       const draft = draftRef.current;
