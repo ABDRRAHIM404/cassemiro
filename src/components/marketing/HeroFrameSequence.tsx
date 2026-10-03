@@ -216,6 +216,13 @@ export function HeroFrameSequence({
         ? timelineState(serviceSnapProgresses[snapTargetIndex]).sourceProgress * (frames.length - 1)
         : null
     );
+    const adjacentHoldIndex = () => {
+      if (snapTargetIndex === null || !snapDirection) return null;
+      const adjacent = snapTargetIndex + snapDirection;
+      return adjacent >= 0 && adjacent < serviceSnapProgresses.length
+        ? Math.floor(timelineState(serviceSnapProgresses[adjacent]).sourceProgress * (frames.length - 1))
+        : null;
+    };
 
     const maxCacheSize = () => mobileMedia.matches
       ? MAX_DECODED_MOBILE_FRAMES
@@ -248,6 +255,13 @@ export function HeroFrameSequence({
 
     const trimCache = (maxEntries = maxCacheSize()) => {
       const protectedIndexes = new Set([Math.floor(currentPosition), Math.ceil(currentPosition)]);
+      const targetPosition = snapFramePosition();
+      if (targetPosition !== null) {
+        protectedIndexes.add(Math.floor(targetPosition));
+        protectedIndexes.add(Math.ceil(targetPosition));
+      }
+      const adjacent = adjacentHoldIndex();
+      if (adjacent !== null) protectedIndexes.add(adjacent);
       while (cache.size > maxEntries) {
         const candidate = Array.from(cache.keys()).find((index) => !protectedIndexes.has(index));
         if (candidate === undefined) break;
@@ -375,9 +389,11 @@ export function HeroFrameSequence({
       const snapPosition = snapFramePosition();
       const snapLowerIndex = snapPosition === null ? null : Math.floor(snapPosition);
       const snapUpperIndex = snapPosition === null ? null : Math.min(frames.length - 1, Math.ceil(snapPosition));
+      const adjacent = adjacentHoldIndex();
       const prioritized: number[] = snapLowerIndex === null || snapUpperIndex === null
         ? [lowerIndex, upperIndex]
         : [snapLowerIndex, snapUpperIndex, lowerIndex, upperIndex];
+      if (adjacent !== null) prioritized.push(adjacent);
       if (snapLowerIndex === null && currentPosition < 1 && cache.has(0) && !mobileMedia.matches) {
         // The poster is painted: start the first desktop hold frame before the first wheel gesture.
         prioritized.push(Math.floor(timelineState(serviceSnapProgresses[0]).sourceProgress * (frames.length - 1)));
@@ -402,8 +418,14 @@ export function HeroFrameSequence({
       );
 
       controllers.forEach((controller, index) => {
+        if (adjacent !== null && snapPosition !== null && Math.abs(position - snapPosition) < 0.7 &&
+          index !== snapLowerIndex && index !== snapUpperIndex && index !== adjacent) {
+          controller.abort();
+          return;
+        }
         if (Math.abs(index - lowerIndex) > ABORT_DISTANCE &&
-          (snapLowerIndex === null || Math.abs(index - snapLowerIndex) > 1)) controller.abort();
+          (snapLowerIndex === null || Math.abs(index - snapLowerIndex) > 1) &&
+          (adjacent === null || index !== adjacent)) controller.abort();
       });
       pumpQueue();
     };
