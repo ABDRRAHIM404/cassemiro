@@ -195,6 +195,7 @@ export function HeroFrameSequence({
     let animationFrame = 0;
     let consecutiveFailures = 0;
     let destroyed = false;
+    let fallbackActivated = false;
     let lastServiceStage = -2;
     let wheelGestureLocked = false;
     let wheelReleaseTimer = 0;
@@ -304,8 +305,23 @@ export function HeroFrameSequence({
       });
     };
 
+    const activateStaticFallback = () => {
+      if (fallbackActivated) return;
+      fallbackActivated = true;
+      queue = [];
+      controllers.forEach((controller) => controller.abort());
+      root.classList.add("hero-sequence--failed");
+      section.classList.add("hero--static-sequence");
+      section.dataset.sequenceReady = "failed";
+      serviceItems.forEach((item) => {
+        item.classList.remove("is-active");
+        item.setAttribute("aria-hidden", "true");
+      });
+      clearEarlyWheel();
+    };
+
     const pumpQueue = () => {
-      while (!destroyed && activeLoads < MAX_CONCURRENT_LOADS && queue.length) {
+      while (!destroyed && !fallbackActivated && activeLoads < MAX_CONCURRENT_LOADS && queue.length) {
         const index = queue.shift();
         if (index === undefined || cache.has(index) || controllers.has(index)) continue;
 
@@ -316,7 +332,7 @@ export function HeroFrameSequence({
 
         void decodeFrame(frames[index], controller.signal)
           .then((frame) => {
-            if (destroyed || controller.signal.aborted || loadGeneration !== generation) {
+            if (destroyed || fallbackActivated || controller.signal.aborted || loadGeneration !== generation) {
               closeFrame(frame);
               return;
             }
@@ -339,7 +355,7 @@ export function HeroFrameSequence({
           .catch((error: unknown) => {
             if (error instanceof DOMException && error.name === "AbortError") return;
             consecutiveFailures += 1;
-            if (consecutiveFailures >= 6) root.classList.add("hero-sequence--failed");
+            if (consecutiveFailures >= 6) activateStaticFallback();
           })
           .finally(() => {
             if (controllers.get(index) === controller) controllers.delete(index);
@@ -415,6 +431,7 @@ export function HeroFrameSequence({
     };
 
     const updateFromScroll = () => {
+      if (fallbackActivated) return;
       const rect = section.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
       const inView = rect.bottom > 0 && rect.top < viewportHeight;
@@ -503,7 +520,7 @@ export function HeroFrameSequence({
     };
 
     const handleServiceWheel = (event: WheelEvent) => {
-      if (mobileMedia.matches || (!wasInView && !wheelGestureLocked)) return;
+      if (fallbackActivated || mobileMedia.matches || (!wasInView && !wheelGestureLocked)) return;
 
       const rect = section.getBoundingClientRect();
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
@@ -558,6 +575,7 @@ export function HeroFrameSequence({
     };
 
     const resetSequence = () => {
+      if (fallbackActivated) return;
       const nextFrames = mobileMedia.matches && mobileFrames.length ? mobileFrames : desktopFrames;
       if (nextFrames === frames) {
         handleResize();
@@ -606,6 +624,7 @@ export function HeroFrameSequence({
       window.visualViewport?.removeEventListener("resize", handleResize);
       mobileMedia.removeEventListener("change", resetSequence);
       removePosterListeners();
+      section.classList.remove("hero--static-sequence");
       delete section.dataset.sequencePhase;
       delete section.dataset.snapTarget;
       delete section.dataset.sequenceReady;
