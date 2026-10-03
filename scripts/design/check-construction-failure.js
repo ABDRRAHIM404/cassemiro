@@ -1,14 +1,15 @@
 async page => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.route("**/media/hero/**/frame_069.webp", route => route.fulfill({ status: 404, body: "" }));
+  const context = await page.context().browser().newContext({ viewport: { width: 390, height: 844 } });
   try {
-    await page.goto("http://127.0.0.1:3001/", { waitUntil: "load" });
-    await page.locator('label[for="construction-chapter-1"]').click();
-    await page.getByRole("status").filter({ hasText: "Imagem indisponível" }).waitFor();
-    if (!await page.locator("#construction-panel-1 h2").isVisible()) throw new Error("Failed image hid the service");
-    await page.getByRole("button", { name: "Próxima etapa", exact: true }).click();
-    await page.locator("#construction-panel-2 img").evaluate(image => image.decode());
-    if (!await page.locator("#construction-chapter-2").isChecked()) throw new Error("Failed image blocked navigation");
-    return { imageFailure: "service remains readable; navigation recovers to the next original image" };
-  } finally { await page.unroute("**/media/hero/**/frame_069.webp"); }
+    const p = await context.newPage();
+    await p.route("**/images/story/**", route => route.fulfill({ status: 404, body: "" }));
+    await p.goto("http://127.0.0.1:3001/", { waitUntil: "load" });
+    for (let index = 1; index <= 6; index++) {
+      const heading = p.locator(`[data-story-chapter="${index}"] h2`);
+      await heading.scrollIntoViewIfNeeded();
+      if (!await heading.isVisible()) throw new Error("Failed artwork hid service content");
+    }
+    await p.getByRole("link", { name: "Conheça quem conduz sua obra" }).click();
+    return { failureFallback: "all six services and founder navigation remain usable" };
+  } finally { await context.close(); }
 }

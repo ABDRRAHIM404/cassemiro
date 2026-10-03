@@ -1,88 +1,69 @@
 "use client";
 
-import { useRef, useState, type PointerEvent, type ReactNode } from "react";
-import { ArrowIcon } from "@/components/ui/ArrowIcon";
-import { constructionChapters } from "@/config/construction-chapters";
+import { useEffect, useRef, type ReactNode } from "react";
+import { constructionChapters, constructionArtwork } from "@/config/construction-chapters";
 import styles from "./ConstructionChapters.module.css";
 
+/** Natural scrolling drives the story; the observer only changes discrete chapters. */
 export function ConstructionChapters({ children }: { children: ReactNode }) {
-  const [active, setActive] = useState(0);
-  const [failed, setFailed] = useState<number[]>([]);
-  const gesture = useRef<{ x: number; y: number; pointer: number } | null>(null);
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
-
-  function select(index: number, focus = false) {
-    const next = (index + constructionChapters.length) % constructionChapters.length;
-    setActive(next);
-    if (focus) inputs.current[next]?.focus({ preventScroll: true });
-  }
-
-  function startGesture(event: PointerEvent<HTMLDivElement>) {
-    if (!event.isPrimary || event.button !== 0) return;
-    gesture.current = { x: event.clientX, y: event.clientY, pointer: event.pointerId };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function endGesture(event: PointerEvent<HTMLDivElement>) {
-    const start = gesture.current;
-    gesture.current = null;
-    if (!start || start.pointer !== event.pointerId) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.3) select(active + (dx < 0 ? 1 : -1));
-  }
-
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = root.current;
+    if (!element || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) element.dataset.phase = (entry.target as HTMLElement).dataset.storyChapter;
+      }
+    }, { rootMargin: "-35% 0px -45% 0px", threshold: 0 });
+    element.querySelectorAll("[data-story-chapter]").forEach((chapter) => observer.observe(chapter));
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className={styles.chapters}>
-      {/* Native radios retain all six chapters without JavaScript. */}
-      {constructionChapters.map((chapter, index) => (
-        <input key={chapter.title} ref={(node) => { inputs.current[index] = node; }}
-          className={styles.input} type="radio" name="construction-chapter"
-          id={`construction-chapter-${index}`} aria-controls={`construction-panel-${index}`}
-          checked={active === index} onChange={() => select(index)}
-          onKeyDown={(event) => {
-            if (event.key === "Home" || event.key === "End") {
-              event.preventDefault(); select(event.key === "Home" ? 0 : constructionChapters.length - 1, true);
-            }
-          }} />
-      ))}
-      <div className={styles.stage}>
-        <div className={styles.photographs} onPointerDown={startGesture} onPointerUp={endGesture}
-          onPointerCancel={() => { gesture.current = null; }}>
-          {constructionChapters.map((chapter, index) => (
-            <div className={styles.panel} id={`construction-panel-${index}`} key={chapter.title}>
-              {/* Optimized originals: picture chooses only the appropriate device variant. */}
-              <picture>
-                <source media="(max-width: 700px)" srcSet={chapter.mobile} width="540" height="960" />
-                <img src={chapter.desktop} width="1280" height="720" alt={`Construção CASSEMIRO: ${chapter.title.toLowerCase()}`}
-                  loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"}
-                  decoding="async" draggable={false}
-                  onError={() => setFailed((previous) => previous.includes(index) ? previous : [...previous, index])} />
-              </picture>
-              {failed.includes(index) && <p className={styles.error} role="status">Imagem indisponível. Você pode continuar explorando as etapas.</p>}
-              <div className={styles.caption}>
-                <h2>{chapter.title}</h2><p>{chapter.text}</p>
-              </div>
+    <div ref={root} className={styles.chapters} data-phase="0">
+      <div className={styles.visual} aria-hidden="true">
+        <div className={styles.atmosphere} />
+        <div className={styles.model}>
+          {constructionArtwork.map((artwork, index) => (
+            index === 0 ? <picture key={artwork.name} className={styles.finished}>
+              <source media="(max-width: 700px)" srcSet={artwork.mobile} />
+              <img src={artwork.desktop} width="1536" height="1024" alt=""
+                loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"}
+                decoding="async" draggable={false} onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />
+            </picture> : <div key={artwork.name} className={styles.cutaway}>
+              {["foundation", "structure", "walls", "roof"].map((layer) => (
+                <picture key={layer} className={styles[layer]}>
+                  <source media="(max-width: 700px)" srcSet={artwork.mobile} />
+                  <img src={artwork.desktop} width="1536" height="1024" alt="" loading="lazy" decoding="async" draggable={false}
+                    onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />
+                </picture>
+              ))}
             </div>
           ))}
         </div>
-        {children}
-      </div>
-      <div id="servicos" className={styles.navigation}>
-        <div className={styles.selector} role="group" aria-label="Etapas da construção">
-          {constructionChapters.map((chapter, index) => (
-            <label htmlFor={`construction-chapter-${index}`} key={chapter.title}>
-              <span>{String(index + 1).padStart(2, "0")}</span>{chapter.title}
-            </label>
-          ))}
-        </div>
-        <div className={styles.arrows}>
-          <button type="button" aria-label="Etapa anterior" onClick={() => select(active - 1)}><span className={styles.previous}><ArrowIcon /></span></button>
-          <span aria-live="polite" aria-atomic="true">{String(active + 1).padStart(2, "0")} / 06</span>
-          <button type="button" aria-label="Próxima etapa" onClick={() => select(active + 1)}><ArrowIcon /></button>
+        <div className={styles.progress}>
+          <span>DO ALICERCE AO ACABAMENTO</span>
+          <div>{constructionChapters.map((chapter, index) => <i key={chapter.title} data-step={index + 1} />)}</div>
         </div>
       </div>
-      <noscript><style>{`.${styles.arrows} { display: none; }`}</style></noscript>
+      <div className={styles.narrative}>
+        <div className={styles.opening} data-story-chapter="0">
+          {children}
+          <p className={styles.scrollCue}>Uma casa. Cada detalhe. <span>Continue rolando ↓</span></p>
+        </div>
+        {constructionChapters.map((chapter, index) => (
+          <section key={chapter.title} id={index === 0 ? "servicos" : `etapa-${index + 1}`}
+            className={styles.chapter} data-story-chapter={index + 1} aria-labelledby={`service-title-${index}`}>
+            <div className={styles.chapterCopy}>
+              <p className={styles.eyebrow}>ETAPA {String(index + 1).padStart(2, "0")} <span>/ 06</span></p>
+              <h2 id={`service-title-${index}`}>{chapter.title}</h2>
+              <p className={styles.summary}>{chapter.text}</p>
+              <p className={styles.detail}>{chapter.detail}</p>
+              {index === 5 && <a className={styles.next} href="#sobre">Conheça quem conduz sua obra <span>↓</span></a>}
+            </div>
+          </section>
+        ))}
+        <p className={styles.disclosure}>Visualizações ilustrativas inspiradas na arquitetura dos nossos projetos. As fotografias reais estão no portfólio.</p>
+      </div>
     </div>
   );
 }

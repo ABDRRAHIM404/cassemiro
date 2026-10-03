@@ -44,7 +44,7 @@ export function Header({ showProjects = false }: { showProjects?: boolean }) {
         if (open && !event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}>
       <div className={styles.inner}>
-        <Link href="/" className={styles.logo} onClick={() => setOpen(false)} aria-label="CASSEMIRO — início">
+        <Link href="/" className={styles.logo} onClick={() => setOpen(false)} aria-label="CASSEMIRO Construção & Reformas — início">
           <Logo />
         </Link>
         <nav id="primary-navigation" className={styles.nav} aria-label="Navegação principal">

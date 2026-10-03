@@ -1,35 +1,60 @@
-# Lightweight construction chapters
+# Scroll-led architectural story
 
-The owner approved replacing scroll-controlled frame playback with six photographic chapters. The original construction imagery, Portuguese copy, brand colors, fonts, CMS hero content, navigation, and subsequent homepage sections remain intact.
+The six-photo arrow/radio carousel was rejected by the owner. The replacement unfolds automatically through normal vertical scrolling. No old construction frames are used by the hero.
 
-Taste direction: redesign-preserve, native CSS editorial composition. DESIGN_VARIANCE: 7, MOTION_INTENSITY: 4, VISUAL_DENSITY: 4. Existing bronze/ivory and DM Serif Display are deliberate brand constraints.
+Taste direction: DESIGN_VARIANCE 8, MOTION_INTENSITY 6, VISUAL_DENSITY 3. CASSEMIRO's dark, ivory and bronze palette and established typography are preserved. New architectural artwork is inspired by the verified real project portfolio; it is explicitly illustrative, not a documentary photograph. Sérgio's original photo and all real portfolio images are unchanged.
 
-## Interaction
+## Experience
 
-- Six photographs represent Fundações, Estruturas, Alvenaria, Instalações, Acabamentos, and Construção Completa.
-- Native radio selectors switch the matching image and service caption.
-- Arrows, horizontal drag/swipe, and keyboard navigation explore chapters.
-- Vertical scrolling stays native and proceeds directly to Sérgio. There are no frame holds or wheel interception.
-- A short CSS curtain transition communicates chapter changes. Reduced motion removes it entirely.
-- Without JavaScript, native selectors still switch photographs and captions. Arrows are hidden.
-- Failed images do not prevent reading the services or continuing through the page.
+- An opening house visualization accompanies the CMS headline and quote/service links.
+- Six naturally scrolling chapters reveal Fundações, Estruturas, Alvenaria, Instalações, Acabamentos and Construção Completa.
+- A sticky architectural scene reveals clipped foundation, structural, masonry and installation/roof layers of the generated cutaway, then returns to the finished home. Changing focus and native CSS scroll-driven camera movement keep the house connected to the service story.
+- No arrows, radios, scroll interception, canvas, bitmap caches or per-scroll React state are involved. A cleaned-up IntersectionObserver handles only discrete phase changes and older-browser fallback.
+- Mobile uses a taller image-led composition with copy below. Reduced motion disables animation and transitions. All six service headings remain in server-rendered HTML without JavaScript or working images.
+- The final chapter leads directly to the existing Sérgio section. The rest of the homepage order is preserved.
 
-## Performance contract
+## Generated assets
 
-Only six original WebP photographs are selectable. The responsive picture source chooses the mobile or desktop asset, never both for one viewport. The first image is eager/high priority; hidden chapters are lazy. There is no canvas, bitmap cache, full-timeline import, animation library, auto-play, continuous pointer state, or scroll listener in the new hero.
+Mode: built-in image generation. Real reference: the cover of Residência Contemporânea Linear. Original generated PNGs are retained in the generation workspace; optimized project-bound WebPs are saved under public/images/story/.
 
-The six source files total about 424 KiB on desktop and 145 KiB on mobile, compared with the complete 190-frame source sets of approximately 14.3 MiB and 4.9 MiB. These are source asset totals, not measured initial-load bytes or whole-page metrics.
+| Asset | Desktop bytes | Mobile bytes |
+| --- | ---: | ---: |
+| house-finished-v1.webp / house-finished-mobile-v1.webp | 162764 | 59996 |
+| house-cutaway-v1.webp / house-cutaway-mobile-v1.webp | 147734 | 49214 |
 
-Original frame assets and optimization tools remain available for archival use. Historical frame-hold verification scripts describe the retired experience and are not acceptance tests for this replacement.
+Total illustration file bytes: 310498 desktop, 109210 mobile. These are source totals, not total page transfer or measured performance scores.
 
-Implementation: `Hero.tsx`, `ConstructionChapters.tsx`, their CSS modules, and `src/config/construction-chapters.ts`.
+### Finished-house prompt
 
-## Verification
+Use case: stylized-concept
+Asset type: final website hero architectural visualization, not a UI mockup.
+Input images: image 1 is an architectural style/shape reference ONLY, a real CASSEMIRO construction photograph. Generate new artwork; do not edit or retouch that photograph.
+Subject: a premium architectural scale model inspired closely by the reference's single-storey Brazilian contemporary residence: clean ivory rectangular volumes, stepped flat parapet roofs, deep projecting garage/carport portico, black slim window frames and warm recessed doorway. Keep a plausible modest residential scale, not a fantasy mansion. Show the whole house, ground slab, slight landscaping, all silhouettes fully inside the canvas.
+Style: exceptionally refined realistic 3D architectural maquette, sharp tactile plaster/concrete and black aluminium, editorial premium construction studio.
+Camera: three-quarter front-left axonometric perspective, slightly elevated, complete isolated house, horizontal 3:2 canvas. House centred with 15% breathing room on every side, suitable for scaling on both desktop and portrait websites.
+Lighting: dramatic soft warm bronze rim light and cool-neutral ivory surfaces, readable details against a dark website.
+Background: genuinely transparent, with a restrained soft contact shadow, no sky, no surrounding buildings, no screen/UI.
+Constraints: NO text, letters, logos, numbers, labels, watermarks, people, faces, cranes, random ornate details, neon, blue/purple glow. This is illustrative website artwork inspired by a real house, not documentary project photography.
 
-- Production build, TypeScript, ESLint, and 29 unit tests pass.
-- Chromium checks at 1366, 390, and 320 pixels verify six matching chapters, one initially requested hero image, six maximum requested hero images, correct responsive source selection, arrows, native radio keyboard navigation, mouse dragging, real touch swiping, normal vertical touch/wheel scrolling, and reduced motion.
-- Native selectors work without JavaScript at all three widths. A simulated image 404 leaves the service readable and allows navigation to the next photograph.
-- The opening photo is about 117 KiB desktop or 38 KiB mobile. These are original file sizes, not whole-page transfer totals.
-- Two local simulated-mobile Lighthouse runs scored 90 and 79 for performance, and 100 for accessibility, with zero CLS. LCP was 2.8/2.7 seconds and TBT 290/720 ms. These variable workstation results are not production measurements and do not establish that all homepage performance targets are met.
-- The old bitmap renderer, unused timeline adapter, global frame styles, and early wheel interception were removed. Original image assets were not deleted; deleted source code remains recoverable through Git history.
-- Changes are local only until the owner requests a push/deployment.
+### Cutaway prompt
+
+Use case: stylized-concept
+Asset type: final CASSEMIRO website construction-story illustration.
+Input image: architectural geometry and camera reference, not documentary photography.
+Create a new exploded architectural cutaway maquette of EXACTLY this contemporary Brazilian house: same white stepped flat-roof volumes and projecting garage portico, same camera direction and overall footprint. Show coherent construction layers separated vertically: dark concrete foundation footings and floor slab at bottom, reinforced concrete columns/beams above, partial masonry walls at mid height, restrained copper electrical conduits and plumbing exposed within walls, roof slab floating slightly above. Remove landscaping to make structural elements legible. Construction components must read as one plausible house, not random stacked shapes.
+Use sophisticated realistic 3D materials, neutral ivory masonry and charcoal concrete, bronze/copper installation lines and warm rim lighting. Entire model fits horizontal 3:2 canvas with breathing room around every edge. Dark charcoal seamless background matching #11120f. Camera slightly elevated three-quarter front-left; architectural editorial quality.
+NO text, logos, watermarks, arrows, people, face, cranes, neon or surrounding buildings. This is conceptual architectural artwork, not a real project photo.
+
+## Acceptance checks
+
+The updated browser scripts test automatic phase selection by scrolling, reverse scrolling, responsive asset requests, readable service headings, no horizontal overflow, visible opening CTA, reduced motion, no-JavaScript service access, and image-failure navigation. Browser and Lighthouse results must be recorded after they have actually run; old carousel measurements are not evidence for this redesign.
+
+## Verification results
+
+- Production build, TypeScript, ESLint and 29 unit tests pass.
+- Chromium checks at 1366, 390 and 320 pixels verify automatic chapter changes without clicks, native wheel/touch movement, reverse scrolling, all six headings, correct two-image responsive requests, no old frame requests, no canvas, opening CTA visibility, and reduced motion.
+- All six service headings remain readable without JavaScript at all three widths; the real project archive remains accessible. A simulated failure of both illustrations leaves all six services and the founder link usable.
+- Regression browser checks at all three widths confirm Sérgio's original image and both real project covers load, no horizontal overflow, trust click/keyboard selection, project arrows/keyboard/drag/touch navigation, and project detail links. No page errors were reported.
+- Screenshots exposed a mobile copy/progress overlap; the mobile lower inset was increased and the opening progress marker hidden. Readable copy no longer fades to low-contrast opacity. Offscreen service layout uses native content visibility.
+- Local simulated-mobile Lighthouse: initial run 29 performance / 96 accessibility, with a very low host benchmark (11.5) while browser checks were also running. After the contrast/layout fixes and closing the review browser, a sequential run scored 87 performance / 100 accessibility, LCP 3.58 seconds, TBT 218 ms and CLS 0, with host benchmark 1079.5. These runs are not a controlled before/after comparison or production measurements. LCP remains above the 2.5-second target; no blanket speed-target claim is made.
+- No new animation dependency, database mutation or deployment was required. Changes remain local until a push is requested.
