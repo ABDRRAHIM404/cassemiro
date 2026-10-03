@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { quoteRequestSchema } from "@/features/quotes/validation";
 import { checkQuoteRateLimit, quoteClientIdentity } from "@/lib/rate-limit";
 import { readLimitedJson } from "@/lib/http/read-limited-json";
+import { optionalNotificationError } from "@/lib/quotes/optional-notification";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 
@@ -79,17 +80,18 @@ export async function POST(request: NextRequest) {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
 
   if (resendKey && notificationEmail && fromEmail) {
-    const resend = new Resend(resendKey);
-    const desiredStart = quote.desiredStart || "Não informado";
-    const { error: emailError } = await resend.emails.send({
-      from: fromEmail,
-      to: notificationEmail,
-      subject: `Novo orçamento — ${quote.name} · ${quote.workType}`,
-      html: `<h1>Nova solicitação de orçamento</h1><p><strong>Nome:</strong> ${escapeHtml(quote.name)}</p><p><strong>Telefone:</strong> ${escapeHtml(quote.phone)}</p><p><strong>Cidade:</strong> ${escapeHtml(quote.city)}</p><p><strong>Tipo de obra:</strong> ${escapeHtml(quote.workType)}</p><p><strong>Data desejada:</strong> ${escapeHtml(desiredStart)}</p><p><strong>Descrição:</strong><br>${escapeHtml(quote.description).replace(/\n/gu, "<br>")}</p><p><strong>Recebido em:</strong> ${escapeHtml(savedQuote.created_at)}</p>`
+    const emailError = await optionalNotificationError(async () => {
+      const resend = new Resend(resendKey);
+      const desiredStart = quote.desiredStart || "Não informado";
+      return resend.emails.send({
+        from: fromEmail,
+        to: notificationEmail,
+        subject: `Novo orçamento — ${quote.name} · ${quote.workType}`,
+        html: `<h1>Nova solicitação de orçamento</h1><p><strong>Nome:</strong> ${escapeHtml(quote.name)}</p><p><strong>Telefone:</strong> ${escapeHtml(quote.phone)}</p><p><strong>Cidade:</strong> ${escapeHtml(quote.city)}</p><p><strong>Tipo de obra:</strong> ${escapeHtml(quote.workType)}</p><p><strong>Data desejada:</strong> ${escapeHtml(desiredStart)}</p><p><strong>Descrição:</strong><br>${escapeHtml(quote.description).replace(/\n/gu, "<br>")}</p><p><strong>Recebido em:</strong> ${escapeHtml(savedQuote.created_at)}</p>`
+      });
     });
-
     if (emailError) {
-      console.error("Quote notification email failed", emailError.message);
+      console.error("Quote notification email failed after quote was saved", emailError);
       Sentry.captureException(emailError, { tags: { operation: "quote_notification" } });
     }
   }
