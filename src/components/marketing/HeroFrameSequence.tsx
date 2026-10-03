@@ -210,6 +210,12 @@ export function HeroFrameSequence({
     const serviceItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-service"));
     const serviceProgressItems = Array.from(root.querySelectorAll<HTMLElement>(".hero-services__progress i"));
 
+    const snapFramePosition = () => (
+      snapTargetIndex !== null && snapTargetIndex >= 0 && snapTargetIndex < serviceSnapProgresses.length
+        ? timelineState(serviceSnapProgresses[snapTargetIndex]).sourceProgress * (frames.length - 1)
+        : null
+    );
+
     const maxCacheSize = () => mobileMedia.matches
       ? MAX_DECODED_MOBILE_FRAMES
       : MAX_DECODED_DESKTOP_FRAMES;
@@ -282,6 +288,22 @@ export function HeroFrameSequence({
       root.classList.add("hero-sequence--ready");
     };
 
+    const updateServiceVisibility = (stage: number, stageProgress: number) => {
+      const lowerIndex = Math.floor(currentPosition);
+      const upperIndex = Math.min(frames.length - 1, Math.ceil(currentPosition));
+      const matchingFrameReady = cache.has(lowerIndex) || cache.has(upperIndex);
+
+      serviceItems.forEach((item, index) => {
+        const isActive = index === stage && matchingFrameReady;
+        item.classList.toggle("is-active", isActive);
+        item.setAttribute("aria-hidden", String(!isActive));
+        if (isActive) {
+          const edgeFade = Math.min(1, stageProgress / 0.1, (1 - stageProgress) / 0.1);
+          item.style.setProperty("--service-presence", String(Math.max(0, edgeFade)));
+        }
+      });
+    };
+
     const pumpQueue = () => {
       while (!destroyed && activeLoads < MAX_CONCURRENT_LOADS && queue.length) {
         const index = queue.shift();
@@ -305,7 +327,14 @@ export function HeroFrameSequence({
               index === Math.floor(currentPosition) ||
               index === Math.ceil(currentPosition) ||
               !root.classList.contains("hero-sequence--ready")
-            ) draw();
+            ) {
+              draw();
+              const rect = section.getBoundingClientRect();
+              const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+              const progress = Math.min(1, Math.max(0, -rect.top / Math.max(1, section.offsetHeight - viewportHeight)));
+              const timeline = timelineState(progress);
+              updateServiceVisibility(timeline.stage, timeline.stageProgress);
+            }
           })
           .catch((error: unknown) => {
             if (error instanceof DOMException && error.name === "AbortError") return;
@@ -323,7 +352,12 @@ export function HeroFrameSequence({
     const reprioritize = (position: number, direction: number) => {
       const lowerIndex = Math.floor(position);
       const upperIndex = Math.min(frames.length - 1, Math.ceil(position));
-      const prioritized: number[] = [lowerIndex, upperIndex];
+      const snapPosition = snapFramePosition();
+      const snapLowerIndex = snapPosition === null ? null : Math.floor(snapPosition);
+      const snapUpperIndex = snapPosition === null ? null : Math.min(frames.length - 1, Math.ceil(snapPosition));
+      const prioritized: number[] = snapLowerIndex === null || snapUpperIndex === null
+        ? [lowerIndex, upperIndex]
+        : [snapLowerIndex, snapUpperIndex, lowerIndex, upperIndex];
       const forward = direction >= 0 ? 1 : -1;
 
       for (let offset = 1; offset <= PRELOAD_AHEAD; offset += 1) {
@@ -344,7 +378,8 @@ export function HeroFrameSequence({
       );
 
       controllers.forEach((controller, index) => {
-        if (Math.abs(index - lowerIndex) > ABORT_DISTANCE) controller.abort();
+        if (Math.abs(index - lowerIndex) > ABORT_DISTANCE &&
+          (snapLowerIndex === null || Math.abs(index - snapLowerIndex) > 1)) controller.abort();
       });
       pumpQueue();
     };
@@ -403,23 +438,13 @@ export function HeroFrameSequence({
       if (timeline.stage !== lastServiceStage) {
         lastServiceStage = timeline.stage;
         section.dataset.sequencePhase = timeline.stage < 0 ? "intro" : "services";
-        serviceItems.forEach((item, index) => {
-          const isActive = index === timeline.stage;
-          item.classList.toggle("is-active", isActive);
-          item.setAttribute("aria-hidden", String(!isActive));
-        });
         serviceProgressItems.forEach((item, index) => item.classList.toggle("is-active", index <= timeline.stage));
-      }
-
-      const activeService = timeline.stage >= 0 ? serviceItems[timeline.stage] : null;
-      if (activeService) {
-        const edgeFade = Math.min(1, timeline.stageProgress / 0.1, (1 - timeline.stageProgress) / 0.1);
-        activeService.style.setProperty("--service-presence", String(Math.max(0, edgeFade)));
       }
 
       const positionChanged = nextPosition !== currentPosition;
       currentPosition = nextPosition;
       if (positionChanged || !root.classList.contains("hero-sequence--ready")) draw();
+      updateServiceVisibility(timeline.stage, timeline.stageProgress);
 
       const currentIndex = Math.floor(currentPosition);
       if (currentIndex !== lastScheduledIndex || direction !== lastScheduledDirection) {
@@ -460,6 +485,7 @@ export function HeroFrameSequence({
       reverseWheelDelta = 0;
       snapLockedUntil = performance.now() + MIN_SNAP_LOCK_MS;
       scheduleWheelRelease();
+      reprioritize(currentPosition, direction);
 
       let targetTop: number;
       if (targetStage === serviceSnapProgresses.length) {
