@@ -125,12 +125,23 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
     if (!window.confirm("Remover este arquivo do projeto?")) return;
     setBusy(true);
     const supabase = createClient();
-    if (heroImage === item.url) {
+    const wasCover = heroImage === item.url;
+    if (wasCover) {
       const { error: coverError } = await supabase.from("projects").update({ hero_image: null }).eq("id", projectId);
       if (coverError) { setMessage("Não foi possível remover a capa."); setBusy(false); return; }
     }
-    const { error } = await supabase.from("project_media").delete().eq("id", item.id);
-    if (error) { setMessage("Não foi possível remover o arquivo."); setBusy(false); router.refresh(); return; }
+    const { error } = await supabase.from("project_media").delete().eq("id", item.id).eq("project_id", projectId).select("id").single();
+    if (error) {
+      const { error: restoreError } = wasCover
+        ? await supabase.from("projects").update({ hero_image: item.url }).eq("id", projectId)
+        : { error: null };
+      setMessage(restoreError
+        ? "Não foi possível remover o arquivo nem restaurar a capa. Contacte o suporte."
+        : wasCover ? "Não foi possível remover o arquivo. A capa foi restaurada." : "Não foi possível remover o arquivo.");
+      setBusy(false);
+      router.refresh();
+      return;
+    }
     const path = item.storage_path ?? storagePath(item.url);
     const bucket = item.storage_path ? PRIVATE_PROJECT_MEDIA_BUCKET : "project-media";
     const { error: storageError } = path ? await supabase.storage.from(bucket).remove([path]) : { error: null };
