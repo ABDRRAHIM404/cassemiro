@@ -366,6 +366,9 @@ body:has(.admin-shell), body:has(.admin-login) { padding-bottom: 0; background: 
 .admin-panel__heading h2 { margin: 7px 0 0; font-family: var(--serif); font-size: 2rem; letter-spacing: -.02em; }
 .admin-panel__heading > a { color: #765936; font-size: .68rem; font-weight: 600; }
 .admin-table-wrap { overflow-x: auto; }
+.admin-pager { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 30px; border-top: 1px solid rgba(14,14,14,.1); color: #706b64; font-size: .75rem; }
+.admin-pager > div { display: flex; flex-wrap: wrap; gap: 20px; }
+.admin-pager a { color: #765936; font-weight: 600; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: .76rem; }
 .admin-table th { padding: 16px 20px; color: #88837b; background: #f2f0ea; font-size: .54rem; font-weight: 600; letter-spacing: .1em; text-align: left; text-transform: uppercase; }
 .admin-table td { padding: 20px; border-top: 1px solid rgba(14,14,14,.08); color: #595650; white-space: nowrap; }
