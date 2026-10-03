@@ -7,6 +7,7 @@ Updated: 3 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 | Fix | Commit | Evidence / remaining verification |
 | --- | --- | --- |
 | Private project media delivery, durable quote limit | `a68f7e1`, `d3b514b` | Code and database migration deployed; staging abuse/media lifecycle tests remain. |
+| Remove dead footer process anchor and target quote follow-up to the lead | `a68f7e1` | The baseline audit's footer `/#processo` link was removed because the current homepage has no process section, and admin quote follow-up now uses a validated lead phone instead of the company number. Current source and link tests confirm the fixes; a populated quote-detail staging check remains open. |
 | JSON-LD escaping, canonicals, metadata, social fallback | `0f4c55c` | Source updated; rendered SEO checks remain across every route. |
 | Admin write error reporting and atomic service order | `56e3203` | Source and migration deployed; staged mutation tests remain. |
 | Retryable project uploads and atomic media order | `5d0c6f0`, `86705aa` | Source and migration deployed; staged upload-failure tests remain. |
