@@ -366,6 +366,10 @@ export function HeroFrameSequence({
     };
 
     const reprioritize = (position: number, direction: number) => {
+      if (waitingForPoster && position < 1 && snapTargetIndex === null) {
+        queue = [];
+        return;
+      }
       const lowerIndex = Math.floor(position);
       const upperIndex = Math.min(frames.length - 1, Math.ceil(position));
       const snapPosition = snapFramePosition();
@@ -374,6 +378,10 @@ export function HeroFrameSequence({
       const prioritized: number[] = snapLowerIndex === null || snapUpperIndex === null
         ? [lowerIndex, upperIndex]
         : [snapLowerIndex, snapUpperIndex, lowerIndex, upperIndex];
+      if (snapLowerIndex === null && currentPosition < 1 && cache.has(0) && !mobileMedia.matches) {
+        // The poster is painted: start the first desktop hold frame before the first wheel gesture.
+        prioritized.push(Math.floor(timelineState(serviceSnapProgresses[0]).sourceProgress * (frames.length - 1)));
+      }
       const forward = direction >= 0 ? 1 : -1;
 
       for (let offset = 1; offset <= PRELOAD_AHEAD; offset += 1) {
