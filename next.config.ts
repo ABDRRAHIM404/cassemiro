@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
+function sentryIngestOrigin() {
+  try {
+    const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+    if (!dsn) return null;
+    const origin = new URL(dsn);
+    return origin.protocol === "https:" ? origin.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+const sentryOrigin = sentryIngestOrigin();
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
@@ -21,7 +34,7 @@ const nextConfig: NextConfig = {
             "script-src 'self' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob: https://zjjepitczgffszbilfte.supabase.co",
-            "connect-src 'self' https://zjjepitczgffszbilfte.supabase.co",
+            `connect-src 'self' https://zjjepitczgffszbilfte.supabase.co${sentryOrigin ? ` ${sentryOrigin}` : ""}`,
             "media-src 'self' blob: https://zjjepitczgffszbilfte.supabase.co",
             "font-src 'self' data:",
             "worker-src 'self' blob:",

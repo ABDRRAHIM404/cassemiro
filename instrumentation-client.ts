@@ -1,10 +1,16 @@
-import * as Sentry from "@sentry/nextjs";
+let captureRouterTransitionStart: ((url: string, navigationType: "push" | "replace" | "traverse") => void) | null = null;
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
-  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
-  tracesSampleRate: 0.1
-});
+if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  void import("@sentry/nextjs").then((Sentry) => {
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+      environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
+      tracesSampleRate: 0.1
+    });
+    captureRouterTransitionStart = Sentry.captureRouterTransitionStart;
+  });
+}
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export function onRouterTransitionStart(url: string, navigationType: "push" | "replace" | "traverse") {
+  captureRouterTransitionStart?.(url, navigationType);
+}
