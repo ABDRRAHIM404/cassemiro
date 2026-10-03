@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { whatsappUrlForPhone } from "@/lib/phone";
 import { updateQuoteStatus } from "../actions";
@@ -10,8 +11,10 @@ function formatDate(value: string, withTime = true) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", ...(withTime ? { timeStyle: "short" as const } : {}), timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
-export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QuoteDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> }) {
   const { id } = await params;
+  if (!z.uuid().safeParse(id).success) notFound();
+  const notice = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: quote, error } = await supabase.from("quote_requests").select("*").eq("id", id).maybeSingle();
   if (error) return <main id="conteudo" className="admin-content"><Link href="/admin/orcamentos" className="admin-back">← Voltar aos orçamentos</Link><div className="admin-alert" role="alert">Não foi possível carregar este orçamento. Atualize a página ou tente novamente em alguns minutos.</div></main>;
@@ -23,6 +26,8 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   return (
     <main id="conteudo" className="admin-content">
       <Link href="/admin/orcamentos" className="admin-back">← Voltar aos orçamentos</Link>
+      {notice.saved === "1" && <div className="admin-notice" role="status">Status atualizado.</div>}
+      {notice.error === "1" && <div className="admin-alert" role="alert">Não foi possível atualizar o status. Tente novamente.</div>}
       <div className="admin-page-heading admin-page-heading--detail">
         <div><p className="eyebrow eyebrow--dark">Solicitação recebida em {formatDate(quote.created_at)}</p><h1>{quote.name}</h1></div>
         <span className={`status status--large status--${quote.status.toLowerCase().replace(" ", "-")}`}>{quote.status}</span>

@@ -8,7 +8,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
-type QuotesPageProps = { searchParams: Promise<{ status?: string; busca?: string; pagina?: string }> };
+type QuotesPageProps = { searchParams: Promise<{ status?: string; busca?: string; pagina?: string; invalid?: string }> };
 
 export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   const params = await searchParams;
@@ -31,6 +31,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   return (
     <main id="conteudo" className="admin-content">
       <div className="admin-page-heading"><div><p className="eyebrow eyebrow--dark">Atendimento</p><h1>Orçamentos</h1></div><p>Organize os contatos recebidos e acompanhe cada conversa.</p></div>
+      {params.invalid === "1" && <div className="admin-alert" role="alert">Não foi possível alterar o status. Confira a solicitação e tente novamente.</div>}
       <form className="admin-filters" method="get">
         <label><span>Buscar</span><input name="busca" defaultValue={search} placeholder="Nome, cidade ou telefone" /></label>
         <label><span>Status</span><select name="status" defaultValue={status}><option value="">Todos</option>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
