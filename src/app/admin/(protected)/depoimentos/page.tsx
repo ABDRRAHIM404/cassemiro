@@ -1,3 +1,4 @@
+import { WorkspaceSubmit } from "@/components/admin/WorkspaceSubmit";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createTestimonial, toggleTestimonial } from "./actions";
@@ -19,7 +20,7 @@ export default async function TestimonialsAdminPage({ searchParams }: { searchPa
         <label className="admin-field admin-field--full"><span>Depoimento *</span><textarea name="text" minLength={10} maxLength={2000} rows={5} required /></label>
         <label className="admin-check"><input name="is_approved" type="checkbox" /><span>Publicar agora</span></label>
         <label className="admin-check admin-check--full"><input name="permission_confirmed" type="checkbox" /><span>Confirmo que o cliente autorizou o uso deste texto e do seu nome no site.</span></label>
-        <button type="submit">Adicionar depoimento</button>
+        <WorkspaceSubmit>Adicionar depoimento</WorkspaceSubmit>
       </form>
     </section>
     <section className="admin-panel testimonial-list"><div className="admin-panel__heading"><div><span>{String(testimonials?.length ?? 0).padStart(2,"0")} CADASTRADOS</span><h2>Avaliações</h2></div></div>

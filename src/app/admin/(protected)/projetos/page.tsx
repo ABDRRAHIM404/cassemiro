@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { toggleProjectPublished } from "./actions";
 
@@ -25,10 +26,10 @@ export default async function AdminProjectsPage({ searchParams }: { searchParams
       <section className="admin-panel">
         <div className="admin-panel__heading"><div><span>{String(projects?.length ?? 0).padStart(2, "0")} PROJETOS</span><h2>Obras cadastradas</h2></div></div>
         {projects?.length ? (
-          <div className="admin-table-wrap"><table className="admin-table admin-projects-table"><thead><tr><th>Projeto</th><th>Local</th><th>Categoria</th><th>Visibilidade</th><th>Atualizado</th><th /></tr></thead><tbody>
+          <div className="admin-table-wrap" role="region" aria-label="Tabela de registros" tabIndex={0}><table className="admin-table admin-projects-table"><thead><tr><th>Projeto</th><th>Local</th><th>Categoria</th><th>Visibilidade</th><th>Atualizado</th><th /></tr></thead><tbody>
             {projects.map((project) => (
               <tr key={project.id}>
-                <td><div className="admin-project-cell"><span style={project.hero_image ? { backgroundImage: `url(${project.hero_image})` } : undefined} /><strong>{project.title}</strong></div></td>
+                <td><div className="admin-project-cell"><span aria-hidden="true">{project.hero_image && <Image src={project.hero_image} alt="" fill sizes="58px" unoptimized={project.hero_image.startsWith("/api/project-media/")} />}</span><strong><Link href={`/admin/projetos/${project.id}`}>{project.title}</Link></strong></div></td>
                 <td>{project.city || "—"}</td><td>{project.category || "—"}</td>
                 <td><form action={toggleProjectPublished.bind(null, project.id, !project.is_published)}><button className={`status ${project.is_published ? "status--published" : "status--draft"}`} type="submit">{project.is_published ? "Publicado" : "Oculto"}</button></form></td>
                 <td>{formatDate(project.updated_at)}</td><td><Link href={`/admin/projetos/${project.id}`}>Editar →</Link></td>

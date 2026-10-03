@@ -1,0 +1,46 @@
+.root { position: relative; min-height: 100svh; overflow: hidden; color: var(--ivory); background: #11120f; isolation: isolate; scroll-margin-top: 72px; }
+.portraitLayer { position: absolute; inset: 0 0 0 auto; z-index: -3; width: 54%; mask-image: linear-gradient(90deg,transparent,#000 22%); }
+.portrait { object-fit: cover; object-position: 50% 18%; }
+.scrim { position: absolute; inset: 0; z-index: -2; pointer-events: none; background: linear-gradient(90deg, #11120f 0%, #11120f 36%, rgb(17 18 15 / 84%) 46%, rgb(17 18 15 / 14%) 64%, transparent 82%), linear-gradient(0deg, #11120f, transparent 20%); }
+.composition { width: min(1160px, calc(100% - 144px)); min-height: max(760px, 100svh); margin-inline: auto; padding-block: 84px 72px; display: flex; align-items: center; }
+.copy { width: 48%; max-width: 500px; }
+.context { display: flex; align-items: center; gap: 16px; margin: 0 0 28px; color: #c4c6ba; font-size: 11px; letter-spacing: .1em; line-height: 1.5; }
+.context::before { content: ""; display: block; flex-shrink: 0; width: 32px; height: 1px; background: var(--bronze-light); }
+.copy h2 { margin: 0 0 16px; font-family: var(--serif); font-size: clamp(48px, 4.5vw, 64px); font-weight: 400; letter-spacing: -.025em; line-height: 1.04; }
+.role { margin: 0 0 30px; color: #b5b8ab; font-size: 12px; line-height: 1.5; }
+.experience { display: flex; align-items: center; gap: 20px; margin: 0 0 30px; color: var(--bronze-light); }
+.experience strong { font-family: var(--serif); font-size: 76px; font-weight: 400; letter-spacing: -.05em; line-height: 1; font-variant-numeric: lining-nums; }
+.experience span { color: #d4d5ca; font-size: 13px; line-height: 1.5; }
+.body { color: #c4c6ba; font-size: 15px; line-height: 1.75; }
+.body p { margin: 0 0 18px; }
+.quote { margin: 28px 0 0; max-width: 460px; padding-left: 20px; border-left: 1px solid var(--bronze); color: #d8c09b; font-family: var(--serif); font-size: 21px; line-height: 1.4; }
+@supports (animation-timeline: view()) {
+  .root { view-timeline-name: --founder; view-timeline-axis: block; }
+  .portraitLayer { animation: portrait-drift linear both; animation-timeline: --founder; animation-range: entry 0% exit 100%; }
+  @keyframes portrait-drift { from { transform: translateY(-16px) scale(1.035); } to { transform: translateY(16px) scale(1.035); } }
+}
+@media (max-width: 1000px) {
+  .root { scroll-margin-top: 64px; }
+  .composition { width: calc(100% - 64px); }
+  .copy { width: 52%; }
+  .portraitLayer { width: 53%; }
+  .scrim { background: linear-gradient(90deg, #11120f 0%, #11120f 32%, rgb(17 18 15 / 85%) 48%, transparent 76%), linear-gradient(0deg, #11120f, transparent 22%); }
+}
+@media (max-width: 760px) {
+  .root { min-height: 0; }
+  .portraitLayer { top: 0; right: 0; bottom: auto; width: 100%; height: min(72svh, 620px); animation: none; transform: none; mask-image: none; }
+  .portrait { object-position: 50% 18%; }
+  .scrim { top: 0; bottom: auto; height: min(72svh, 620px); background: linear-gradient(0deg, #11120f 0%, rgb(17 18 15 / 95%) 12%, rgb(17 18 15 / 46%) 38%, transparent 62%); }
+  .composition { width: calc(100% - 40px); min-height: 0; padding-block: min(49svh, 440px) 64px; }
+  .copy { width: 100%; max-width: 560px; }
+  .context { margin-bottom: 20px; font-size: 10px; }
+  .copy h2 { font-size: clamp(40px, 10.8vw, 52px); }
+  .role { margin-bottom: 24px; }
+  .experience { margin-bottom: 24px; }
+  .experience strong { font-size: 64px; }
+  .body { font-size: 14px; line-height: 1.7; }
+  .quote { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portraitLayer { animation: none; transform: none; }
+}

@@ -6,6 +6,7 @@ import { completeProjectCreation, createProjectForUpload } from "@/app/admin/(pr
 import { createClient } from "@/lib/supabase/client";
 import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
 import type { Database } from "@/types/supabase";
+import { WorkspaceSubmit } from "./WorkspaceSubmit";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Service = Pick<Database["public"]["Tables"]["services"]["Row"], "id" | "title">;
@@ -173,7 +174,7 @@ export function ProjectForm({
           <label className="admin-field"><span>Título para busca</span><input name="seo_title" defaultValue={project?.seo_title ?? ""} maxLength={70} /></label>
           <label className="admin-field"><span>Descrição para busca</span><textarea name="seo_description" defaultValue={project?.seo_description ?? ""} maxLength={170} rows={4} /></label>
         </section>
-        <button className="button button--bronze project-form__save" type="submit" disabled={busy}>{busy ? "A guardar…" : project ? "Salvar projeto" : draftId ? "Tentar novamente" : "Guardar projeto e imagens"}</button>
+        {project ? <WorkspaceSubmit className="button button--bronze project-form__save">Salvar projeto</WorkspaceSubmit> : <button className="button button--bronze project-form__save" type="submit" disabled={busy} aria-busy={busy}>{busy ? "A guardar…" : draftId ? "Tentar novamente" : "Guardar projeto e imagens"}</button>}
         {!project && message && <p className="project-form__status" role="status" aria-live="polite">{message}</p>}
         {!project && draftId && <a href={`/admin/projetos/${draftId}`}>Abrir rascunho e completar manualmente</a>}
       </aside>

@@ -1,0 +1,35 @@
+.status { margin: 0; color: var(--bronze-light); font-size: 13px; }
+.cover { margin: 0; }
+.coverPhoto { --photo-ratio: 3 / 1; }
+.cover > figcaption { padding-top: 14px; color: #aeb2a3; font-size: 11px; }
+.introduction { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.5fr); gap: 72px; align-items: start; padding-block: 56px 24px; }
+.introduction dl { margin: 0; padding-left: 28px; border-left: 1px solid rgb(210 174 120 / 40%); }
+.introduction dl:empty { display: none; }
+.introduction dl > div { margin-bottom: 24px; }
+.introduction dl > div:last-child { margin-bottom: 0; }
+.introduction dt { margin-bottom: 8px; color: #aeb2a3; font-size: 12px; }
+.introduction dd { margin: 0; color: var(--ivory); font-size: 14px; line-height: 1.7; }
+.story { max-width: 1160px; padding-bottom: 32px; }
+.story > p { max-width: 840px; }
+.comparisons { display: flex; flex-direction: column; gap: 40px; padding-bottom: 48px; }
+.comparison { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.comparison[data-complete="false"] { grid-template-columns: 1fr; }
+.comparison figure, .gallery figure { margin: 0; min-width: 0; }
+.comparison figcaption, .gallery figcaption { margin-top: 12px; color: #b5b7ac; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.gallery { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 32px 24px; padding-bottom: 64px; }
+.gallery figure:first-child { grid-column: 1 / -1; }
+.widePhoto { --photo-ratio: 21 / 10; }
+.gallery video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #20241c; }
+.videoLink { padding-bottom: 48px; }
+@media (max-width: 1000px) { .introduction { gap: 40px; } }
+@media (max-width: 760px) {
+  .coverPhoto { --photo-ratio: 4 / 3; }
+  .introduction { grid-template-columns: 1fr; gap: 8px; padding-top: 36px; }
+  .introduction dl { padding: 24px 0 0; border-left: 0; border-top: 1px solid rgb(210 174 120 / 30%); }
+  .introduction dl > div { margin-bottom: 16px; }
+  .story { padding-bottom: 24px; }
+  .comparison, .gallery { grid-template-columns: 1fr; gap: 24px; }
+  .gallery figure:first-child { grid-column: auto; }
+  .widePhoto { --photo-ratio: 16 / 10; }
+  .gallery { padding-bottom: 48px; }
+}

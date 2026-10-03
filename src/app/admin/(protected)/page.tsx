@@ -47,7 +47,7 @@ export default async function AdminOverviewPage() {
       <section className="admin-panel">
         <div className="admin-panel__heading"><div><span>ATIVIDADE RECENTE</span><h2>Novos orçamentos</h2></div><Link href="/admin/orcamentos">Ver todos →</Link></div>
         {recent.error ? <div className="admin-alert" role="alert">Não foi possível carregar os orçamentos recentes.</div> : recent.data?.length ? (
-          <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Cliente</th><th>Tipo</th><th>Cidade</th><th>Status</th><th>Recebido</th><th /></tr></thead><tbody>
+          <div className="admin-table-wrap" role="region" aria-label="Tabela de registros" tabIndex={0}><table className="admin-table"><thead><tr><th>Cliente</th><th>Tipo</th><th>Cidade</th><th>Status</th><th>Recebido</th><th /></tr></thead><tbody>
             {recent.data.map((quote) => <tr key={quote.id}><td><strong>{quote.name}</strong></td><td>{quote.work_type}</td><td>{quote.city}</td><td><span className={`status status--${quote.status.toLowerCase().replace(" ", "-")}`}>{quote.status}</span></td><td>{formatDate(quote.created_at)}</td><td><Link href={`/admin/orcamentos/${quote.id}`} aria-label={`Abrir orçamento de ${quote.name}`}>→</Link></td></tr>)}
           </tbody></table></div>
         ) : <div className="admin-empty"><span>00</span><h3>Nenhum pedido ainda.</h3><p>As solicitações enviadas pelo site aparecerão aqui.</p></div>}

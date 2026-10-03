@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Logo } from "@/components/brand/Logo";
+import { AuthShell } from "@/components/admin/AuthShell";
+import { AuthSubmit } from "@/components/admin/AuthSubmit";
+import styles from "@/components/admin/AuthShell.module.css";
 import { createClient } from "@/lib/supabase/server";
 import { updateAdminPassword } from "../actions";
 
@@ -19,31 +21,19 @@ export default async function ResetPasswordPage({ searchParams }: {
   if (!profile) redirect("/admin/login?error=unauthorized");
 
   return (
-    <main id="conteudo" className="admin-login">
-      <div className="admin-login__brand">
-        <Link href="/" aria-label="Voltar ao site"><Logo /></Link>
-        <div>
-          <p className="eyebrow">Área administrativa</p>
-          <h1>A obra por trás<br />do <em>site.</em></h1>
-          <p>Gerencie solicitações, serviços, projetos e conteúdo da CASSEMIRO.</p>
-        </div>
-      </div>
-      <div className="admin-login__panel">
-        <div className="admin-login__form-wrap">
-          <span>ACESSO RESTRITO</span>
+    <AuthShell>
+          <span className={styles.restricted}>Acesso restrito</span>
           <h2>Nova senha</h2>
-          <p className="admin-login__intro">Escolha uma senha de pelo menos 12 caracteres.</p>
-          {params.error && <div className="admin-alert" role="alert">{params.error}</div>}
-          <form action={updateAdminPassword} className="admin-login__form">
+          <p className={styles.intro}>Escolha uma senha de pelo menos 12 caracteres.</p>
+          {params.error && <div className={styles.alert} role="alert">{params.error}</div>}
+          <form action={updateAdminPassword} className={styles.form}>
             <label htmlFor="new-password">Nova senha</label>
             <input id="new-password" name="password" type="password" autoComplete="new-password" minLength={12} required />
             <label htmlFor="confirm-password">Confirmar nova senha</label>
             <input id="confirm-password" name="confirm_password" type="password" autoComplete="new-password" minLength={12} required />
-            <button className="button button--bronze" type="submit">Guardar nova senha</button>
+            <AuthSubmit label="Guardar nova senha" pendingLabel="Guardando…" />
           </form>
-          <Link href="/admin/login" className="admin-login__back">← Voltar ao login</Link>
-        </div>
-      </div>
-    </main>
+          <Link href="/admin/login" className={styles.back}>← Voltar ao login</Link>
+    </AuthShell>
   );
 }

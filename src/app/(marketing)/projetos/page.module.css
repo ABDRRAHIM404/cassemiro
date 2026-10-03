@@ -1,0 +1,22 @@
+.records { display: flex; flex-direction: column; gap: 72px; padding-bottom: 80px; }
+.record { display: block; width: 100%; max-width: 1000px; }
+.record:nth-child(even) { align-self: flex-end; }
+.photo { --photo-ratio: 21 / 10; }
+.photo img { transition: transform 600ms cubic-bezier(.2,.8,.2,1); }
+.caption { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; padding-top: 24px; }
+.caption > div { min-width: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 12px; color: #b5b7ac; font-size: 12px; }
+.meta > span { color: var(--bronze-light); font-variant-numeric: tabular-nums; }
+.caption h2 { max-width: 740px; margin: 0 0 16px; font-family: var(--serif); font-size: clamp(27px,2.6vw,36px); letter-spacing: -.02em; line-height: 1.2; }
+.summary { max-width: 620px; margin: 0; color: #c4c6ba; font-size: 15px; line-height: 1.7; }
+.note { margin: 16px 0 0; color: #aeb2a3; font-size: 11px; line-height: 1.6; }
+.caption > span { flex-shrink: 0; }
+@media (hover: hover) { .record:hover .photo img { transform: scale(1.025); } }
+@media (max-width: 760px) {
+  .records { gap: 48px; padding-bottom: 56px; }
+  .photo { --photo-ratio: 4 / 3; }
+  .caption { align-items: flex-start; flex-direction: column; gap: 20px; padding-top: 20px; }
+  .caption h2 { font-size: 27px; }
+  .summary { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .photo img { transition: none; } .record:hover .photo img { transform: none; } }

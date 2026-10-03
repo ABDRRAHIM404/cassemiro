@@ -7,6 +7,7 @@ import { updateProjectMediaAlt } from "@/app/admin/(protected)/projetos/actions"
 import { createClient } from "@/lib/supabase/client";
 import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
 import type { Database } from "@/types/supabase";
+import { WorkspaceSubmit } from "./WorkspaceSubmit";
 
 type Media = Database["public"]["Tables"]["project_media"]["Row"];
 type MediaType = "image" | "video" | "before" | "after";
@@ -199,13 +200,13 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
           {initialMedia.map((item, index) => (
             <article key={item.id} className={heroImage === item.url ? "is-cover" : ""}>
               <div className="project-media__preview">
-                {item.type === "video" ? <video src={item.url} muted preload="metadata" /> : <img src={item.url} alt={item.alt_text || "Mídia do projeto"} />}
+                {item.type === "video" ? <video src={item.url} controls playsInline preload="metadata" /> : <img src={item.url} alt={item.alt_text || "Mídia do projeto"} width={1600} height={1000} loading="lazy" decoding="async" />}
                 <span>{heroImage === item.url ? "CAPA" : item.type.toUpperCase()}</span>
               </div>
               <p>{item.alt_text || "Sem texto alternativo"}</p>
               {item.type !== "video" && <form action={updateProjectMediaAlt.bind(null, projectId, item.id)} className="project-media__alt-editor">
                 <label className="admin-field"><span>Texto alternativo</span><input name="alt_text" defaultValue={item.alt_text} minLength={5} maxLength={180} required aria-label={`Descrição da imagem ${index + 1}`} /></label>
-                <button type="submit" disabled={busy}>Guardar descrição</button>
+                <WorkspaceSubmit disabled={busy}>Guardar descrição</WorkspaceSubmit>
               </form>}
               <div className="project-media__actions">
                 <button type="button" onClick={() => move(index, -1)} disabled={busy || index === 0} aria-label="Mover para trás">←</button>

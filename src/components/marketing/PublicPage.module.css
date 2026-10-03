@@ -1,0 +1,29 @@
+.root { min-height: 80svh; padding-top: 72px; color: var(--ivory); background: #11120f; }
+.shell { width: min(1160px,calc(100% - 144px)); margin-inline: auto; }
+.header { padding-block: 64px 48px; }
+.context { margin: 0 0 20px; color: var(--bronze-light); font-size: 12px; line-height: 1.6; }
+.title { max-width: 900px; margin: 0 0 24px; font-family: var(--serif); font-size: clamp(38px,4.2vw,58px); font-weight: 400; line-height: 1.12; letter-spacing: -.025em; text-wrap: balance; }
+.intro { max-width: 620px; margin: 0; color: #c4c6ba; font-size: 16px; line-height: 1.75; }
+.back { display: inline-flex; min-height: 44px; align-items: center; gap: 12px; margin-bottom: 24px; color: var(--bronze-light); font-size: 13px; }
+.action, .inlineAction { display: inline-flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 48px; font-size: 13px; transition: color 180ms ease, background 180ms ease; }
+.action { padding: 12px 20px; color: #11120f; background: var(--bronze-light); }
+.action:hover { background: #e1c393; }
+.inlineAction { padding-block: 8px; border-bottom: 1px solid var(--bronze); color: var(--bronze-light); }
+.inlineAction:hover, .back:hover { color: var(--ivory); }
+.sectionHeading { margin: 0 0 24px; font-family: var(--serif); font-size: clamp(27px,2.5vw,34px); letter-spacing: -.02em; line-height: 1.2; }
+.prose { color: #c4c6ba; font-size: 16px; line-height: 1.8; }
+.prose p { margin: 0 0 24px; white-space: pre-line; overflow-wrap: anywhere; }
+.compactCta { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding-block: 48px 64px; border-top: 1px solid rgb(210 174 120 / 20%); }
+.compactCta h2 { max-width: 700px; margin: 0; font-family: var(--serif); font-size: clamp(27px,2.6vw,36px); line-height: 1.2; letter-spacing: -.02em; }
+.empty { max-width: 620px; padding-block: 32px 80px; color: #b5b7ac; }
+@media (max-width: 1000px) { .root { padding-top: 64px; } .shell { width: calc(100% - 64px); } }
+@media (max-width: 760px) {
+  .shell { width: calc(100% - 40px); }
+  .header { padding-block: 40px 36px; }
+  .title { font-size: clamp(34px,9vw,42px); }
+  .intro, .prose { font-size: 15px; }
+  .context { font-size: 11px; margin-bottom: 16px; }
+  .back { margin-bottom: 20px; }
+  .compactCta { align-items: flex-start; flex-direction: column; gap: 24px; padding-block: 36px 48px; }
+}
+@media (prefers-reduced-motion: reduce) { .action, .inlineAction { transition: none; } }

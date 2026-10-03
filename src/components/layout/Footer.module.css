@@ -1,0 +1,31 @@
+.root { color: #c4c6ba; background: #11120f; padding-bottom: 16px; }
+.top { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(160px,.6fr) minmax(0,1fr); gap: 64px; width: min(1160px,calc(100% - 144px)); margin-inline: auto; padding-block: 48px; border-top: 1px solid rgb(210 174 120 / 24%); }
+.brand { padding-top: 12px; }
+.brand > p { max-width: 270px; margin: 28px 0 0; color: #aeb2a3; font-size: 13px; line-height: 1.7; }
+.explore { display: flex; flex-direction: column; align-items: flex-start; }
+.explore > span, .details > div > span { display: block; margin-bottom: 12px; color: var(--bronze-light); font-size: 11px; }
+.explore a { display: flex; align-items: center; justify-content: space-between; min-height: 44px; width: 150px; gap: 24px; font-size: 14px; transition: color 180ms ease; }
+.explore svg, .social svg { color: var(--bronze-light); }
+.details a { display: flex; align-items: center; min-height: 36px; width: fit-content; max-width: 100%; overflow-wrap: anywhere; font-size: 13px; transition: color 180ms ease; }
+.root a:hover { color: var(--ivory); }
+.social { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 8px; }
+.social a { gap: 8px; font-size: 12px; }
+.area { margin-top: 24px; }
+.area p { max-width: 300px; margin: 0; color: #aeb2a3; font-size: 12px; line-height: 1.7; }
+.bottom { display: flex; justify-content: space-between; align-items: center; gap: 24px; width: min(1160px,calc(100% - 144px)); margin-inline: auto; padding-block: 20px; border-top: 1px solid rgb(246 243 237 / 10%); color: #aeb2a3; font-size: 11px; }
+.bottom a { display: inline-flex; align-items: center; min-height: 44px; }
+@media (max-width: 1000px) { .top, .bottom { width: calc(100% - 64px); } .top { gap: 40px; grid-template-columns: minmax(0,1fr) minmax(140px,.5fr) minmax(0,1fr); } }
+@media (max-width: 760px) {
+  .top, .bottom { width: calc(100% - 40px); }
+  .top { grid-template-columns: minmax(0,1fr); gap: 24px; padding-block: 32px; }
+  .brand { grid-column: 1 / -1; padding-top: 0; }
+  .brand > p { max-width: 320px; margin-top: 20px; }
+  .explore { flex-direction: row; flex-wrap: wrap; gap: 8px 24px; }
+  .explore > span { width: 100%; margin-bottom: 0; }
+  .explore a { width: auto; gap: 10px; }
+  .details a { min-height: 44px; font-size: 12px; }
+  .social { flex-direction: column; gap: 0; margin-top: 0; }
+  .area { margin-top: 20px; }
+  .bottom { align-items: flex-start; flex-direction: column; gap: 4px; padding-block: 16px; font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .explore a, .details a { transition: none; } }

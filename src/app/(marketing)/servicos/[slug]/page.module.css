@@ -1,0 +1,25 @@
+.body { display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,.5fr); gap: 72px; align-items: start; padding-bottom: 64px; }
+.enquiry { padding-left: 28px; border-left: 1px solid rgb(210 174 120 / 45%); }
+.enquiry > p { margin: 0 0 24px; color: #bfc3b5; font-size: 14px; line-height: 1.75; }
+.enquiry > a { width: 100%; gap: 12px; }
+.enquiry svg { flex-shrink: 0; }
+.price { margin-bottom: 24px; }
+.price span { display: block; margin-bottom: 12px; color: var(--bronze-light); font-size: 12px; }
+.price strong { color: var(--ivory); font-family: var(--serif); font-size: 27px; font-weight: 400; }
+.related { padding-bottom: 64px; }
+.project { display: grid; grid-template-columns: minmax(0,1fr) minmax(220px,.32fr); gap: 32px; align-items: center; margin-bottom: 40px; }
+.project:last-child { margin-bottom: 0; }
+.project > div:first-child { --photo-ratio: 16 / 9; }
+.project h3 { margin: 0 0 12px; font-family: var(--serif); font-size: 26px; line-height: 1.25; letter-spacing: -.015em; }
+.project p { margin: 0; color: #b5b7ac; font-size: 13px; line-height: 1.6; }
+.project .photoNote { margin-top: 16px; font-size: 11px; }
+.project span { margin-top: 16px; }
+@media (max-width: 1000px) { .body { gap: 40px; grid-template-columns: minmax(0,1fr) minmax(260px,.6fr); } }
+@media (max-width: 760px) {
+  .body { grid-template-columns: 1fr; gap: 24px; padding-bottom: 48px; }
+  .enquiry { padding: 24px 0 0; border-left: 0; border-top: 1px solid rgb(210 174 120 / 35%); }
+  .enquiry > a { width: fit-content; max-width: 100%; }
+  .project { grid-template-columns: 1fr; gap: 20px; }
+  .project h3 { font-size: 25px; }
+  .related { padding-bottom: 48px; }
+}

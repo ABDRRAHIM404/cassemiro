@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import { siteConfig } from "@/config/site";
 import { PrivacyAnalytics } from "@/components/analytics/PrivacyAnalytics";
 import "./globals.css";
+
+const sans = localFont({ src: "./fonts/dm-sans.woff2", weight: "100 1000", display: "swap", variable: "--font-sans" });
+const display = localFont({ src: "./fonts/dm-serif-display.woff2", weight: "400", display: "swap", variable: "--font-display" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.siteUrl),
@@ -22,7 +26,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${sans.variable} ${display.variable}`}>
       <body>
         <script id="hero-early-wheel" dangerouslySetInnerHTML={{ __html: `
           window.addEventListener('wheel', function (event) {

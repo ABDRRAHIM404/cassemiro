@@ -1,0 +1,14 @@
+.composition { display: grid; grid-template-columns: minmax(0,.75fr) minmax(0,1.25fr); gap: 72px; align-items: start; padding-block: 64px 80px; }
+.introduction { min-width: 0; }
+.help { padding-top: 36px; margin-top: 36px; border-top: 1px solid rgb(210 174 120 / 24%); }
+.help > p:last-child { margin: 0; color: #bfc3b5; font-size: 14px; line-height: 1.8; }
+.help a { color: var(--bronze-light); text-decoration: underline; text-underline-offset: 4px; }
+.phone { display: inline-flex; align-items: center; gap: 14px; min-height: 48px; margin-top: 24px; color: var(--bronze-light); font-size: 19px; }
+@media (max-width: 1000px) { .composition { gap: 40px; grid-template-columns: minmax(0,.75fr) minmax(0,1fr); } }
+@media (max-width: 760px) {
+  .composition { grid-template-columns: 1fr; gap: 36px; padding-block: 40px 56px; }
+  .help { margin-top: 28px; padding-top: 24px; }
+  .help > p:first-child { margin-bottom: 12px; }
+  .help h2 { font-size: 27px; margin-bottom: 16px; }
+  .phone { margin-top: 16px; font-size: 18px; }
+}

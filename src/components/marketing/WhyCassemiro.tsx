@@ -1,120 +1,113 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { ShieldCheck } from "@phosphor-icons/react/dist/csr/ShieldCheck";
+import { Timer } from "@phosphor-icons/react/dist/csr/Timer";
+import { HardHat } from "@phosphor-icons/react/dist/csr/HardHat";
+import { Handshake } from "@phosphor-icons/react/dist/csr/Handshake";
+import { Reveal } from "@/components/motion/Reveal";
+import styles from "./WhyCassemiro.module.css";
 
 const pillars = [
-  { title: "Qualidade", text: "Cuidado técnico, inclusive no que não se vê.", icon: "quality" },
-  { title: "Prazos", text: "Planejamento claro em cada etapa da obra.", icon: "time" },
-  { title: "Experiência", text: "Mais de quatro décadas orientando cada decisão.", icon: "experience" },
-  { title: "Confiança", text: "Presença e responsabilidade do início ao fim.", icon: "trust" },
+  { title: "Qualidade", text: "Cuidado técnico, inclusive no que não se vê.", Icon: ShieldCheck },
+  { title: "Prazos", text: "Planejamento claro em cada etapa da obra.", Icon: Timer },
+  { title: "Experiência", text: "Mais de quatro décadas orientando cada decisão.", Icon: HardHat },
+  { title: "Confiança", text: "Presença e responsabilidade do início ao fim.", Icon: Handshake },
 ] as const;
-
-function PillarIcon({ type }: { type: typeof pillars[number]["icon"] }) {
-  if (type === "quality") return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 5 40 14v20L24 43 8 34V14L24 5Z"/><path d="m16 24 5 5 11-12"/></svg>;
-  if (type === "time") return <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="25" r="17"/><path d="M24 14v12l8 5M18 5h12"/></svg>;
-  if (type === "experience") return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 39h32M12 39V20l12-9 12 9v19M19 39V27h10v12"/><path d="M7 20 24 7l17 13"/></svg>;
-  return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 43S39 35 39 20V10L24 5 9 10v10c0 15 15 23 15 23Z"/><path d="m17 24 5 5 10-11"/></svg>;
-}
 
 export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
   const sectionRef = useRef<HTMLElement>(null);
-  const headingRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const controlsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const [active, setActive] = useState(0);
 
   useEffect(() => {
     const section = sectionRef.current;
-    const heading = headingRef.current;
-    if (!section || !heading) return;
-
-    const reveal = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        heading.dataset.visible = "true";
-        reveal.disconnect();
-      }
-    }, { threshold: 0.3 });
-    reveal.observe(heading);
-
+    if (!section) return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const mobile = window.matchMedia("(max-width: 760px)");
     let frame = 0;
+    let lastScrollChoice = -1;
+    let visible = false;
     const update = () => {
+      frame = 0;
+      if (!visible || reducedMotion.matches || mobile.matches) return;
       const rect = section.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      if (rect.bottom <= 0 || rect.top >= viewportHeight) return;
-      if (mobile.matches) {
-        const items = section.querySelectorAll<HTMLElement>(".why__pillar");
-        let nearest = 0;
-        let nearestDistance = Infinity;
-        items.forEach((item, index) => {
-          const distance = Math.abs(item.getBoundingClientRect().top + item.offsetHeight / 2 - viewportHeight * 0.55);
-          if (distance < nearestDistance) {
-            nearest = index;
-            nearestDistance = distance;
-          }
-        });
-        setActiveIndex(nearest);
-      } else {
-        const progress = Math.min(1, Math.max(0, -rect.top / Math.max(1, rect.height - viewportHeight)));
-        if (!reducedMotion.matches) {
-          setActiveIndex(Math.min(pillars.length - 1, Math.floor(progress * pillars.length)));
-          section.style.setProperty("--why-progress", String(progress));
-        }
+      const viewport = window.innerHeight;
+      const header = window.innerWidth <= 1000 ? 64 : 72;
+      const distance = Math.max(1, rect.height - (viewport - header));
+      const progress = Math.min(1, Math.max(0, (header - rect.top) / distance));
+      const choice = Math.min(pillars.length - 1, Math.floor(progress * pillars.length));
+      section.style.setProperty("--trust-progress", String(progress));
+      // Only discrete phase changes enter React. Hover/focus remains selected
+      // until scrolling actually reaches another phase.
+      if (choice !== lastScrollChoice) {
+        lastScrollChoice = choice;
+        setActive(choice);
       }
     };
     const requestUpdate = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        update();
-      });
+      if (!frame) frame = requestAnimationFrame(update);
     };
-    requestUpdate();
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible) requestUpdate();
+    });
+    observer.observe(section);
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("resize", requestUpdate, { passive: true });
+    reducedMotion.addEventListener("change", requestUpdate);
     return () => {
-      reveal.disconnect();
+      observer.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", requestUpdate);
       window.removeEventListener("resize", requestUpdate);
+      reducedMotion.removeEventListener("change", requestUpdate);
     };
   }, []);
 
   return (
-    <section ref={sectionRef} className="why" aria-labelledby="why-title">
-      <div className="why__sticky">
-        <div className="why__image" style={{ backgroundImage: `url("${imageUrl || "/media/hero/frames-webp/frame_100.webp"}")` }} aria-hidden="true" />
-        <div className="why__shade" aria-hidden="true" />
-        <div className="why__grid" aria-hidden="true" />
-        <div className="why__glow" aria-hidden="true" />
-        <div className="shell why__content">
-          <div ref={headingRef} className="why__heading">
-            <p className="eyebrow">O que sustenta cada projeto</p>
-            <h2 id="why-title">Por que escolher<br /> <em>a CASSEMIRO?</em></h2>
+    <section id="porque" ref={sectionRef} className={styles.root} aria-labelledby="why-title">
+      <div className={styles.stage}>
+        <div className={styles.media} aria-hidden="true">
+          <Image src={imageUrl || "/media/hero/frames-webp/frame_100.webp"} alt="" fill sizes="100vw" unoptimized={Boolean(imageUrl?.startsWith("/api/project-media/"))} />
+        </div>
+        <div className={styles.scrim} aria-hidden="true" />
+        <div className={styles.datum} aria-hidden="true" />
+        <div className={styles.composition}>
+          <Reveal className={styles.heading}>
+            <h2 id="why-title">Por que escolher<br />a CASSEMIRO?</h2>
             <p>Mais que construir, assumir cada detalhe como nosso.</p>
+          </Reveal>
+          <div className={styles.feature}>
+            {pillars.map(({ title, text, Icon }, index) => (
+              <div id={`trust-feature-${index}`} className={styles.featureItem} aria-hidden={active !== index} key={title}>
+                <Icon size={42} weight="thin" aria-hidden="true" />
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
+            ))}
           </div>
-          <div className="why__experience">
-            <div className="why__feature" aria-live="polite">
-              {pillars.map((pillar, index) => (
-                <div className={`why__feature-item${activeIndex === index ? " is-active" : ""}`} aria-hidden={activeIndex !== index} key={pillar.title}>
-                  <span className="why__feature-number">0{index + 1} <i /> 04</span>
-                  <PillarIcon type={pillar.icon} />
-                  <h3>{pillar.title}</h3>
-                  <p>{pillar.text}</p>
-                </div>
-              ))}
-            </div>
-            <div className="why__pillars" aria-label="Compromissos CASSEMIRO">
-              {pillars.map((pillar, index) => (
-                <button className={`why__pillar${activeIndex === index ? " is-active" : ""}`} type="button" aria-pressed={activeIndex === index} onMouseEnter={() => setActiveIndex(index)} onFocus={() => setActiveIndex(index)} onClick={() => setActiveIndex(index)} key={pillar.title}>
-                  <span className="why__pillar-number">0{index + 1}</span>
-                  <span className="why__pillar-name">{pillar.title}</span>
-                  <span className="why__pillar-arrow" aria-hidden="true">↗</span>
-                  <span className="why__pillar-detail">{pillar.text}</span>
-                </button>
-              ))}
-            </div>
+          <div className={styles.controls} role="group" aria-label="Compromissos CASSEMIRO" onKeyDown={(event) => {
+            let next: number;
+            if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (active + 1) % pillars.length;
+            else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (active - 1 + pillars.length) % pillars.length;
+            else if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = pillars.length - 1;
+            else return;
+            event.preventDefault();
+            controlsRef.current[next]?.focus();
+          }}>
+            {pillars.map((pillar, index) => (
+              <button ref={(node) => { controlsRef.current[index] = node; }} type="button" aria-pressed={active === index} aria-controls={`trust-feature-${index}`} onPointerEnter={(event) => { if (event.pointerType === "mouse") setActive(index); }} onFocus={() => setActive(index)} onClick={() => setActive(index)} key={pillar.title}>
+                <span className={styles.number} aria-hidden="true">0{index + 1}</span>
+                <span>{pillar.title}</span>
+                <span className={styles.mobileDetail}>{pillar.text}</span>
+              </button>
+            ))}
           </div>
-          <p className="why__footnote">Uma obra feita para durar começa com a forma de trabalhar.</p>
+          <p className={styles.footnote}><span>O que sustenta cada projeto.</span> Uma obra feita para durar começa com a forma de trabalhar.</p>
+          <p className={styles.announcement} role="status" aria-live="polite">{pillars[active].title}: {pillars[active].text}</p>
         </div>
       </div>
     </section>

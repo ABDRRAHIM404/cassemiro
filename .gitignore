@@ -5,6 +5,7 @@ out/
 .env.local
 .vercel/
 .playwright-mcp/
+.playwright-cli/
 .codex/audits/
 *.tsbuildinfo
 npm-debug.log*

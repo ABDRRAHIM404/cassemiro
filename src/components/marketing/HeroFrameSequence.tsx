@@ -692,7 +692,7 @@ export function HeroFrameSequence({
           </article>
         ))}
         <div className="hero-services__progress" aria-hidden="true">
-          {constructionServices.map((service, index) => <i key={service.title}><span>{String(index + 1).padStart(2, "0")}</span></i>)}
+          {constructionServices.map((service, index) => <i key={service.title}><span>{String(index + 1).padStart(2, "0")}</span><small>{service.title}</small></i>)}
         </div>
       </div>
     </div>

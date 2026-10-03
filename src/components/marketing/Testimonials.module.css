@@ -1,0 +1,28 @@
+.root { padding-block: 80px 96px; color: var(--ivory); background: #11120f; }
+.composition { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); gap: clamp(48px,8vw,112px); align-items: start; width: min(1160px,calc(100% - 144px)); margin-inline: auto; padding-top: 48px; border-top: 1px solid rgb(246 243 237 / 12%); }
+.heading > p { margin: 0 0 20px; color: #b5b7ac; font-size: 12px; line-height: 1.6; }
+.heading h2 { max-width: 380px; margin: 0; font-family: var(--serif); font-size: clamp(30px,2.8vw,40px); letter-spacing: -.02em; line-height: 1.15; text-wrap: balance; }
+.story { min-width: 0; }
+.quoteMark { display: block; margin-bottom: 20px; color: var(--bronze-light); }
+.quote { animation: quote-enter 300ms ease both; }
+.quote blockquote { margin: 0 0 32px; font-family: var(--serif); font-size: clamp(24px,2.3vw,34px); line-height: 1.4; overflow-wrap: anywhere; }
+.quote footer { display: flex; flex-direction: column; gap: 6px; padding-left: 18px; border-left: 1px solid var(--bronze); font-size: 14px; }
+.quote footer strong { font-weight: 500; }
+.quote footer span { color: #b5b7ac; font-size: 12px; }
+.rating { display: flex; gap: 4px; margin: 20px 0 0 18px; color: var(--bronze-light); }
+.controls { display: flex; gap: 16px; align-items: center; margin-top: 32px; color: var(--bronze-light); }
+.controls button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; color: inherit; background: transparent; cursor: pointer; touch-action: manipulation; transition: color 180ms ease; }
+.controls button:hover { color: var(--ivory); }
+.controls span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.controls i { margin-inline: 8px; color: #9da193; font-style: normal; }
+@keyframes quote-enter { from { opacity: .35; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1000px) { .composition { width: calc(100% - 64px); gap: 48px; } }
+@media (max-width: 760px) {
+  .root { padding-block: 48px 64px; }
+  .composition { width: calc(100% - 40px); grid-template-columns: 1fr; gap: 36px; padding-top: 32px; }
+  .heading h2 { max-width: 340px; font-size: 32px; }
+  .heading > p { margin-bottom: 16px; }
+  .quoteMark { width: 36px; height: 36px; margin-bottom: 16px; }
+  .quote blockquote { font-size: 25px; margin-bottom: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .quote { animation: none; } .controls button { transition: none; } }

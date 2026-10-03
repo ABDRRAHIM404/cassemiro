@@ -1,3 +1,4 @@
+import { WorkspaceSubmit } from "@/components/admin/WorkspaceSubmit";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/require-admin";
@@ -29,7 +30,7 @@ export default async function EditServicePage({ params, searchParams }: { params
           <section className="admin-panel project-form__box"><span>VISIBILIDADE</span><label className="admin-check"><input name="is_visible" type="checkbox" defaultChecked={service.is_visible} /><span>Mostrar serviço no site</span></label></section>
           <section className="admin-panel project-form__box"><span>PREÇO PÚBLICO</span><label className="admin-check"><input name="show_price" type="checkbox" defaultChecked={service.show_price} /><span>Mostrar preço</span></label><label className="admin-field"><span>Texto do preço</span><input name="price_label" defaultValue={service.price_label ?? ""} maxLength={100} placeholder="Ex.: A partir de R$ …" /></label><p>O preço permanece oculto até esta opção ser marcada.</p></section>
           <section className="admin-panel project-form__box"><span>SEO</span><label className="admin-field"><span>Título para busca</span><input name="seo_title" defaultValue={service.seo_title ?? ""} maxLength={70} /></label><label className="admin-field"><span>Descrição para busca</span><textarea name="seo_description" defaultValue={service.seo_description ?? ""} maxLength={170} rows={4} /></label></section>
-          <button className="button button--bronze project-form__save" type="submit">Salvar serviço</button>
+          <WorkspaceSubmit className="button button--bronze project-form__save">Salvar serviço</WorkspaceSubmit>
         </aside>
       </form>
     </main>

@@ -1,3 +1,4 @@
+import { WorkspaceSubmit } from "@/components/admin/WorkspaceSubmit";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { parseBusinessSettings } from "@/lib/site-settings";
 import { updateBusinessSettings } from "./actions";
@@ -11,5 +12,5 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <label className="admin-field"><span>E-mail</span><input name="email" type="email" defaultValue={settings.email} required /></label><label className="admin-field"><span>Raio de atendimento (km)</span><input name="serviceRadiusKm" type="number" defaultValue={settings.serviceRadiusKm} min={1} max={500} required /></label>
     <label className="admin-field"><span>Instagram</span><input name="instagram" type="url" defaultValue={settings.instagram} placeholder="https://…" /></label><label className="admin-field"><span>Facebook</span><input name="facebook" type="url" defaultValue={settings.facebook} placeholder="https://…" /></label>
     <label className="admin-field admin-field--full"><span>Cidades atendidas (separadas por vírgula)</span><textarea name="serviceAreas" defaultValue={settings.serviceAreas.join(", ")} rows={3} required /></label><label className="admin-field admin-field--full"><span>Mensagem de orçamento no WhatsApp</span><textarea name="quoteMessage" defaultValue={settings.quoteMessage} rows={3} required /></label><label className="admin-field admin-field--full"><span>Mensagem de recrutamento</span><textarea name="recruitmentMessage" defaultValue={settings.recruitmentMessage} rows={3} required /></label>
-  </div><button type="submit">Salvar configurações</button></form></main>;
+  </div><WorkspaceSubmit>Salvar configurações</WorkspaceSubmit></form></main>;
 }

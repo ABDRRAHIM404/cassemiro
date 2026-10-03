@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Logo } from "@/components/brand/Logo";
+import { AuthShell } from "@/components/admin/AuthShell";
+import { AuthSubmit } from "@/components/admin/AuthSubmit";
+import styles from "@/components/admin/AuthShell.module.css";
 import { createClient } from "@/lib/supabase/server";
 import { login, logout, sendMagicLink } from "../actions";
 
@@ -20,61 +22,49 @@ export default async function AdminLoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <main id="conteudo" className="admin-login">
-      <div className="admin-login__brand">
-        <Link href="/" aria-label="Voltar ao site"><Logo /></Link>
-        <div>
-          <p className="eyebrow">Área administrativa</p>
-          <h1>A obra por trás<br />do <em>site.</em></h1>
-          <p>Gerencie solicitações, serviços, projetos e conteúdo da CASSEMIRO.</p>
-        </div>
-      </div>
-      <div className="admin-login__panel">
-        <div className="admin-login__form-wrap">
-          <span>ACESSO RESTRITO</span>
+    <AuthShell>
+          <span className={styles.restricted}>Acesso restrito</span>
           <h2>Entrar</h2>
           {params.error && (
-            <div className="admin-alert" role="alert">
+            <div className={styles.alert} role="alert">
               {params.error === "unauthorized" ? "Esta conta não possui um perfil administrativo." : params.error}
             </div>
           )}
           {params.sent === "1" && (
-            <div className="admin-alert admin-alert--success" role="status">
+            <div className={`${styles.alert} ${styles.success}`} role="status">
               Se o e-mail estiver autorizado, você receberá um link de acesso. Verifique também a pasta de spam.
             </div>
           )}
           {params.reset === "1" && (
-            <div className="admin-alert admin-alert--success" role="status">Senha alterada. Entre com a sua nova senha.</div>
+            <div className={`${styles.alert} ${styles.success}`} role="status">Senha alterada. Entre com a sua nova senha.</div>
           )}
           {userId && params.error === "unauthorized" ? (
             <form action={logout}>
-              <button className="button button--bronze" type="submit">Sair desta conta</button>
+              <AuthSubmit label="Sair desta conta" pendingLabel="Saindo…" />
             </form>
           ) : (
-            <form action={login} className="admin-login__form">
+            <form action={login} className={styles.form}>
               <input type="hidden" name="next" value={params.next ?? ""} />
               <label htmlFor="admin-email">E-mail</label>
-              <input id="admin-email" name="email" type="email" autoComplete="email" required />
+              <input id="admin-email" name="email" type="email" autoComplete="email" spellCheck={false} required />
               <label htmlFor="admin-password">Senha</label>
               <input id="admin-password" name="password" type="password" autoComplete="current-password" minLength={8} required />
-              <button className="button button--bronze" type="submit">Acessar painel</button>
+              <AuthSubmit label="Acessar painel" pendingLabel="Entrando…" />
             </form>
           )}
-          {!userId && <Link href="/admin/esqueci-senha" className="admin-login__utility-link">Esqueceu a senha?</Link>}
+          {!userId && <Link href="/admin/esqueci-senha" className={styles.utility}>Esqueceu a senha?</Link>}
           {!userId && (
             <>
-              <div className="admin-login__divider"><span>ou</span></div>
-              <form action={sendMagicLink} className="admin-login__form">
+              <div className={styles.divider}><span>ou</span></div>
+              <form action={sendMagicLink} className={styles.form}>
                 <input type="hidden" name="next" value={params.next ?? ""} />
                 <label htmlFor="admin-magic-email">Entrar sem senha</label>
-                <input id="admin-magic-email" name="email" type="email" autoComplete="email" placeholder="seu@email.com" required />
-                <button className="button admin-login__magic-button" type="submit">Enviar link de acesso</button>
+                <input id="admin-magic-email" name="email" type="email" autoComplete="email" spellCheck={false} placeholder="seu@email.com" required />
+                <AuthSubmit label="Enviar link de acesso" pendingLabel="Enviando…" secondary />
               </form>
             </>
           )}
-          <Link href="/" className="admin-login__back">← Voltar ao site</Link>
-        </div>
-      </div>
-    </main>
+          <Link href="/" className={styles.back}>← Voltar ao site</Link>
+    </AuthShell>
   );
 }

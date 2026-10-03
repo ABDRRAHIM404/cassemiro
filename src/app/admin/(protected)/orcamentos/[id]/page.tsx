@@ -1,3 +1,4 @@
+import { WorkspaceSubmit } from "@/components/admin/WorkspaceSubmit";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
@@ -64,7 +65,7 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
             <p className="quote-contact__retention">Último contato registrado: {formatDate(quote.last_contact_at)}. Registre aqui cada contato real para contar corretamente os 12 meses de retenção.</p>
             <form action={recordQuoteContact} className="quote-contact__record">
               <input type="hidden" name="id" value={quote.id} />
-              <button type="submit">Registrar contato hoje</button>
+              <WorkspaceSubmit>Registrar contato hoje</WorkspaceSubmit>
             </form>
           </section>
           <section className="admin-panel quote-status-form">
@@ -73,7 +74,7 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
               <input type="hidden" name="id" value={quote.id} />
               <label htmlFor="quote-status">Atualizar status</label>
               <select id="quote-status" name="status" defaultValue={quote.status}>{statuses.map((status) => <option key={status}>{status}</option>)}</select>
-              <button type="submit">Salvar alteração</button>
+              <WorkspaceSubmit>Salvar alteração</WorkspaceSubmit>
             </form>
           </section>
         </aside>
