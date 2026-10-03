@@ -17,12 +17,15 @@ export default async function AdminOverviewPage() {
     supabase.from("testimonials").select("id", { count: "exact", head: true }),
     supabase.from("quote_requests").select("id, name, city, work_type, status, created_at").order("created_at", { ascending: false }).limit(5)
   ]);
+  const overviewReadFailed = [newQuotes, totalQuotes, projects, testimonials, recent]
+    .some((result) => result.error)
+    || [newQuotes, totalQuotes, projects, testimonials].some((result) => result.count === null);
 
   const cards = [
-    { label: "Novos pedidos", value: newQuotes.count ?? 0, accent: true },
-    { label: "Total de pedidos", value: totalQuotes.count ?? 0 },
-    { label: "Projetos", value: projects.count ?? 0 },
-    { label: "Depoimentos", value: testimonials.count ?? 0 }
+    { label: "Novos pedidos", value: newQuotes.error ? "—" : newQuotes.count ?? "—", accent: true },
+    { label: "Total de pedidos", value: totalQuotes.error ? "—" : totalQuotes.count ?? "—" },
+    { label: "Projetos", value: projects.error ? "—" : projects.count ?? "—" },
+    { label: "Depoimentos", value: testimonials.error ? "—" : testimonials.count ?? "—" }
   ];
 
   return (
@@ -37,12 +40,13 @@ export default async function AdminOverviewPage() {
           <span>Os pedidos são guardados aqui no painel, mas nenhum aviso por e-mail é enviado. Verifique esta lista regularmente até o envio ser configurado.</span>
         </div>
       )}
+      {overviewReadFailed && <div className="admin-alert" role="alert">Alguns dados do painel não puderam ser carregados. Atualize a página ou tente novamente em alguns minutos.</div>}
       <section className="admin-metrics" aria-label="Indicadores">
         {cards.map((card, index) => <article key={card.label} className={card.accent ? "is-accent" : ""}><span>0{index + 1}</span><strong>{card.value}</strong><p>{card.label}</p></article>)}
       </section>
       <section className="admin-panel">
         <div className="admin-panel__heading"><div><span>ATIVIDADE RECENTE</span><h2>Novos orçamentos</h2></div><Link href="/admin/orcamentos">Ver todos →</Link></div>
-        {recent.data?.length ? (
+        {recent.error ? <div className="admin-alert" role="alert">Não foi possível carregar os orçamentos recentes.</div> : recent.data?.length ? (
           <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Cliente</th><th>Tipo</th><th>Cidade</th><th>Status</th><th>Recebido</th><th /></tr></thead><tbody>
             {recent.data.map((quote) => <tr key={quote.id}><td><strong>{quote.name}</strong></td><td>{quote.work_type}</td><td>{quote.city}</td><td><span className={`status status--${quote.status.toLowerCase().replace(" ", "-")}`}>{quote.status}</span></td><td>{formatDate(quote.created_at)}</td><td><Link href={`/admin/orcamentos/${quote.id}`} aria-label={`Abrir orçamento de ${quote.name}`}>→</Link></td></tr>)}
           </tbody></table></div>

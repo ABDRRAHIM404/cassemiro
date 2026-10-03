@@ -13,7 +13,8 @@ function formatDate(value: string, withTime = true) {
 export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase } = await requireAdmin();
-  const { data: quote } = await supabase.from("quote_requests").select("*").eq("id", id).maybeSingle();
+  const { data: quote, error } = await supabase.from("quote_requests").select("*").eq("id", id).maybeSingle();
+  if (error) return <main id="conteudo" className="admin-content"><Link href="/admin/orcamentos" className="admin-back">← Voltar aos orçamentos</Link><div className="admin-alert" role="alert">Não foi possível carregar este orçamento. Atualize a página ou tente novamente em alguns minutos.</div></main>;
   if (!quote) notFound();
 
   const message = `Olá, ${quote.name}. Recebemos sua solicitação de orçamento para ${quote.work_type} pelo site da CASSEMIRO.`;
