@@ -282,6 +282,16 @@ Zero browser write requests were attempted. Hosted project, media, quote and pro
 
 This closes the deployed basic signed-in theme behavior/persistence check, not the broader admin audit. Per-role write/publication workflows, authenticated private-media/CSP tests, real notification/recovery email delivery, physical-device and assistive-technology review, and field performance remain open. No new application fix was necessary for the behaviors exercised here.
 
+## Authenticated media/CSP release check — 4 October
+
+`check-admin-media-access.mjs` passed against the deployed site at 390×844 and 1366×844. In an isolated existing-owner session, both real project editors loaded with their interrupted-upload panels. Both gallery photographs decoded with nonempty alternatives, and neither viewport reported captured runtime exceptions, CSP violation events or whole-page horizontal overflow. Response headers contained the object-embed prohibition and the exact Supabase media origin. This exercises legitimate editor/gallery reads, not uploads, every admin route, all CSP directives, or restrictive script/style nonce enforcement.
+
+For both current media records, the application returned a 302 with `private, no-store` and `no-referrer`, targeting the expected private Storage signing endpoint. The returned token expiry was within the configured approximately 60-second window at observation; its expiry was inspected, not cryptographically validated locally or tested after waiting for expiration. Following each signed URL returned 200 and byte-identical content to the service-role download of its original private object. Raw unsigned public-storage URLs for those objects were denied. Independent read-only bucket queries confirmed both `project-media-private` and the locked-down legacy `project-media` bucket have `public=false`. See Supabase's [signed URL API](https://supabase.com/docs/reference/javascript/storage-from-createsignedurl) and [bucket metadata API](https://supabase.com/docs/reference/javascript/storage-getbucket).
+
+Anonymous requests correctly received redirects for the two published records. Invalid and unknown IDs returned uncached 404s. There are no unpublished media fixtures in the current database, so this run explicitly reports `unpublishedMediaTested: false`; it does **not** prove anonymous draft exclusion, non-admin signed-in denial, visibility/cache transitions after unpublishing, or expiry of already-issued bearer URLs. Those require a separately authorized disposable fixture/staging workflow. Existing client projects were not toggled merely to fill that verification gap.
+
+The browser attempted zero non-GET requests, all original project/media rows compared exactly equal afterward, and only the isolated test session was revoked. Credentials and signed URLs stayed in memory and were not written to reports/logs. No customer rows, files, settings or publication state changed. Targeted checker lint passed; no local build or development server was run. No application defect was established by these exercised read paths, so this batch adds verification evidence rather than an unnecessary application rewrite. The complete audit remains open.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
