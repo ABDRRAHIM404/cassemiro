@@ -371,6 +371,16 @@ Real browser editing saved the fixture's summary and retained its service associ
 
 This closes the deployed existing-owner draft create/edit/upload/registration-retry/media-remove/project-delete and anonymous draft-exclusion checks previously supported only by the local-production/hosted-database test. It does not prove closed-tab recovery, every content form, per-role mutations, browser publication/unpublication, token expiry, email delivery, distributed abuse or physical-device behavior. The approval was used for this one completed fixture test, not permission to publish test content or create further accounts. Scoped checker lint and diff checks passed. No application defect was established by this run; the full audit remains incomplete.
 
+## Dependency-security inventory — 4 October
+
+The read-only `npm audit --omit=dev --json` returned zero reported production vulnerabilities. The subsequent complete `npm audit --json` reported five high-severity package nodes, all representing one underlying advisory: [GHSA-vfj7-8cjw-p6xm / CVE-2026-93687](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), stack exhaustion from deeply nested brace patterns. This distinction matters: the production-only result was never a claim that the entire development dependency tree was clear.
+
+`npm ls` resolves the affected chain exclusively through `eslint-config-next@16.3.6 → @next/eslint-plugin-next@16.3.6 → fast-glob@3.3.1 → micromatch@4.0.8 → braces@3.0.3`. The lockfile marks braces `dev: true`, and `npm ls --omit=dev braces micromatch fast-glob` returns an empty tree. There are no direct imports of these packages in application source/scripts. The installed lint helper calls fast-glob only when Next lint `settings.next.rootDir` is supplied; resolved configuration for the homepage component has no Next settings/rootDir glob. That bounds the observed lint path, not every future config, malicious repository input, or hosted artifact.
+
+The advisory lists no patched version. Registry metadata confirms the latest braces release remains 3.0.3; the newer Next lint plugin 16.3.8 still depends on fast-glob 3.3.1, and latest fast-glob still uses micromatch. A normal compatible dependency update therefore does not remove this chain. npm's proposed forced fix downgrades the lint configuration to Next 14.2.35; it was deliberately not applied to this Next 16 app. No install, dependency/lockfile change, vulnerability suppression or local build occurred.
+
+This remains an upstream-blocked development-tool security subgate. Avoid introducing untrusted glob patterns into lint settings; revisit a maintained compatible release when one actually removes or patches the vulnerable dependency. No public runtime exploit or client-data exposure was established, and the issue is not marked fixed. The remaining private role/content/quote test batch still needs explicit owner approval and does not authorize publication or emails.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
