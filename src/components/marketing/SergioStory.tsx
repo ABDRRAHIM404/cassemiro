@@ -14,7 +14,7 @@ export function SergioStory({ content = defaultHomepageContent }: { content?: ty
         <Reveal className={styles.copy}>
           <p className={styles.context}>{content.aboutEyebrow}</p>
           <h2 id="story-title">Sérgio<br />Cassemiro</h2>
-          <p className={styles.role}>Fundador · responsável pela obra</p>
+          <p className={styles.role}>Fundador e empreiteiro de obras</p>
           <p className={styles.experience}><strong>43+</strong><span>anos de<br />experiência</span></p>
           <div className={styles.body}>
             <p>{content.aboutParagraphOne}</p>
