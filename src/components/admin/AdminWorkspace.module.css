@@ -1,5 +1,28 @@
-.root { --ink: #272923; --muted: #676a60; --line: #d7d8cd; --accent: #89663e; min-height: 100svh; display: grid; grid-template-columns: 220px minmax(0, 1fr); color: var(--ink); background: #f3f2eb; font-size: 14px; line-height: 1.6; }
+.root { --ink: #272923; --muted: #676a60; --line: #d7d8cd; --accent: #89663e; min-height: 100svh; display: grid; grid-template-columns: 220px minmax(0, 1fr); color: var(--ink); background: #f3f2eb; color-scheme: light; font-size: 14px; line-height: 1.6; }
 :global(body):has(.root) { padding-bottom: 0; background: #f3f2eb; }
+.root[data-admin-theme="dark"] { --ink: #f0eee5; --muted: #aeb3a6; --line: #363c32; --accent: #d3b17f; background: #131710; color-scheme: dark; }
+:global(body):has(.root[data-admin-theme="dark"]) { background: #131710; }
+.topbar .themeToggle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: none; border: 1px solid var(--line); padding: 8px 12px; font-size: 12px; }
+.themeToggle:hover { background: var(--line); }
+.root[data-admin-theme="dark"] :global(.admin-table th) { background: #252b21; }
+.root[data-admin-theme="dark"] :global(.admin-table tr:hover) { background: #20261c; }
+.root[data-admin-theme="dark"] :is(:global(.admin-project-cell > span), :global(.project-media__preview)) { background: #252b21; }
+.root[data-admin-theme="dark"] :is(:global(.admin-field input), :global(.admin-field textarea), :global(.admin-field select), :global(.admin-filters input), :global(.admin-filters select), :global(.quote-status-form select)) { border-color: #4c5544; background: #1d2319; }
+.root[data-admin-theme="dark"] :global(.admin-field input::placeholder) { color: #a0a695; }
+.root[data-admin-theme="dark"] :global(.admin-field input::file-selector-button) { color: #eed1a4; background: #383323; }
+.root[data-admin-theme="dark"] :is(:global(.project-media__alt-editor button), :global(.project-media__actions button), :global(.quote-contact__record button)) { color: #d3b17f; border-color: #70654e; }
+.root[data-admin-theme="dark"] :global(.admin-service-order button) { border-color: #4c5544; }
+.root[data-admin-theme="dark"] :is(:global(.admin-danger-button), :global(.project-media__actions button:last-child)) { color: #f1a492; border-color: #956556; }
+.root[data-admin-theme="dark"] :global(.admin-delete-zone) { border-color: #70483c; }
+.root[data-admin-theme="dark"] :is(:global(.admin-alert), :global(.admin-email-warning)) { color: #efc59a; background: #352c20; }
+.root[data-admin-theme="dark"] :global(.admin-alert) { color: #f3b6a5; background: #38241e; }
+.root[data-admin-theme="dark"] :is(:global(.admin-notice), :global(.admin-alert--success)) { color: #b9d8b2; background: #23301f; }
+.root[data-admin-theme="dark"] :global(.status) { color: #ebcc9e; background: #383023; }
+.root[data-admin-theme="dark"] :is(:global(.status--published), :global(.status--fechado)) { color: #b9d8b2; background: #283722; }
+.root[data-admin-theme="dark"] :is(:global(.status--draft), :global(.status--arquivado)) { color: #c1c6b7; background: #30362a; }
+.root[data-admin-theme="dark"] :global(.status--novo) { color: #b9d8e5; background: #22343b; }
+.root[data-admin-theme="dark"] :global(.status--em-contato) { color: #efdaa0; background: #383222; }
+.root[data-admin-theme="dark"] :global(.status--orçamento) { color: #d9c4e8; background: #342a3d; }
 .root :is(button, input, textarea, select) { font: inherit; }
 .root :is(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .root button { cursor: pointer; }
@@ -167,6 +190,10 @@
   .topbar { position: relative; padding-inline: 20px; gap: 12px; }
   .identity { margin-left: auto; }
   .identity span { max-width: 150px; font-size: 10px; }
+  .topbar .themeToggle { width: 44px; padding: 8px; }
+  .themeToggle span { display: none; }
+  .identity { flex: 1; }
+  .identity strong, .identity span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobileMenu { display: block; flex: none; }
   .mobileMenu summary { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 0; color: var(--accent); cursor: pointer; list-style: none; }
   .mobileMenu summary::-webkit-details-marker { display: none; }

@@ -3,11 +3,12 @@ import type { ReactNode } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { logout } from "@/app/admin/actions";
 import { AdminNavigation, AdminMobileNavigation } from "./AdminNavigation";
+import { AdminTheme, AdminThemeToggle } from "./AdminTheme";
 import styles from "./AdminWorkspace.module.css";
 
 export function AdminShell({ children, displayName, email }: { children: ReactNode; displayName: string; email: string }) {
   return (
-    <div className={styles.root}>
+    <AdminTheme>
       <aside className={styles.sidebar}>
         <Link href="/admin" className={styles.logo}><Logo /></Link>
         <AdminNavigation />
@@ -18,10 +19,11 @@ export function AdminShell({ children, displayName, email }: { children: ReactNo
         <header className={styles.topbar}>
           <AdminMobileNavigation />
           <div className={styles.identity}><strong>{displayName}</strong><span title={email}>{email}</span></div>
+          <AdminThemeToggle />
           <form action={logout}><button type="submit">Sair</button></form>
         </header>
         {children}
       </div>
-    </div>
+    </AdminTheme>
   );
 }
