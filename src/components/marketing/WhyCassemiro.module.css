@@ -22,7 +22,6 @@
 .controls button:hover, .controls button[aria-pressed="true"] { color: var(--ivory); }
 .controls button[aria-pressed="true"]::after { transform: scaleX(1); }
 .number { color: var(--bronze-light); font-size: 10px; font-variant-numeric: tabular-nums; }
-.mobileDetail { display: none; }
 .footnote { max-width: 740px; margin: 0; padding-top: 12px; color: #a8aaa0; font-size: 12px; line-height: 1.6; }
 .footnote span { color: #c5c6bc; }
 .announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -38,24 +37,31 @@
   .featureItem h3 { font-size: 52px; }
 }
 @media (max-width: 760px) {
-  .root { height: auto; }
-  .stage { position: relative; top: 0; height: auto; min-height: 0; }
-  .composition { width: calc(100% - 40px); padding-block: 72px 56px; gap: 32px; }
-  .heading h2 { max-width: 370px; font-size: 32px; }
-  .heading p { max-width: 310px; font-size: 14px; }
+  .root { height: 360svh; }
+  .stage { position: sticky; top: 64px; height: calc(100svh - 124px - env(safe-area-inset-bottom, 0px)); min-height: 0; }
+  .composition { width: calc(100% - 40px); padding-block: 24px 16px; gap: 16px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  .heading h2 { max-width: 370px; margin-bottom: 12px; font-size: clamp(26px, 7vw, 32px); }
+  .heading p { max-width: 310px; font-size: 13px; }
   .media { inset: 0; transform: none; }
   .media img { object-position: 66% 50%; }
   .scrim { background: linear-gradient(90deg, rgb(17 18 15 / 95%), rgb(17 18 15 / 75%) 65%, rgb(17 18 15 / 48%)), linear-gradient(0deg, #11120f, transparent 60%); }
   .datum { right: 20px; top: 36px; height: 26%; }
-  .feature { min-height: 184px; }
-  .featureItem h3 { font-size: 44px; }
-  .featureItem p { max-width: 300px; font-size: 15px; }
-  .controls { display: grid; width: 100%; gap: 0; }
-  .controls button { display: grid; min-height: 64px; grid-template-columns: 24px minmax(0,1fr); gap: 8px; text-align: left; padding: 14px 0; font-size: 17px; }
+  .feature { min-height: 140px; }
+  .featureItem svg { width: 32px; height: 32px; }
+  .featureItem h3 { margin-top: 12px; font-size: 38px; }
+  .featureItem p { max-width: 300px; font-size: 14px; }
+  .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 0 16px; }
+  .controls button { min-height: 44px; gap: 8px; text-align: left; padding: 8px 0; font-size: 14px; }
   .controls button::after { width: 40px; }
-  .mobileDetail { display: block; grid-column: 2; color: #b5b7ac; font-size: 12px; line-height: 1.5; }
-  .controls button[aria-pressed="true"] .mobileDetail { color: #dddcd3; }
-  .footnote { padding-top: 0; font-size: 11px; }
+  .footnote { display: none; }
+}
+@media (max-width: 760px) and (max-height: 620px) {
+  .composition { padding-block: 12px; gap: 10px; }
+  .heading h2 { font-size: 24px; margin-bottom: 8px; }
+  .heading p { font-size: 12px; }
+  .feature { min-height: 116px; }
+  .featureItem h3 { font-size: 32px; margin-block: 8px; }
+  .featureItem p { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .root { height: auto; }

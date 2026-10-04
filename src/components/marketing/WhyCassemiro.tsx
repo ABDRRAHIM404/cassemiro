@@ -18,6 +18,7 @@ const pillars = [
 
 export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
   const sectionRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const [active, setActive] = useState(0);
 
@@ -31,11 +32,12 @@ export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
     let visible = false;
     const update = () => {
       frame = 0;
-      if (!visible || reducedMotion.matches || mobile.matches) return;
+      if (!visible || reducedMotion.matches) return;
       const rect = section.getBoundingClientRect();
-      const viewport = window.innerHeight;
       const header = window.innerWidth <= 1000 ? 64 : 72;
-      const distance = Math.max(1, rect.height - (viewport - header));
+      // The mobile stage also leaves room for the fixed contact bar. Measure
+      // its actual height so all four phases finish before the section exits.
+      const distance = Math.max(1, rect.height - (stageRef.current?.getBoundingClientRect().height ?? window.innerHeight - header));
       const progress = Math.min(1, Math.max(0, (header - rect.top) / distance));
       const choice = Math.min(pillars.length - 1, Math.floor(progress * pillars.length));
       section.style.setProperty("--trust-progress", String(progress));
@@ -57,18 +59,20 @@ export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("resize", requestUpdate, { passive: true });
     reducedMotion.addEventListener("change", requestUpdate);
+    mobile.addEventListener("change", requestUpdate);
     return () => {
       observer.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", requestUpdate);
       window.removeEventListener("resize", requestUpdate);
       reducedMotion.removeEventListener("change", requestUpdate);
+      mobile.removeEventListener("change", requestUpdate);
     };
   }, []);
 
   return (
     <section id="porque" ref={sectionRef} className={styles.root} aria-labelledby="why-title">
-      <div className={styles.stage}>
+      <div ref={stageRef} className={styles.stage}>
         <div className={styles.media} aria-hidden="true">
           <Image src={imageUrl || "/media/hero/frames-webp/frame_100.webp"} alt="" fill sizes="100vw" unoptimized={Boolean(imageUrl?.startsWith("/api/project-media/"))} />
         </div>
@@ -102,7 +106,6 @@ export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
               <button ref={(node) => { controlsRef.current[index] = node; }} type="button" aria-pressed={active === index} aria-controls={`trust-feature-${index}`} onPointerEnter={(event) => { if (event.pointerType === "mouse") setActive(index); }} onFocus={() => setActive(index)} onClick={() => setActive(index)} key={pillar.title}>
                 <span className={styles.number} aria-hidden="true">0{index + 1}</span>
                 <span>{pillar.title}</span>
-                <span className={styles.mobileDetail}>{pillar.text}</span>
               </button>
             ))}
           </div>
