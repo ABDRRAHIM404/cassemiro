@@ -110,7 +110,7 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
       <div className={styles.field}>
         <label htmlFor="workType">Tipo de obra</label>
         <select id="workType" name="workType" value={data.workType} onChange={(e) => update("workType", e.target.value)} aria-invalid={attempted && errors.workType} aria-describedby={attempted && errors.workType ? "workType-error" : undefined}>
-          <option value="">Selecione</option><option>Construção residencial</option><option>Reforma</option><option>Construção comercial</option><option>Instalações</option><option>Acabamentos</option><option>Outro serviço</option>
+          <option value="">Selecione</option><option>Construção residencial</option><option>Construção comercial</option><option>Reforma</option><option>Instalações</option><option>Acabamentos</option><option>Outro serviço</option>
         </select>
         {attempted && errors.workType && <small id="workType-error">Selecione o tipo de obra.</small>}
       </div>
