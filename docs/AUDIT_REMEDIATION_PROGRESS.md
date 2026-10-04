@@ -6,7 +6,8 @@ Updated: 4 October 2026. Source reports: `.audit/` at baseline `5ed4f02`. This i
 
 | Fix | Commit | Evidence / remaining verification |
 | --- | --- | --- |
-| Preserve uploaded media after ambiguous responses | Local, pending push | Stable per-file identity and shared reconciliation now replace destructive cleanup on insert errors in both upload forms. Seven new regression tests and the actual signed-in gallery with intercepted writes pass; real Storage/browser lifecycle and abandoned-file reconciliation remain open. See 4 Oct notes below. |
+| Preserve uploaded media after ambiguous responses | `8c2a45c` | Stable per-file identity and shared reconciliation replace destructive cleanup on insert errors in both upload forms. Regression tests, intercepted-response simulations and the subsequently owner-approved real private lifecycle test pass. Abandoned-file reconciliation remains open. See 4 Oct notes below. |
+| Preserve creation form inputs on upload failure | This commit | The real private test exposed a retry blocked after action-form reset. New-project creation now uses a client submit handler, retaining native field validation and selected files; edit Server Actions remain unchanged. All 38 tests, lint, typecheck, production build and the real private lifecycle pass. |
 | Private project media delivery, durable quote limit | `a68f7e1`, `d3b514b` | Code and database migration deployed; staging abuse/media lifecycle tests remain. |
 | Remove dead footer process anchor and target quote follow-up to the lead | `a68f7e1` | The baseline audit's footer `/#processo` link was removed because the current homepage has no process section, and admin quote follow-up now uses a validated lead phone instead of the company number. Current source and link tests confirm the fixes; a populated quote-detail staging check remains open. |
 | JSON-LD escaping, canonicals, metadata, social fallback | `0f4c55c` | Source updated; rendered SEO checks remain across every route. |
@@ -149,6 +150,18 @@ Public content cache check (2 Oct): a local static build had cached `/rest/v1/pr
 | Owner-held | U-03 | The user explicitly required the exact real Sérgio photo without alteration. Keep it unchanged, including the existing shirt mark, unless the user later explicitly authorizes an edit. |
 | P3 | A-07, U-06, E-04 | Unused GSAP dependencies and four inactive legacy homepage components/styles removed and live-checked. Add only verified service/project material. Older horizontal-reel and separate-services instructions were superseded by later user direction. |
 | Owner-held | A-01, U-01, D-06 | RAiDEN is explicitly a temporary test the owner will delete. Do not replace it with invented praise. Verify authentic testimonial permission before publishing a replacement. |
+
+## Owner-approved private lifecycle verification — 4 October
+
+The owner explicitly approved one temporary unpublished project and private synthetic image. `scripts/design/check-private-project-lifecycle.mjs` ran at 390 × 844 against the local production build and the real CASSEMIRO Supabase, using an isolated session for the existing owner. No new Auth account was created and the fixture was never published.
+
+The first verifier assertions checked too early; those attempts cleaned up successfully. After fixing the verifier timing, a real registration-failure test exposed a separate application problem: the handled failure returned normally from a React form action, resetting uncontrolled fields and preventing Retry from submitting the empty required title. [React documents this action-form reset](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-an-action-prop). Creation now handles submission as a client event, preventing the automatic reset while preserving native validation. Existing-project editing still uses its Server Action.
+
+The corrected production build passed the complete bounded test: real draft creation and service association; real private Storage upload; one deliberately intercepted registration failure; Retry with the original title/file retained, one upload and two insert attempts; saved cover; anonymous project and media requests both 404; signed-in media download 200; real project edit; media removal clearing the cover and Storage object; reusing the same single synthetic image for gallery upload; project deletion removing its image and associated rows. There were zero browser runtime exceptions. The test compares all original project/media/service-association rows before and after, not merely their counts.
+
+Cleanup removed only exact fixture-owned records/paths. The isolated session was revoked and the browser closed; no credentials were written to disk. A separate MCP query confirmed two real projects, two media rows, two private Storage objects, one Auth user and zero test projects, matching the baseline. Every attempted run removed its own fixture. The test script requires `APPROVED_PRIVATE_TEST=yes`; do not run it again without authorization.
+
+All 38 application tests, typecheck and lint pass. The production build initially compiled but timed out during Supabase-backed prerendering; a read-only connectivity probe returned 200 and the subsequent build completed all 23 static pages successfully. This proves the local production-build/hosted-database workflow, not the Vercel deployed browser flow. Publication was intentionally not tested; separate real owner/admin/editor logins, abandoned uploads, email delivery, physical devices, screen readers and field Core Web Vitals remain open. No schema change, paid resource or customer mutation was required.
 
 ## Completion gates
 

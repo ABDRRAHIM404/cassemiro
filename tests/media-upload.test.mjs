@@ -81,3 +81,12 @@ test("both admin upload flows retain per-file identities and use the shared reco
     assert.doesNotMatch(source, /cleanupError/);
   }
 });
+
+test("project creation preserves inputs after a handled upload error", async () => {
+  const source = await readFile(new URL("../src/components/admin/ProjectForm.tsx", import.meta.url), "utf8");
+  assert.match(source, /action=\{project \? action : undefined\}/);
+  assert.match(source, /onSubmit=\{project \? undefined :/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.match(source, /createWithPhotos\(new FormData\(event\.currentTarget\)\)/);
+  assert.doesNotMatch(source, /action=\{project \? action : createWithPhotos\}/);
+});

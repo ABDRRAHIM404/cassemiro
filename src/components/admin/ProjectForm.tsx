@@ -120,7 +120,12 @@ export function ProjectForm({
   }
 
   return (
-    <form action={project ? action : createWithPhotos} className="project-form">
+    <form action={project ? action : undefined} onSubmit={project ? undefined : (event) => {
+      // A handled upload failure must not trigger React's action-form reset.
+      // Keep required fields and selected files available for the same draft retry.
+      event.preventDefault();
+      void createWithPhotos(new FormData(event.currentTarget));
+    }} className="project-form">
       <section className="admin-panel project-form__main">
         <div className="admin-panel__heading"><div><span>DADOS PRINCIPAIS</span><h2>Apresentação do projeto</h2></div></div>
         <div className="project-form__fields">
