@@ -4,6 +4,7 @@ import { quoteRequestSchema } from "@/features/quotes/validation";
 import { checkQuoteRateLimit, quoteClientIdentity } from "@/lib/rate-limit";
 import { readLimitedJson } from "@/lib/http/read-limited-json";
 import { optionalNotificationError } from "@/lib/quotes/optional-notification";
+import { quoteFailureDiagnostic } from "@/lib/quotes/failure-diagnostic";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
 
@@ -77,8 +78,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (databaseError || !savedQuote) {
-    console.error("Quote storage failed", databaseError?.message);
-    Sentry.captureException(databaseError ?? new Error("Quote storage returned no record"), { tags: { operation: "quote_insert" } });
+    const diagnostic = quoteFailureDiagnostic("quote_insert", databaseError);
+    console.error(diagnostic.error.message, diagnostic.tags);
+    Sentry.captureException(diagnostic.error, { tags: diagnostic.tags });
     return privateJson({ error: "Não foi possível registrar a solicitação. Tente novamente ou fale pelo WhatsApp." }, 500);
   }
 
@@ -98,8 +100,9 @@ export async function POST(request: NextRequest) {
       });
     });
     if (emailError) {
-      console.error("Quote notification email failed after quote was saved", emailError);
-      Sentry.captureException(emailError, { tags: { operation: "quote_notification" } });
+      const diagnostic = quoteFailureDiagnostic("quote_notification", emailError);
+      console.error(diagnostic.error.message, diagnostic.tags);
+      Sentry.captureException(diagnostic.error, { tags: diagnostic.tags });
     }
   }
 

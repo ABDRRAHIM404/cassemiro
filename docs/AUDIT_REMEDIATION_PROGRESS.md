@@ -428,6 +428,16 @@ The read-only ending contrast checker now discovers every actual carousel slide 
 
 All 66 repository tests, scoped verifier lint and diff checks pass. These changes strengthen verification and its evidence; they do not redesign the site or change production data policies. No local build or dev server was run. Staging settings/publication checks, HTTP abuse behavior, email/domain setup, CSP decisions, the upstream development-tool advisory, real-device/field performance and assistive-technology review remain open.
 
+## Quote failure-report privacy hardening — 5 October
+
+Reviewing the remaining quote abuse gate found a separate, concrete reporting exposure in the current source: the quote route logged `databaseError.message`, passed the full database error to Sentry, and logged/captured the entire optional email-provider error. Those unbounded messages/details can contain submitted values, addresses or transport context. No actual customer-data disclosure was observed or induced.
+
+Both explicit failure sinks now use a fresh fixed-message Error and only an allowlisted machine code, rather than forwarding the original error, its cause, stack, message, details or arbitrary properties. Known database codes and provider names were checked against [PostgreSQL's error-code reference](https://www.postgresql.org/docs/current/errcodes-appendix.html) and [Resend's error reference](https://resend.com/docs/api-reference/errors). Unknown values become `unknown`. This is deliberately scoped to these two explicit route reports, not a claim that Sentry's ambient request context, breadcrumbs, SDK integrations, other routes or historical logs have been scrubbed.
+
+An isolated Node test imports and executes the actual POST handler with database, notification, limiter and monitoring transport doubles, forbidding all network calls. A synthetic database constraint failure returns private/no-store 500 with no email attempt. Both returned and thrown notification errors preserve private/no-store 201 after successful storage. All three console/monitoring reports contain only fixed messages and safe operation/code tags, without the synthetic contact-bearing error text or its cause. Separate helper/route-wiring tests cover null, arbitrary strings, unknown codes and Error objects. No live lead, account, limiter counter or email was created by these tests; no local Next build/dev server was run.
+
+Live saturation of the real HTTP endpoint remains a distinct gate: it would consume the actual network's shared five-attempt/15-minute quota, unlike the already verified synthetic-key RPC test. It has not been run under the private-fixture authorization. Use an isolated staging target or obtain specific approval for that production-network effect. The full audit remains incomplete.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
