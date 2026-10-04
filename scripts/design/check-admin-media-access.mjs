@@ -98,7 +98,11 @@ try {
           assert.ok(signed.origin === url && signed.pathname.startsWith(`/storage/v1/object/sign/${bucketName}/`), "Unexpected signed target");
           const claims = JSON.parse(Buffer.from(signed.searchParams.get("token").split(".")[1], "base64url").toString());
           assert.ok(claims.exp <= Date.now() / 1000 + 65 && claims.exp > Date.now() / 1000, "Signed URL is not short-lived");
-          const delivered = await context.request.get(signed.href);
+          // Playwright transport exceptions can include their full request URL.
+          // Never let a signed bearer URL escape through that diagnostic path.
+          let delivered;
+          try { delivered = await context.request.get(signed.href); }
+          catch { throw new Error("Signed object download failed; bearer URL withheld"); }
           assert.equal(delivered.status(), 200);
           const original = await admin.storage.from(bucketName).download(media.storage_path);
           assert.equal(original.error, null, "Original private object unavailable");
