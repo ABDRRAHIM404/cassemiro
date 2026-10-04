@@ -22,7 +22,7 @@ function escapeHtml(value: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const clientKey = quoteClientIdentity(request.headers.get("x-forwarded-for"));
+  const clientKey = quoteClientIdentity(request.headers);
   if (!clientKey) {
     return privateJson({ error: "O formulário ainda não está disponível. Continue pelo WhatsApp." }, 503);
   }

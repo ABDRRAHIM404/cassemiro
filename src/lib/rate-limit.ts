@@ -1,15 +1,13 @@
 import "server-only";
 
 import { createHmac } from "node:crypto";
-import { isIP } from "node:net";
+import { platformQuoteIdentity } from "@/lib/quotes/platform-identity";
 import type { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 type AdminClient = NonNullable<ReturnType<typeof createSupabaseAdmin>>;
 
-export function quoteClientIdentity(forwardedFor: string | null): string | null {
-  if (process.env.VERCEL !== "1") return process.env.NODE_ENV === "development" ? "local-development" : null;
-  const ip = forwardedFor?.split(",")[0]?.trim();
-  return ip && isIP(ip) ? ip : null;
+export function quoteClientIdentity(headers: Headers): string | null {
+  return platformQuoteIdentity(headers, { vercel: process.env.VERCEL, nodeEnv: process.env.NODE_ENV });
 }
 
 export async function checkQuoteRateLimit(clientIdentity: string, supabase: AdminClient) {
