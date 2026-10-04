@@ -16,6 +16,7 @@
   gap: 32px;
 }
 .logo { display: flex; flex-shrink: 0; }
+.clientLogo { display: block; width: auto; height: 64px; object-fit: contain; }
 .nav { display: flex; align-items: center; gap: 28px; font-size: 13px; }
 .nav > a { min-height: 44px; display: flex; align-items: center; position: relative; color: #c6c5bf; transition: color 180ms ease; }
 .nav > a:hover, .nav > a[aria-current="page"] { color: var(--ivory); }
@@ -32,6 +33,7 @@
   .fallbackMenu nav { position: absolute; top: 72px; right: 20px; width: min(280px, calc(100vw - 40px)); max-height: calc(100dvh - 96px); overflow-y: auto; padding: 12px 20px; background: #151612; border: 1px solid rgb(176 139 90 / 25%); }
   .fallbackMenu nav a { display: flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--ivory); }
   .inner { width: calc(100% - 40px); min-height: 64px; }
+  .clientLogo { height: 56px; }
   .toggle { display: block; }
   .nav { position: absolute; top: 72px; right: 20px; width: min(280px, calc(100vw - 40px)); max-height: calc(100dvh - 96px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px 20px; display: flex; flex-direction: column; align-items: stretch; gap: 0; border: 1px solid rgb(176 139 90 / 25%); background: #151612; visibility: hidden; opacity: 0; transform: translateY(-6px); transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease; }
   .nav > a { font-size: 14px; }

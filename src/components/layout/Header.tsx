@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Logo } from "@/components/brand/Logo";
 import styles from "./Header.module.css";
 
 export function Header({ showProjects = false }: { showProjects?: boolean }) {
@@ -45,7 +45,15 @@ export function Header({ showProjects = false }: { showProjects?: boolean }) {
       }}>
       <div className={styles.inner}>
         <Link href="/" className={styles.logo} onClick={() => setOpen(false)} aria-label="CASSEMIRO Construções & Reformas — início">
-          <Logo />
+          <Image
+            src="/images/brand/client-logo-construcoes-dark-v1.png"
+            alt="CASSEMIRO Construções & Reformas"
+            width={1604}
+            height={980}
+            sizes="(max-width: 1000px) 92px, 105px"
+            loading="eager"
+            className={styles.clientLogo}
+          />
         </Link>
         <nav id="primary-navigation" className={styles.nav} aria-label="Navegação principal">
           {links.map(([label, href]) => (
