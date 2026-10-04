@@ -1,4 +1,4 @@
-.root, .empty { position: relative; padding: 84px 0 64px; overflow: hidden; color: var(--ivory); background: #11120f; scroll-margin-top: 72px; }
+.root, .empty { position: relative; padding: 84px 0 64px; overflow: clip; color: var(--ivory); background: #11120f; scroll-margin-top: 72px; }
 .shell { width: min(1160px, calc(100% - 144px)); margin-inline: auto; }
 .header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 36px; }
 .context { margin: 0 0 16px; color: #b5b7ac; font-size: 12px; }
@@ -8,7 +8,9 @@
 .meter i { grid-column: 1 / -1; height: 1px; margin-top: 4px; overflow: hidden; background: rgb(246 243 237 / 22%); }
 .meter b { display: block; width: 100%; height: 100%; background: var(--bronze-light); transform-origin: left; transition: transform 500ms ease; }
 .catalogue { position: relative; }
-.stage { --drag-x: 0px; position: relative; height: clamp(300px, 32vw, 440px); overflow: hidden; touch-action: pan-y; user-select: none; }
+/* Clip neighboring slides without a hidden scroll container: focusing a side
+   project must not silently pan the entire catalogue away from its caption. */
+.stage { --drag-x: 0px; position: relative; height: clamp(300px, 32vw, 440px); overflow: clip; touch-action: pan-y; user-select: none; }
 .stage:focus-visible { outline: 1px solid var(--bronze-light); outline-offset: -4px; }
 .slide { position: absolute; top: 0; left: 50%; width: min(72vw, 960px); height: 100%; opacity: .62; transform: translate3d(calc(-50% + var(--slide-shift) + var(--drag-x)),0,0) scale(.84); transition: transform 650ms cubic-bezier(.2,.8,.2,1), opacity 450ms ease; }
 .slide[aria-hidden="true"] { opacity: 0; pointer-events: none; }
