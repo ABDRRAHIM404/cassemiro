@@ -16,3 +16,17 @@ test("public header uses the client logo with responsive sizing and accessible b
   assert.match(css, /\.header \{[^}]*isolation: isolate/);
   assert.ok(existsSync(new URL("../public/images/brand/client-logo-construcoes-dark-v1.png", import.meta.url)));
 });
+
+test("footer matches the header client logo without changing the admin brand", () => {
+  const footer = readFileSync(new URL("../src/components/layout/Footer.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../src/components/layout/Footer.module.css", import.meta.url), "utf8");
+  assert.match(footer, /src="\/images\/brand\/client-logo-construcoes-dark-v1\.png"/);
+  assert.match(footer, /alt="CASSEMIRO Construções & Reformas"/);
+  assert.match(footer, /aria-label="CASSEMIRO Construções & Reformas — início"/);
+  assert.match(footer, /width=\{1604\}/);
+  assert.match(footer, /height=\{980\}/);
+  assert.doesNotMatch(footer, /loading="eager"|priority|<Logo/);
+  assert.match(css, /\.clientLogo \{[^}]*height: 64px[^}]*mix-blend-mode: lighten/);
+  assert.match(css, /\.brand \{[^}]*isolation: isolate/);
+  assert.match(css, /\.clientLogo \{ height: 56px/);
+});

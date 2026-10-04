@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/brand/Logo";
+import Image from "next/image";
 import { defaultBusinessSettings, type BusinessSettings } from "@/lib/site-settings";
 import { ArrowUpRight } from "@phosphor-icons/react/dist/ssr/ArrowUpRight";
 import styles from "./Footer.module.css";
@@ -9,7 +9,16 @@ export function Footer({ showProjects = false, settings = defaultBusinessSetting
     <footer className={styles.root}>
       <div className={styles.top}>
         <div className={styles.brand}>
-          <Logo />
+          <Link href="/" className={styles.logo} aria-label="CASSEMIRO Construções & Reformas — início">
+            <Image
+              src="/images/brand/client-logo-construcoes-dark-v1.png"
+              alt="CASSEMIRO Construções & Reformas"
+              width={1604}
+              height={980}
+              sizes="(max-width: 1000px) 92px, 105px"
+              className={styles.clientLogo}
+            />
+          </Link>
           <p>Construção e reformas com experiência, cuidado e responsabilidade.</p>
         </div>
         <nav className={styles.explore} aria-label="Navegação do rodapé">
