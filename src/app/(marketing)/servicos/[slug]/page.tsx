@@ -6,7 +6,7 @@ import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { siteConfig } from "@/config/site";
 import { serializeJsonLd } from "@/lib/json-ld";
 import { parseBusinessSettings } from "@/lib/site-settings";
-import { titleWithSingleBrand } from "@/lib/seo";
+import { socialMetadata, titleWithSingleBrand } from "@/lib/seo";
 import { getPublishedProjectsForService } from "@/lib/public-project-links";
 import { getVerifiedProjectContext } from "@/lib/project-photo-context";
 import { ProjectPhoto } from "@/components/marketing/ProjectPhoto";
@@ -29,7 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: titleWithSingleBrand(service.seo_title || service.title),
     description: service.seo_description || service.short_description,
-    alternates: { canonical: `/servicos/${service.slug}` }
+    alternates: { canonical: `/servicos/${service.slug}` },
+    ...socialMetadata(service.seo_title || service.title, service.seo_description || service.short_description)
   };
 }
 

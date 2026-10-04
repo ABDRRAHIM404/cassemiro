@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { socialMetadata } from "@/lib/seo";
 import { QuoteForm } from "@/components/marketing/QuoteForm";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requirePublicData } from "@/lib/supabase/require-public-data";
@@ -10,7 +11,8 @@ import styles from "./page.module.css";
 export const metadata: Metadata = {
   title: "Solicitar orçamento",
   description: "Fale com a CASSEMIRO sobre sua construção ou reforma em Sorocaba e região.",
-  alternates: { canonical: "/contato" }
+  alternates: { canonical: "/contato" },
+  ...socialMetadata("Solicitar orçamento", "Fale com a CASSEMIRO sobre sua construção ou reforma em Sorocaba e região.")
 };
 
 export default async function ContactPage() {

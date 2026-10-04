@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { socialMetadata } from "@/lib/seo";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { TrackedLink } from "@/components/analytics/TrackedLink";
@@ -11,7 +12,8 @@ import styles from "./page.module.css";
 export const metadata: Metadata = {
   title: "Projetos realizados",
   description: "Conheça obras e reformas realizadas pela CASSEMIRO em Sorocaba e região.",
-  alternates: { canonical: "/projetos" }
+  alternates: { canonical: "/projetos" },
+  ...socialMetadata("Projetos realizados", "Conheça obras e reformas realizadas pela CASSEMIRO em Sorocaba e região.")
 };
 
 export default async function ProjectsPage() {

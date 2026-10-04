@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { socialMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requirePublicData } from "@/lib/supabase/require-public-data";
@@ -12,7 +13,8 @@ import styles from "./page.module.css";
 export const metadata: Metadata = {
   title: "Serviços de construção e reformas",
   description: "Construção residencial e comercial, reformas, estruturas, instalações e acabamentos em Sorocaba e região.",
-  alternates: { canonical: "/servicos" }
+  alternates: { canonical: "/servicos" },
+  ...socialMetadata("Serviços de construção e reformas", "Construção residencial e comercial, reformas, estruturas, instalações e acabamentos em Sorocaba e região.")
 };
 
 export default async function ServicesPage() {

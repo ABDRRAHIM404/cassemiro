@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requirePublicData } from "@/lib/supabase/require-public-data";
-import { titleWithSingleBrand } from "@/lib/seo";
+import { socialMetadata, titleWithSingleBrand } from "@/lib/seo";
 import { getVerifiedProjectContext } from "@/lib/project-photo-context";
 import { getVisibleServicesForProject } from "@/lib/public-project-links";
 import { ProjectPhoto } from "@/components/marketing/ProjectPhoto";
@@ -30,7 +30,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: titleWithSingleBrand(title),
     description,
     alternates: { canonical: `/projetos/${project.slug}` },
-    openGraph: { title, description, images: project.hero_image ? [project.hero_image] : undefined }
+    ...socialMetadata(title, description, project.hero_image ? {
+      url: project.hero_image,
+      alt: getVerifiedProjectContext(project.slug, project.hero_image)?.photo?.alt ?? `Registro do projeto ${project.title}`
+    } : undefined)
   };
 }
 

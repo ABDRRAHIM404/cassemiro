@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { siteConfig } from "@/config/site";
 import { PrivacyAnalytics } from "@/components/analytics/PrivacyAnalytics";
+import { socialMetadata } from "@/lib/seo";
 import "./globals.css";
 
 const sans = localFont({ src: "./fonts/dm-sans.woff2", weight: "100 1000", display: "swap", variable: "--font-sans" });
@@ -12,13 +13,7 @@ export const metadata: Metadata = {
   title: { default: "CASSEMIRO | Construção e Reformas em Sorocaba", template: "%s | CASSEMIRO" },
   description: "Construção e reformas residenciais e comerciais em Sorocaba e região. Mais de 43 anos de experiência prática, do alicerce ao acabamento.",
   applicationName: "CASSEMIRO",
-  openGraph: {
-    type: "website",
-    locale: "pt_BR",
-    title: "CASSEMIRO — Construção & Reformas",
-    description: "Experiência prática, execução responsável e cuidado em cada detalhe da sua obra.",
-    siteName: "CASSEMIRO"
-  },
+  ...socialMetadata("CASSEMIRO — Construção & Reformas", "Experiência prática, execução responsável e cuidado em cada detalhe da sua obra."),
   robots: { index: true, follow: true }
 };
 

@@ -242,6 +242,18 @@ Four new tests cover conflicting/missing headers, malformed/chained addresses, I
 
 The deployment checklist was corrected to distinguish valid attempts consuming the shared quota from malformed/oversized/honeypot requests that exit earlier. High-volume invalid traffic still needs platform-level monitoring/abuse controls. This is security-boundary clarification/hardening, not proof of comprehensive distributed-bot protection. A read-only local Chromium check of `/contato` at 390/1366 px returned 200, found the quote form, and reported no runtime exceptions or horizontal overflow; no form was submitted.
 
+## Quote identity release verification — 4 October
+
+Commit `593dd64afd7a10b3e0677fbaa3181454dce7adb9` was pushed to main. The production alias resolves to READY deployment `dpl_4KBDpFe6GYKTepMJidDMgDECtCQs` at that SHA, with no alias error and approximately 37.5 seconds between building/ready timestamps. Four no-save production-edge probes passed: no client forwarding headers, conflicting standard forwarding headers, an invalid supplied Vercel-specific header, and a supplied address chain. All returned private/no-store quiet 200 responses with unchanged hosted quote IDs and zero new quotes. Because the deployed handler rejects invalid/chained platform values before body handling, these last two probes show the edge replaced those supplied values with an acceptable platform address; they do not identify or log the actual address or prove limiter-key saturation.
+
+Live read-only Chromium checks of `/contato` at 390/1366 px found the quote form, returned 200 and reported no runtime exceptions or horizontal overflow; no form was submitted. After at least 60 seconds from READY, a deployment-scoped runtime-log query for error/fatal entries with a one-hour lookback returned no matches. This is an early filtered log observation, not an hour of deployment traffic or comprehensive monitoring proof. The project-scoped drain list is empty. No paid monitoring, sender configuration, account, customer row or schema change was made. Deployed valid-quote saturation, SMTP delivery, broader publication tests, real devices and screen readers remain separate audit gates.
+
+## Social preview metadata — 4 October
+
+A read-only production sweep of all 13 sitemap routes found valid titles/canonicals but 37 social-preview omissions: eleven routes lacked a fallback image/alternative and explicit large-image Twitter metadata; the two project routes lacked alternatives/Twitter metadata. Existing real project images downloaded and decoded successfully. The new shared helper supplies complete Open Graph/Twitter fields with page-specific copy. Project detail metadata keeps its existing real cover URL and verified photo alternative, without inventing dimensions. Other public routes use a build-time 1200×630 black/ivory/bronze brand graphic with the unchanged logo paths, not synthetic portfolio photography. No homepage composition, portrait, database, authorization or publication state changed.
+
+All 49 tests, lint, typecheck and diff checks pass. The React review kept this work server-side with no new client effects or dependencies. The local production build remains pending due to observed host disk-I/O pressure; successful production compilation and rendered/downloadable preview verification are not yet claimed. The public verifier waits for metadata readiness instead of network idle and checks every sitemap route and image decoding. The audit is paused at the owner's request; this release does not declare the full audit complete.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

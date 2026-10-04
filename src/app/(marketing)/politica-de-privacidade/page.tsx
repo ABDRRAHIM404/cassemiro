@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { socialMetadata } from "@/lib/seo";
 import { createPublicClient } from "@/lib/supabase/public";
 import { requirePublicData } from "@/lib/supabase/require-public-data";
 import { parseBusinessSettings } from "@/lib/site-settings";
@@ -7,6 +8,8 @@ import styles from "./page.module.css";
 
 export const metadata: Metadata = {
   title: "Política de privacidade",
+  description: "Como a CASSEMIRO utiliza os dados enviados pelo site e protege a sua privacidade.",
+  ...socialMetadata("Política de privacidade", "Como a CASSEMIRO utiliza os dados enviados pelo site e protege a sua privacidade."),
   alternates: { canonical: "/politica-de-privacidade" },
   robots: { index: true, follow: true }
 };
