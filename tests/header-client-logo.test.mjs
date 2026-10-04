@@ -27,6 +27,6 @@ test("footer matches the header client logo without changing the admin brand", (
   assert.match(footer, /height=\{980\}/);
   assert.doesNotMatch(footer, /loading="eager"|priority|<Logo/);
   assert.match(css, /\.clientLogo \{[^}]*height: 64px[^}]*mix-blend-mode: lighten/);
-  assert.match(css, /\.brand \{[^}]*isolation: isolate/);
+  assert.match(css, /\.root \{[^}]*background: #11120f[^}]*isolation: isolate/);
   assert.match(css, /\.clientLogo \{ height: 56px/);
 });
