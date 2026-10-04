@@ -39,11 +39,17 @@ async page => {
         const box = await heading.boundingBox();
         if (!box || box.y < 65 || box.y + box.height > (width === 1366 ? 768 : 844) - 52) throw new Error(`Chapter ${index} heading out of view: ${JSON.stringify(box)}`);
         seen.push(await heading.innerText());
+        const name = ["foundation", "structure", "walls", "installations", "finished", "finished"][index - 1];
+        const artwork = p.locator(`[data-artwork="${name}"]`);
+        await artwork.locator("img").evaluate(image => image.decode());
+        const clarity = await artwork.evaluate(element => ({ opacity: +getComputedStyle(element).opacity,
+          mask: getComputedStyle(element.querySelector("img")).maskImage, clip: getComputedStyle(element).clipPath }));
+        if (clarity.opacity < .5 || clarity.mask !== "none" || clarity.clip !== "none") throw new Error("Artwork is obscured: " + JSON.stringify({ index, clarity }));
         const copy = await p.locator(`[data-story-chapter="${index}"] [class*="chapterCopy"]`).boundingBox();
         if (width < 700 && copy.y + copy.height > 744) throw new Error(`Mobile copy overlaps progress/contact bar: ${JSON.stringify(copy)}`);
         await p.screenshot({ path: `.codex/audits/redesign/current/${width}-scroll-story-${index}.png` });
       }
-      if ([...requests].some(path => path.includes("/media/hero/")) || requests.size !== 2) throw new Error(JSON.stringify([...requests]));
+      if ([...requests].some(path => path.includes("/media/hero/")) || requests.size !== 5) throw new Error(JSON.stringify([...requests]));
       if ([...requests].some(path => path.includes("mobile") !== (width < 700))) throw new Error("Wrong responsive artwork");
       await p.locator('[data-story-chapter="1"]').evaluate(element => window.scrollTo({ top: element.getBoundingClientRect().top + scrollY, behavior: "instant" }));
       await p.waitForFunction(() => document.querySelector('[data-phase]')?.dataset.phase === "1");

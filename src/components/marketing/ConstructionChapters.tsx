@@ -24,20 +24,12 @@ export function ConstructionChapters({ children }: { children: ReactNode }) {
         <div className={styles.atmosphere} />
         <div className={styles.model}>
           {constructionArtwork.map((artwork, index) => (
-            index === 0 ? <picture key={artwork.name} className={styles.finished}>
+            <picture key={artwork.name} className={`${styles.scene} ${styles[artwork.name]}`} data-artwork={artwork.name}>
               <source media="(max-width: 700px)" srcSet={artwork.mobile} />
               <img src={artwork.desktop} width="1536" height="1024" alt=""
                 loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"}
                 decoding="async" draggable={false} onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />
-            </picture> : <div key={artwork.name} className={styles.cutaway}>
-              {["foundation", "structure", "walls", "roof"].map((layer) => (
-                <picture key={layer} className={styles[layer]}>
-                  <source media="(max-width: 700px)" srcSet={artwork.mobile} />
-                  <img src={artwork.desktop} width="1536" height="1024" alt="" loading="lazy" decoding="async" draggable={false}
-                    onError={(event) => { event.currentTarget.style.visibility = "hidden"; }} />
-                </picture>
-              ))}
-            </div>
+            </picture>
           ))}
         </div>
         <div className={styles.progress}>

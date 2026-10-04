@@ -1,23 +1,15 @@
-.chapters { position: relative; display: grid; isolation: isolate; view-timeline-name: --construction; view-timeline-axis: block; }
+.chapters { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); isolation: isolate; view-timeline-name: --construction; view-timeline-axis: block; }
 .visual, .narrative { grid-area: 1 / 1; }
 .visual { position: sticky; top: 73px; align-self: start; height: calc(100svh - 73px); min-height: 480px; overflow: hidden; pointer-events: none; background: #11120f; }
 .atmosphere { position: absolute; inset: 0; background: radial-gradient(ellipse at 75% 55%, rgb(176 139 90 / 14%), transparent 65%); }
-.model { position: absolute; right: -5%; top: 8%; width: 76%; height: 84%; mask-image: linear-gradient(90deg, transparent, #000 28%); }
+.model { position: absolute; right: 1%; top: 8%; width: 63%; height: 84%; }
 .model picture { position: absolute; inset: 0; display: block; }
-.model img { width: 100%; height: 100%; object-fit: contain; mask-image: radial-gradient(ellipse 65% 70% at center, #000 45%, transparent 85%); }
+.model img { width: 100%; height: 100%; object-fit: contain; }
+.scene { opacity: 0; }
 .finished { opacity: 1; }
-.cutaway { opacity: 0; }
-.cutaway { position: absolute; width: 100%; aspect-ratio: 3 / 2; top: 50%; translate: 0 -50%; }
-.cutaway picture { opacity: 0; }
-.foundation { clip-path: inset(76% 0 0); }
-.structure { clip-path: inset(55% 0 24%); }
-.walls { clip-path: inset(27% 0 45%); }
-.roof { clip-path: inset(0 0 73%); }
-.chapters[data-phase="1"] .foundation, .chapters[data-phase="2"] .foundation, .chapters[data-phase="3"] .foundation, .chapters[data-phase="4"] .foundation,
-.chapters[data-phase="2"] .structure, .chapters[data-phase="3"] .structure, .chapters[data-phase="4"] .structure,
-.chapters[data-phase="3"] .walls, .chapters[data-phase="4"] .walls, .chapters[data-phase="4"] .roof { opacity: 1; }
+.chapters[data-phase="1"] .foundation, .chapters[data-phase="2"] .structure,
+.chapters[data-phase="3"] .walls, .chapters[data-phase="4"] .installations { opacity: 1; }
 .chapters[data-phase="1"] .finished, .chapters[data-phase="2"] .finished, .chapters[data-phase="3"] .finished, .chapters[data-phase="4"] .finished { opacity: 0; }
-.chapters[data-phase="1"] .cutaway, .chapters[data-phase="2"] .cutaway, .chapters[data-phase="3"] .cutaway, .chapters[data-phase="4"] .cutaway { opacity: 1; }
 .narrative { position: relative; pointer-events: none; }
 .narrative a { pointer-events: auto; }
 .opening { position: relative; min-height: calc(100svh - 73px); padding: clamp(42px, 10svh, 110px) max(48px, calc((100% - 1160px) / 2)); }
@@ -40,36 +32,37 @@
 .chapters[data-phase="1"] [data-step="1"], .chapters[data-phase="2"] [data-step="2"], .chapters[data-phase="3"] [data-step="3"], .chapters[data-phase="4"] [data-step="4"], .chapters[data-phase="5"] [data-step="5"], .chapters[data-phase="6"] [data-step="6"] { background: var(--bronze-light); }
 .disclosure { margin: 0; padding: 24px 48px 40px; color: #a49c90; font-size: 10px; line-height: 1.6; text-align: right; }
 @media (prefers-reduced-motion: no-preference) {
-  .model picture, .cutaway { transition: opacity 650ms ease, transform 950ms cubic-bezier(.22,1,.36,1); }
-  .chapters[data-phase="1"] .cutaway { transform: translateY(-25%) scale(1.18); }
-  .chapters[data-phase="2"] .cutaway { transform: translateY(0) scale(1.06); }
-  .chapters[data-phase="3"] .cutaway { transform: translateY(8%) scale(1.2); }
-  .chapters[data-phase="4"] .cutaway { transform: translate(-4%, 4%) scale(1.32); }
-  .chapters[data-phase="5"] .finished { transform: scale(1.14); }
+  .scene { transition: opacity 900ms cubic-bezier(.4,0,.2,1), transform 1200ms cubic-bezier(.22,1,.36,1); }
+  .model { transition: transform 1200ms cubic-bezier(.22,1,.36,1); }
+  .chapters[data-phase="5"] .finished { transform: scale(1.04); }
   @supports (animation-timeline: view()) {
     .finished { animation: finishedReveal 1ms linear both; animation-timeline: --construction; animation-range: contain; }
-    .cutaway { animation: cutawayReveal 1ms linear both; animation-timeline: --construction; animation-range: contain; }
-    .foundation, .structure, .walls, .roof { animation: layerReveal 1ms linear both; animation-timeline: --construction; }
-    .foundation { animation-range: contain 5% contain 13%; }
-    .structure { animation-range: contain 23% contain 31%; }
-    .walls { animation-range: contain 39% contain 47%; }
-    .roof { animation-range: contain 55% contain 63%; }
+    .foundation, .structure, .walls, .installations { animation-duration: 1ms; animation-timing-function: linear; animation-fill-mode: both; animation-timeline: --construction; animation-range: contain; }
+    .foundation { animation-name: foundationReveal; }
+    .structure { animation-name: structureReveal; }
+    .walls { animation-name: wallsReveal; }
+    .installations { animation-name: installationsReveal; }
     .model { animation: camera 1ms linear both; animation-timeline: --construction; animation-range: contain; }
     .atmosphere { animation: atmosphere 1ms linear both; animation-timeline: --construction; animation-range: contain; }
     .chapterCopy { animation: copyReveal 1ms linear both; animation-timeline: view(); animation-range: entry 10% exit 90%; }
   }
 }
-@keyframes finishedReveal { 0%, 5% { opacity: 1; } 12%, 70% { opacity: 0; } 80%, 100% { opacity: 1; } }
-@keyframes cutawayReveal { 0%, 5% { opacity: 0; } 12%, 70% { opacity: 1; } 80%, 100% { opacity: 0; } }
-@keyframes layerReveal { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes camera { 0% { transform: translate(0, 0) scale(1); } 18% { transform: translate(2%, -3%) scale(1.05); } 42% { transform: translate(-3%, 2%) scale(1.08); } 68% { transform: translate(1%, -2%) scale(1.02); } 100% { transform: translate(0, 0) scale(1); } }
+@keyframes finishedReveal { 0%, 7% { opacity: 1; } 13%, 70% { opacity: 0; } 76%, 100% { opacity: 1; } }
+@keyframes foundationReveal { 0%, 7%, 28%, 100% { opacity: 0; } 13%, 22% { opacity: 1; } }
+@keyframes structureReveal { 0%, 22%, 44%, 100% { opacity: 0; } 28%, 38% { opacity: 1; } }
+@keyframes wallsReveal { 0%, 38%, 60%, 100% { opacity: 0; } 44%, 54% { opacity: 1; } }
+@keyframes installationsReveal { 0%, 54%, 76%, 100% { opacity: 0; } 60%, 70% { opacity: 1; } }
+@keyframes camera { 0%, 100% { transform: translate(0, 0) scale(1); } 45% { transform: translate(-1%, -1%) scale(1.015); } }
 @keyframes atmosphere { from { transform: translate(-5%, -3%); } to { transform: translate(5%, 3%); } }
 @keyframes copyReveal { 0% { transform: translateY(32px); } 25%, 70% { transform: translateY(0); } 100% { transform: translateY(-24px); } }
-@media (max-width: 1000px) { .visual { top: 65px; height: calc(100svh - 65px); } .opening { min-height: calc(100svh - 65px); padding-inline: 32px; } .chapter { padding-inline: 32px; } .chapterCopy { max-width: 310px; } .model { right: -12%; width: 83%; } .scrollCue { left: 32px; } }
+@media (max-width: 1000px) { .visual { top: 65px; height: calc(100svh - 65px); } .opening { min-height: calc(100svh - 65px); padding-inline: 32px; } .chapter { padding-inline: 32px; } .chapterCopy { max-width: 310px; } .model { right: 0; width: 65%; } .scrollCue { left: 32px; } }
 @media (max-width: 700px) {
   .visual { min-height: 480px; }
-  .model { top: 28%; right: -14%; width: 128%; height: 50%; mask-image: none; }
-  .chapters:not([data-phase="0"]) .model { top: 2%; height: 66%; }
+  .model { top: 33%; right: 0; width: 100%; height: 45%; }
+  .chapters:not([data-phase="0"]) .model { transform: translateY(-18svh); }
+  @media (prefers-reduced-motion: no-preference) { @supports (animation-timeline: view()) {
+    .model { animation-name: mobileCamera; }
+  } }
   .opening { padding: 24px 20px 110px; }
   .scrollCue { left: 20px; bottom: 78px; }
   .chapter { align-items: flex-end; min-block-size: max(610px, 95svh); padding: 60px 24px 200px; }
@@ -83,4 +76,5 @@
   .progress i { width: 18px; }
   .disclosure { padding: 12px 24px 80px; text-align: left; }
 }
-@media (prefers-reduced-motion: reduce) { .model picture, .cutaway, .model, .atmosphere, .chapterCopy { animation: none; transition: none; transform: none; } }
+@keyframes mobileCamera { 0%, 3% { transform: translateY(0); } 13%, 100% { transform: translateY(-18svh); } }
+@media (prefers-reduced-motion: reduce) { .model picture, .model, .atmosphere, .chapterCopy { animation: none; transition: none; transform: none; } }

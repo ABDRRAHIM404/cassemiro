@@ -1,4 +1,6 @@
-# Scroll-led architectural story
+# Scroll-led architectural story (V1 history)
+
+V1 is superseded for artwork/rendering by [Construction artwork V2](CONSTRUCTION_ARTWORK_V2.md). The owner approved this story structure but requested clearer construction images and smoother transitions. V1 measurements below are historical, not the current five-image contract.
 
 The six-photo arrow/radio carousel was rejected by the owner. The replacement unfolds automatically through normal vertical scrolling. No old construction frames are used by the hero.
 
