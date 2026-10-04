@@ -1,7 +1,7 @@
 // Production GET-only media/CSP verification. Auth credentials and signed URLs
 // stay in memory; no uploads, publication changes, new users or fixture writes.
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 
@@ -23,8 +23,14 @@ const snapshot = async () => {
 const before = await snapshot();
 const bucket = await admin.storage.getBucket(bucketName);
 assert.ok(!bucket.error && bucket.data.public === false, "Project media bucket must be private");
-const profile = await admin.from("profiles").select("id").eq("role", "owner").single();
-assert.equal(profile.error, null, "Existing owner required");
+const ownerEmail = process.env.AUDIT_EXISTING_OWNER_EMAIL?.trim().toLowerCase();
+assert.ok(ownerEmail, "Explicit AUDIT_EXISTING_OWNER_EMAIL required; never guess between owner accounts");
+const users = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
+assert.equal(users.error, null, "Existing identity lookup failed");
+const owner = users.data.users.find(user => user.email?.toLowerCase() === ownerEmail);
+assert.ok(owner?.email_confirmed_at, "Exact existing confirmed owner required; no identity will be created");
+const profile = await admin.from("profiles").select("id,role").eq("id", owner.id).single();
+assert.ok(!profile.error && profile.data?.role === "owner", "Selected identity must have an owner profile");
 const identity = await admin.auth.admin.getUserById(profile.data.id);
 assert.ok(!identity.error && identity.data.user.email_confirmed_at, "Confirmed existing owner required");
 const jar = new Map();
@@ -98,7 +104,10 @@ try {
           const signed = new URL(redirected.headers().location);
           assert.ok(signed.origin === url && signed.pathname.startsWith(`/storage/v1/object/sign/${bucketName}/`), "Unexpected signed target");
           const claims = JSON.parse(Buffer.from(signed.searchParams.get("token").split(".")[1], "base64url").toString());
-          assert.ok(claims.exp <= Date.now() / 1000 + 65 && claims.exp > Date.now() / 1000, "Signed URL is not short-lived");
+          assert.ok(Number.isFinite(claims.iat) && claims.exp - claims.iat === 60, "Signed token must declare a 60-second lifetime");
+          // Start a monotonic full-lifetime wait when we receive the URL.
+          // Local wall time is not proof of the Storage server's clock.
+          const rejectionCheckAfter = performance.now() + 65000;
           // Playwright transport exceptions can include their full request URL.
           // Never let a signed bearer URL escape through that diagnostic path.
           let delivered;
@@ -111,26 +120,38 @@ try {
           // A private bucket is not made public by its published media route.
           const raw = await fetch(`${url}/storage/v1/object/public/${bucketName}/${media.storage_path}`, { signal: AbortSignal.timeout(15000) });
           assert.ok(!raw.ok, "Unsigned private object unexpectedly public");
-          if (process.env.AUDIT_SIGNED_URL_EXPIRY === "yes") expiryChecks.push({ mediaId: media.id, signedUrl: signed.href, expiresAt: claims.exp * 1000 });
+          if (process.env.AUDIT_SIGNED_URL_EXPIRY === "yes") expiryChecks.push({ mediaId: media.id, signedUrl: signed.href, rejectionCheckAfter, digest: digest(await delivered.body()) });
         }
         if (expiryChecks.length) {
-          const deadline = Math.max(...expiryChecks.map(check => check.expiresAt)) + 5000;
+          const deadline = Math.max(...expiryChecks.map(check => check.rejectionCheckAfter));
           console.log(JSON.stringify({ checkpoint: "signed-url-expiry-wait", objects: expiryChecks.length }));
-          while (Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, Math.max(1, Math.min(30000, deadline - Date.now()))));
+          while (performance.now() < deadline) await new Promise(resolve => setTimeout(resolve, Math.max(1, Math.min(30000, deadline - performance.now()))));
           for (const check of expiryChecks) {
             let expired;
             try { expired = await context.request.get(check.signedUrl, { headers: { "cache-control": "no-cache" } }); }
             catch { throw new Error("Expired object check failed; bearer URL withheld"); }
-            assert.ok([400, 401, 403].includes(expired.status()), "Expired bearer URL unexpectedly delivered object");
+            // Supabase documents CDN cache lifetime as independent of token
+            // expiry. Report exact-URL replay separately; don't mislabel a
+            // cache hit as either a rejected token or an origin auth failure.
+            const replayStatus = expired.status();
+            assert.ok([200, 400, 401, 403].includes(replayStatus), "Unexpected expired-URL response");
+            if (replayStatus === 200) assert.equal(digest(await expired.body()), check.digest, "Cached replay differs from original image");
+            const uncachedUrl = new URL(check.signedUrl);
+            uncachedUrl.searchParams.set("cacheNonce", randomUUID());
+            let originCheck;
+            try { originCheck = await context.request.get(uncachedUrl.href, { headers: { "cache-control": "no-cache" } }); }
+            catch { throw new Error("Uncached expiry check failed; bearer URL withheld"); }
+            console.log(JSON.stringify({ checkpoint: "signed-url-expiry-result", replayStatus, replayCacheControl: expired.headers()["cache-control"] || null, replayCacheStatus: expired.headers()["cf-cache-status"] || null, cacheNonceStatus: originCheck.status(), cacheNonceCacheStatus: originCheck.headers()["cf-cache-status"] || null, cachedReplayDelivered: replayStatus === 200 }));
+            assert.ok([400, 401, 403].includes(originCheck.status()), "Expiry rejection unproven: cacheNonce request was not denied; origin bypass is not assumed");
             const renewed = await context.request.get(`${origin}/api/project-media/${check.mediaId}`, { maxRedirects: 0 });
             assert.equal(renewed.status(), 302);
-            assert.notEqual(renewed.headers().location, check.signedUrl);
+            assert.ok(renewed.headers().location !== check.signedUrl, "Renewal reused an expired bearer URL; URLs withheld");
             let fresh;
             try { fresh = await context.request.get(renewed.headers().location); }
             catch { throw new Error("Renewed object check failed; bearer URL withheld"); }
             assert.equal(fresh.status(), 200);
           }
-          console.log(JSON.stringify({ expiredSignedUrlsDenied: expiryChecks.length, freshAuthorizedUrlsDelivered: expiryChecks.length }));
+          console.log(JSON.stringify({ cacheNonceExpiryRequestsDenied: expiryChecks.length, freshAuthorizedUrlsDelivered: expiryChecks.length, exactUrlCacheReplayReportedSeparately: true }));
         }
       }
     } finally { await context.close(); }
