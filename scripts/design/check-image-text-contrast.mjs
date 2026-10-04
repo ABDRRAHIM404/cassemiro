@@ -5,6 +5,8 @@ import sharp from "sharp";
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
 const origin = process.argv[2] ?? "http://127.0.0.1:3001";
+const group = process.argv[3] ?? "trust";
+if (!["trust", "ending"].includes(group)) throw new Error("Unexpected audit group");
 if (!["http://127.0.0.1:3001", "https://cassemiro-one.vercel.app"].includes(origin)) throw new Error("Unexpected audit origin");
 const luminance = rgb => rgb.map(value => {
   const channel = value / 255;
@@ -25,13 +27,32 @@ try {
       page.on("pageerror", error => errors.push(error.message));
       await page.goto(origin, { waitUntil: "domcontentloaded" });
       await page.evaluate(() => document.fonts.ready);
-      for (const section of ["sobre", "porque"]) {
+      const states = group === "ending" ? [
+        { section: "projetos", pillar: null },
+        { section: "footer", pillar: null },
+      ] : [
+        { section: "sobre", pillar: null },
+        ...["Qualidade", "Prazos", "Experiência", "Confiança"].map(pillar => ({ section: "porque", pillar })),
+      ];
+      for (const { section, pillar } of states) {
+        // Testimonials also contain a semantic footer; select site contentinfo.
+        const selector = section === "footer" ? "footer:not(main footer)" : `#${section}`;
         // Lazy images must enter the viewport before decode() can complete.
-        await page.locator(`#${section}`).scrollIntoViewIfNeeded();
-        await page.locator(`#${section} img`).evaluateAll(images => Promise.all(images.map(image => image.decode())));
-        const count = await page.locator(`#${section}`).evaluate(root => {
+        await page.locator(selector).scrollIntoViewIfNeeded();
+        await page.locator(`${selector} img`).evaluateAll(images => Promise.all(images.map(image => image.decode())));
+        if (pillar) {
+          const control = page.getByRole("button", { name: new RegExp(pillar) });
+          await control.focus();
+          await control.press("Enter");
+          await page.waitForFunction(title => {
+            const active = document.querySelector('#porque button[aria-pressed="true"]');
+            const feature = document.querySelector('#porque [aria-hidden="false"] h3');
+            return active?.textContent.includes(title) && feature?.textContent === title;
+          }, pillar);
+        }
+        const count = await page.locator(selector).evaluate(root => {
           let count = 0;
-          for (const element of root.querySelectorAll("p,h2,h3,blockquote,span,strong,button,a")) {
+          for (const element of root.querySelectorAll("p,h2,h3,blockquote,span,strong,em,button,a")) {
             if ([...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim())) {
               element.setAttribute("data-contrast-probe", `${count++}`);
             }
@@ -39,7 +60,7 @@ try {
           return count;
         });
         for (let index = 0; index < count; index++) {
-          const element = page.locator(`#${section} [data-contrast-probe="${index}"]`);
+          const element = page.locator(`${selector} [data-contrast-probe="${index}"]`);
           if (!await element.isVisible()) continue;
           await element.evaluate(element => {
             window.scrollTo(0, element.getBoundingClientRect().top + scrollY - innerHeight / 2);
@@ -56,7 +77,7 @@ try {
           const foreground = metadata.color.match(/[\d.]+/g)?.map(Number);
           if (!foreground || foreground.length !== 3) throw new Error("Unsupported foreground color");
           const full = await sharp(await page.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-          const hidden = await page.addStyleTag({ content: `#${section} [data-contrast-probe], #${section} [data-contrast-probe] * { color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; }` });
+          const hidden = await page.addStyleTag({ content: `${selector} [data-contrast-probe], ${selector} [data-contrast-probe] * { color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; }` });
           const background = await sharp(await page.screenshot()).removeAlpha().raw().toBuffer();
           await hidden.evaluate(element => element.remove());
           const rect = metadata.rect;
@@ -75,14 +96,42 @@ try {
             }
           }
           const threshold = metadata.fontSize >= 24 || (metadata.fontSize >= 18.667 && metadata.fontWeight >= 700) ? 3 : 4.5;
-          results.push({ width, section, text: metadata.text, samples, minimum: samples ? Number(minimum.toFixed(3)) : null,
-            threshold, status: samples ? minimum >= threshold ? "pass" : "review" : "inconclusive" });
+          let method = "rendered-glyph-background";
+          // Tiny/footer-edge glyphs can have no near-solid pixels. Only the
+          // plain footer gets a nominal-color fallback: refuse gradients,
+          // opacity, visible pseudo layers or translucent backgrounds.
+          if (!samples && section === "footer") {
+            const solid = await element.evaluate(element => {
+              for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+                const style = getComputedStyle(ancestor);
+                if (Number(style.opacity) !== 1 || style.backgroundImage !== "none") return null;
+                for (const pseudo of ["::before", "::after"]) {
+                  const layer = getComputedStyle(ancestor, pseudo);
+                  if (!["none", "normal"].includes(layer.content) && layer.display !== "none") return null;
+                }
+                const color = style.backgroundColor.match(/[\d.]+/g)?.map(Number);
+                if (!color || (color.length === 4 && color[3] === 0)) continue;
+                if (color.length === 4 && color[3] !== 1) return null;
+                return color.slice(0, 3);
+              }
+              return null;
+            });
+            if (solid) {
+              minimum = ratio(foreground, solid);
+              method = "computed-solid-footer";
+            }
+          }
+          const measured = Number.isFinite(minimum);
+          results.push({ width, section, pillar, text: metadata.text, samples, minimum: measured ? Number(minimum.toFixed(3)) : null,
+            method, threshold, status: measured ? minimum >= threshold ? "pass" : "review" : "inconclusive" });
         }
+        console.log(JSON.stringify({ checkpoint: "state", width, section, pillar,
+          measuredFailures: results.filter(result => result.width === width && result.section === section && result.pillar === pillar && result.status === "review") }));
       }
       if (errors.length) throw new Error(JSON.stringify(errors));
       console.log(JSON.stringify({ checkpoint: "viewport", width, tested: results.filter(result => result.width === width).length }));
     } finally { await page.close(); }
   }
 } finally { await browser.close(); }
-console.log(JSON.stringify({ origin, results, scope: "sampled solid glyph positions over current photographs; reduced motion; not all hover/motion states or WCAG certification" }));
+console.log(JSON.stringify({ origin, group, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests initial project state/footer; reduced motion; not transition/scroll/hover states or WCAG certification" }));
 if (results.some(result => result.status === "review")) process.exitCode = 1;

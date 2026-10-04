@@ -188,6 +188,14 @@ This evidence is a composed test, not an uninterrupted green run of the newly sa
 
 Cleanup globally revoked sessions for all three temporary identities, removed their exact profiles/accounts and deleted the one synthetic quote. An independent MCP read confirmed **one Auth user, one profile, zero quotes and zero temporary audit users**, matching the original counts. Script syntax, lint and all 38 application tests pass. No application behavior or schema changed in this batch; these checks do not constitute a deployed authenticated-browser test. Remaining gates include email delivery, public publication/cache transitions, broader per-role form/Storage workflows, abandoned uploads, multi-instance abuse, real devices and screen readers.
 
+## Additional live contrast states — 4 October
+
+The image-text verifier now selects each trust pillar using real keyboard focus/Enter and confirms both the pressed control and visible feature title before measuring. Live production checks at 1366, 768 and 390 px covered all four active pillars plus the founder section: 220 recorded probes, no measured failures or runtime exceptions. Tiny indices and clipped live announcements still have inconclusive probes; this is not a blanket WCAG pass. The run used reduced motion to stabilize paired screenshots, so scrolling transitions and hover states remain distinct checks.
+
+The optional `ending` group measures the initial project catalogue and site footer, including the project exploration instruction and legal/privacy labels. The first attempt caught a verifier ambiguity, not an application failure: testimonial attribution also uses a footer. The selector now excludes footers inside main. A subsequent live run returned 72/72 passing probes at the same three widths, zero inconclusive probes and zero runtime exceptions. Of those, 66 used screenshot glyph/background sampling; six tiny footer labels used nominal computed colors against the verified opaque, unlayered footer background. That fallback refuses opacity, gradients, translucent backgrounds and visible ancestor pseudo layers. Its sampled nominal ratios were 9.010:1 for bronze footer headings and 8.679:1 for the phone privacy link.
+
+The script accepts an explicit `trust` or `ending` group and reports its measurement method. Syntax, lint and diff checks pass. No application, photograph, hero, scroll pacing or database changes were needed for these states. Remaining contrast/accessibility scope includes other carousel states, transition/hover states, non-text controls, other routes and actual screen-reader/physical-device review; the full audit is not complete.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
