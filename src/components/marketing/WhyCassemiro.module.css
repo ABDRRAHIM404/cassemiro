@@ -1,4 +1,6 @@
-.root { --trust-progress: 0; position: relative; height: 140svh; color: var(--ivory); background: #11120f; }
+/* Four deliberate reading holds: about 0.8 viewport of travel per pillar.
+   Only this sticky section gets longer; native page scrolling is unchanged. */
+.root { --trust-progress: 0; position: relative; height: 420svh; color: var(--ivory); background: #11120f; }
 .stage { position: sticky; top: 72px; height: calc(100svh - 72px); min-height: 620px; overflow: hidden; isolation: isolate; }
 .media { position: absolute; inset: -4% 0; z-index: -3; transform: translateY(calc((.5 - var(--trust-progress)) * 24px)) scale(1.04); }
 .media img { object-fit: cover; object-position: 65% 50%; }
