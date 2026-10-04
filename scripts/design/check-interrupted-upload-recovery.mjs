@@ -16,7 +16,7 @@ assert.ok(["http://127.0.0.1:3003", "https://cassemiro-one.vercel.app"].includes
 const bucket = "project-media-private";
 const projectId = randomUUID(), slug = `private-recovery-${projectId}`;
 const jar = new Map();
-let token, browser, path, stage = "baseline", failed = false, created = false;
+let token, browser, path, stage = "baseline", failed = false, creationAttempted = false;
 const proof = {};
 async function rows(table) {
   const result = await admin.from(table).select("*").order("id");
@@ -26,10 +26,14 @@ async function rows(table) {
 const baselineProjects = await rows("projects"), baselineMedia = await rows("project_media");
 const users = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
 assert.ifError(users.error);
-const profiles = await admin.from("profiles").select("id").eq("role", "owner").single();
-assert.ifError(profiles.error);
-const owner = users.data.users.find(user => user.id === profiles.data.id);
+const ownerEmail = process.env.AUDIT_EXISTING_OWNER_EMAIL?.trim().toLowerCase();
+assert.ok(ownerEmail, "Explicit existing owner email required; never guess between owners");
+const owner = users.data.users.find(user => user.email?.toLowerCase() === ownerEmail);
 assert.ok(owner?.email_confirmed_at && owner.email);
+const profile = await admin.from("profiles").select("id,role").eq("id", owner.id).single();
+assert.ok(!profile.error && profile.data?.role === "owner");
+const bucketInfo = await admin.storage.getBucket(bucket);
+assert.ok(!bucketInfo.error && bucketInfo.data.public === false, "Private bucket required before fixture creation");
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
 try {
   stage = "isolated-session";
@@ -45,9 +49,9 @@ try {
   assert.equal(verified.data.user.id, owner.id);
   token = verified.data.session.access_token;
   stage = "private-draft";
+  creationAttempted = true; // Reconcile cleanup even if an INSERT reply is lost.
   const inserted = await session.from("projects").insert({ id: projectId, slug, title: `PRIVATE RECOVERY ${projectId}`, is_published: false });
   assert.ifError(inserted.error);
-  created = true;
   browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
     args: process.env.BROWSER_PROXY_HTTP1 === "1" ? ["--disable-http2", "--disable-quic"] : [],
     proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
@@ -55,6 +59,10 @@ try {
   await context.addCookies([...jar.values()].map(cookie => ({ ...cookie, url: origin })));
   const page = await context.newPage();
   page.setDefaultTimeout(60000);
+  let storageUploads = 0;
+  context.on("request", request => {
+    if (request.method() === "POST" && new URL(request.url()).pathname.startsWith(`/storage/v1/object/${bucket}/${projectId}/`)) storageUploads++;
+  });
   const errors = [];
   page.on("pageerror", error => errors.push(error.name));
   stage = "upload-interrupted-registration";
@@ -74,6 +82,8 @@ try {
   const files = await admin.storage.from(bucket).list(projectId);
   assert.ifError(files.error);
   assert.equal(files.data.length, 1);
+  const objectObservedAt = performance.now();
+  assert.equal(storageUploads, 1, "Fixture must upload exactly once");
   path = `${projectId}/${files.data[0].name}`;
   const mediaId = /^upload-([0-9a-f-]+)\.webp$/.exec(files.data[0].name)?.[1];
   assert.ok(mediaId);
@@ -96,17 +106,16 @@ try {
   stage = "real-grace-period";
   const info = await admin.storage.from(bucket).info(path);
   assert.ifError(info.error);
-  // The editor uses the database listing timestamp, which can be newer than
-  // Storage's underlying object Last-Modified. Wait for the newest known date.
+  // Validate Storage timestamps, but don't assume the local wall clock agrees
+  // with the editor server. Wait ten full minutes after observing the object.
   const timestamps = [info.data.lastModified, info.data.updatedAt, info.data.createdAt,
     files.data[0].updated_at, files.data[0].created_at].map(value => Date.parse(value ?? "")).filter(Number.isFinite);
   assert.ok(timestamps.length);
-  const deadline = Math.max(...timestamps) + 600000 + 5000;
-  assert.ok(Number.isFinite(deadline));
-  console.log(JSON.stringify({ checkpoint: stage, projectId, remainingSeconds: Math.ceil((deadline - Date.now()) / 1000) }));
-  while (Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, Math.min(30000, deadline - Date.now())));
-    console.log(JSON.stringify({ checkpoint: "grace-wait", remainingSeconds: Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) }));
+  const deadline = objectObservedAt + 605000;
+  console.log(JSON.stringify({ checkpoint: stage, projectId, remainingSeconds: Math.ceil((deadline - performance.now()) / 1000) }));
+  while (performance.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, Math.max(1, Math.min(30000, deadline - performance.now()))));
+    console.log(JSON.stringify({ checkpoint: "grace-wait", remainingSeconds: Math.max(0, Math.ceil((deadline - performance.now()) / 1000)) }));
   }
   stage = "recover-existing-object";
   await fresh.goto(edit, { waitUntil: "domcontentloaded" });
@@ -157,32 +166,41 @@ try {
   const remainingObjects = await admin.storage.from(bucket).list(projectId);
   assert.ifError(remainingObjects.error);
   assert.equal(remainingObjects.data.length, 1);
+  assert.equal(storageUploads, 1, "Recovery and replay must not upload again");
+  const postRecoveryAnonymous = await browser.newContext();
+  try {
+    assert.equal((await postRecoveryAnonymous.request.get(`${origin}/api/project-media/${mediaId}`)).status(), 404);
+    assert.equal((await postRecoveryAnonymous.request.get(`${origin}/projetos/${slug}`)).status(), 404);
+  } finally { await postRecoveryAnonymous.close(); }
   assert.deepEqual(errors, []);
   assert.equal(await fresh.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   proof.recovery = { sameObjectAndId: true, noReupload: true, sameActionRetryOneRow: true, comparisonMetadata: true,
-    coverAndPublicationUnchanged: true, authenticatedDownload: true, runtimeErrors: [], mobileOverflow: false };
+    coverAndPublicationUnchanged: true, authenticatedDownload: true, anonymousRecoveredMediaDenied: true, storageUploads, elapsedGraceSeconds: (performance.now() - objectObservedAt) / 1000, runtimeErrors: [], mobileOverflow: false };
 } catch (error) {
   failed = true;
   console.log(JSON.stringify({ checkpoint: stage, failed: true, errorType: error.name,
     sourceLocation: error.stack?.match(/check-interrupted-upload-recovery\.mjs:\d+:\d+/)?.[0] }));
 } finally {
-  if (browser) await browser.close();
-  if (created) {
-    const owned = await admin.from("projects").select("slug,is_published").eq("id", projectId).single();
-    assert.ifError(owned.error);
-    assert.deepEqual(owned.data, { slug, is_published: false });
-    const files = await admin.storage.from(bucket).list(projectId, { limit: 100 });
-    assert.ifError(files.error);
-    assert.ok(files.data.length <= 1);
-    if (files.data.length) {
-      const removed = await admin.storage.from(bucket).remove(files.data.map(file => `${projectId}/${file.name}`));
+  try {
+    if (browser) await browser.close();
+    if (creationAttempted) {
+      const owned = await admin.from("projects").select("slug,is_published").eq("id", projectId).maybeSingle();
+      assert.ifError(owned.error);
+      if (owned.data) assert.deepEqual(owned.data, { slug, is_published: false });
+      const files = await admin.storage.from(bucket).list(projectId, { limit: 100 });
+      assert.ifError(files.error);
+      assert.ok(files.data.length <= 1);
+      if (files.data.length) {
+        const removed = await admin.storage.from(bucket).remove(files.data.map(file => `${projectId}/${file.name}`));
+        assert.ifError(removed.error);
+      }
+      const removed = await admin.from("projects").delete().eq("id", projectId).eq("slug", slug).eq("is_published", false);
       assert.ifError(removed.error);
     }
-    const removed = await admin.from("projects").delete().eq("id", projectId).eq("slug", slug).eq("is_published", false);
-    assert.ifError(removed.error);
+  } finally {
+    try { if (token) assert.ifError((await admin.auth.admin.signOut(token, "local")).error); }
+    finally { jar.clear(); }
   }
-  if (token) assert.ifError((await admin.auth.admin.signOut(token, "local")).error);
-  jar.clear();
   assert.ok(JSON.stringify(await rows("projects")) === JSON.stringify(baselineProjects), "Original projects changed");
   assert.ok(JSON.stringify(await rows("project_media")) === JSON.stringify(baselineMedia), "Original media changed");
   const leftover = await admin.storage.from(bucket).list(projectId);

@@ -29,18 +29,32 @@ try {
       page.on("pageerror", error => errors.push(error.name));
       await page.goto(origin, { waitUntil: "domcontentloaded" });
       await page.evaluate(() => document.fonts.ready);
+      const projectCount = group === "ending" ? await page.locator('#projetos article[data-active]').count() : 0;
+      if (group === "ending" && !projectCount) throw new Error("No actual project slides available for contrast verification");
       const states = group === "ending" ? [
-        { section: "projetos", pillar: null },
-        { section: "footer", pillar: null },
+        ...Array.from({ length: projectCount }, (_, projectIndex) => ({ section: "projetos", pillar: null, projectIndex })),
+        { section: "footer", pillar: null, projectIndex: null },
       ] : [
-        { section: "sobre", pillar: null },
-        ...["Qualidade", "Prazos", "Experiência", "Confiança"].map(pillar => ({ section: "porque", pillar })),
+        { section: "sobre", pillar: null, projectIndex: null },
+        ...["Qualidade", "Prazos", "Experiência", "Confiança"].map(pillar => ({ section: "porque", pillar, projectIndex: null })),
       ];
-      for (const { section, pillar } of states) {
+      for (const { section, pillar, projectIndex } of states) {
         // Testimonials also contain a semantic footer; select site contentinfo.
         const selector = section === "footer" ? "footer:not(main footer)" : `#${section}`;
         // Lazy images must enter the viewport before decode() can complete.
         await page.locator(selector).scrollIntoViewIfNeeded();
+        if (projectIndex !== null) {
+          const stage = page.getByRole("group", { name: "Use as setas para navegar pelos projetos", exact: true });
+          await page.waitForFunction(element => {
+            const key = Object.keys(element).find(key => key.startsWith("__reactProps$"));
+            return key && typeof element[key]?.onKeyDown === "function";
+          }, await stage.elementHandle());
+          await stage.focus();
+          await stage.press("Home");
+          for (let index = 0; index < projectIndex; index++) await stage.press("ArrowRight");
+          await page.locator(`${selector} article[data-active="true"][aria-label="${projectIndex + 1} de ${projectCount}"]`).waitFor();
+          await page.locator(`${selector} [aria-label="Projeto ${projectIndex + 1} de ${projectCount}"]`).waitFor();
+        }
         for (const image of await page.locator(`${selector} img`).all()) {
           if (section === "projetos" && !await image.evaluate(el => Boolean(el.closest('[data-active="true"]')))) continue;
           await image.scrollIntoViewIfNeeded();
@@ -129,16 +143,16 @@ try {
             }
           }
           const measured = Number.isFinite(minimum);
-          results.push({ width, section, pillar, text: metadata.text, samples, minimum: measured ? Number(minimum.toFixed(3)) : null,
+          results.push({ width, section, pillar, projectIndex, text: metadata.text, samples, minimum: measured ? Number(minimum.toFixed(3)) : null,
             method, threshold, status: measured ? minimum >= threshold ? "pass" : "review" : "inconclusive" });
         }
-        console.log(JSON.stringify({ checkpoint: "state", width, section, pillar,
-          measuredFailures: results.filter(result => result.width === width && result.section === section && result.pillar === pillar && result.status === "review") }));
+        console.log(JSON.stringify({ checkpoint: "state", width, section, pillar, projectIndex,
+          measuredFailures: results.filter(result => result.width === width && result.section === section && result.pillar === pillar && result.projectIndex === projectIndex && result.status === "review") }));
       }
       if (errors.length) throw new Error(JSON.stringify(errors));
       console.log(JSON.stringify({ checkpoint: "viewport", width, tested: results.filter(result => result.width === width).length }));
     } finally { await page.close(); }
   }
 } finally { await browser.close(); }
-console.log(JSON.stringify({ origin, group, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests initial project state/footer; reduced motion; not transition/scroll/hover states or WCAG certification" }));
+console.log(JSON.stringify({ origin, group, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests all actual keyboard-selected project states/footer; reduced motion; not transition/scroll/hover states or WCAG certification" }));
 if (results.some(result => result.status === "review")) process.exitCode = 1;
