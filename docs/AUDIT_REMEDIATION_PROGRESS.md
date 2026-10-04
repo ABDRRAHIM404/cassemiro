@@ -318,6 +318,39 @@ The first post-deployment sweep stopped making progress on a clipped, offstage m
 
 These results close this specific carousel focus-scroll defect and the requested responsive geometry/control sweep, not physical iOS momentum, drag/swipe quality on real hardware, all contrast/screen-reader checks, publication/write workflows, email delivery or field performance. Existing customer rows and publication states stayed untouched; all browser non-GET requests were blocked. The audit remains incomplete at its separately documented gates.
 
+## Current-story performance lab — 4 October
+
+`profile-live-story.mjs` completed six GET-only runs against the production alias: three at 390×844 with 4× CPU slowdown, 150 ms simulated latency and 200 KiB/s download, and three at 1366×844 with 1× CPU, 30 ms and 1,000 KiB/s. Each run used a fresh browser context with client HTTP caching disabled. The owner's HTTP proxy and HTTP/1 compatibility flags remained in the transport path; Vercel/server caches were not flushed. No local build, account, quote submission or CMS mutation was involved.
+
+| Width / run | FCP (ms) | Observed LCP candidate (ms) | Initial long tasks | Scroll long tasks | Observed CLS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 390 / 1 | 2676 | 2928 | 4 | 0 | 0 |
+| 390 / 2 | 1512 | 2232 | 4 | 0 | 0 |
+| 390 / 3 | 1720 | 2360 | 5 | 0 | 0 |
+| 1366 / 1 | 1320 | 1848 | 1 | 0 | 0 |
+| 1366 / 2 | 1340 | 1424 | 1 | 0 | 0 |
+| 1366 / 3 | 1256 | 1256 | 1 | 0 | 0 |
+
+Initial observation lasted eight seconds after DOMContentLoaded; LCP candidates were IMG elements, not source-attributed or guaranteed final lifetime values. At that snapshot, completed responses accounted for approximately 659 KB mobile / 1,085 KB desktop, including approximately 213 KB / 207 KB of scripts and 266 KB / 708 KB of images. These are CDP completed-response encoded bytes, not a full lifetime waterfall, module attribution or redirect-overhead accounting. TTFB varied from 320–1096 ms mobile and 327–552 ms desktop. That variability and the changed harness/hero make comparisons against historical frame profiles unreliable.
+
+The six-second programmatic requestAnimationFrame scroll through the current six chapters produced no captured runtime exceptions, canvas, legacy frame requests or page overflow. Its 95th-percentile rAF timestamp gap was approximately 16.8 ms in all runs; desktop runs had 0–2 gaps above 50 ms and mobile runs had none. Headless rAF timestamps are not presented/compositor frame rate or real touch responsiveness. Sampled JS heap grew from approximately 4.4 MB to 4.7 MB: this is not total browser memory, decoded image/GPU memory or a peak measurement. The [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/tot/Network/) provides the network shaping/byte observations; [PerformanceObserver entry types](https://developer.mozilla.org/en-US/docs/Web/API/Performance_API/Performance_data) provide the bounded paint, shift and long-task observations.
+
+This updates the obsolete canvas lab evidence with measurements of the actual current story. It does not prove physical-device performance, field p75 LCP/CLS/INP, memory safety on low-RAM phones, or justify removing approved visual material. No customer-facing performance change was made solely to improve a synthetic score. Scoped profiler lint and diff checks passed.
+
+## Remaining workstream count — 4 October
+
+There are **seven main open workstreams**, not seven individual bugs. Each has multiple verification gates, and owner-held items are separate:
+
+1. Deployed admin create/save/upload/delete, retry and interrupted-upload workflows with explicitly authorized private fixtures.
+2. Per-role full-access content CRUD and publication/unpublication workflows with separate staging or publication authorization.
+3. Shared quote limiter/abuse behavior under multi-instance HTTP pressure without touching real leads.
+4. Quote-alert and recovery email configuration/delivery, successful emailed callbacks and chronological token expiry; a verified sending domain/provider is missing.
+5. Remaining CSP/security workflow checks and the explicit static-rendering versus strict nonce-policy decision.
+6. Real-device/connection and field performance; the current six-run lab above is not field proof.
+7. Real screen-reader/assistive-technology and remaining visual image-overlay contrast review; the eight-width geometry sweep is verified separately.
+
+Owner-held exclusions remain paid leaked-password protection, alteration of the exact real Sérgio portrait, and the RAiDEN test testimonial the owner will remove later. Do not count those as unauthorized edits to perform. This count groups the latest open gates; the original reports remain a historical baseline rather than a current outstanding-ticket counter.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
