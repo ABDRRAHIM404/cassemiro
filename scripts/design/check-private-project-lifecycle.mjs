@@ -19,7 +19,7 @@ const bucket = "project-media-private";
 const buffer = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZVQAAAAASUVORK5CYII=", "base64");
 const image = { name: "private-audit-fixture.png", mimeType: "image/png", buffer };
 const jar = new Map();
-let browser, session, fixtureId, page;
+let browser, session, fixtureId, page, testedRole;
 const proof = {};
 async function rows(table, columns = "*") {
   const result = await admin.from(table).select(columns).order("id");
@@ -64,8 +64,9 @@ try {
   if (users.error) throw new Error("Unable to resolve existing admin");
   const user = users.data.users.find(item => item.email === process.argv[2]);
   assert.ok(user?.email_confirmed_at, "Existing confirmed user required");
-  const profile = await admin.from("profiles").select("id").eq("id", user.id).single();
+  const profile = await admin.from("profiles").select("id,role").eq("id", user.id).single();
   assert.ifError(profile.error);
+  testedRole = profile.data.role;
   const generated = await admin.auth.admin.generateLink({ type: "magiclink", email: user.email });
   assert.ifError(generated.error);
   const auth = createServerClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { cookies: {
@@ -215,5 +216,5 @@ try {
   const sort = items => [...items].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   assert.ok(JSON.stringify(sort(await associations())) === JSON.stringify(sort(baseline.links)), "Real associations must be unchanged");
   assert.equal(await fixture(), null, "Exact private fixture must be removed");
-  console.log(JSON.stringify({ origin, proof, fixtureRemoved: true, customerRowsUnchanged: true, scope: "Existing owner, real hosted Supabase, explicitly approved private fixture; no publication or email test" }));
+  console.log(JSON.stringify({ origin, testedRole, proof, fixtureRemoved: true, customerRowsUnchanged: true, scope: "Confirmed profiled account, real hosted Supabase, explicitly approved private fixture; no publication or email test" }));
 }

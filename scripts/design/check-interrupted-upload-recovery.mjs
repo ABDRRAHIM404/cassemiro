@@ -11,7 +11,8 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 assert.equal(new URL(url).hostname, "zjjepitczgffszbilfte.supabase.co");
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const origin = "http://127.0.0.1:3003";
+const origin = process.env.AUDIT_ORIGIN ?? "http://127.0.0.1:3003";
+assert.ok(["http://127.0.0.1:3003", "https://cassemiro-one.vercel.app"].includes(origin));
 const bucket = "project-media-private";
 const projectId = randomUUID(), slug = `private-recovery-${projectId}`;
 const jar = new Map();
@@ -48,6 +49,7 @@ try {
   assert.ifError(inserted.error);
   created = true;
   browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
+    args: process.env.BROWSER_PROXY_HTTP1 === "1" ? ["--disable-http2", "--disable-quic"] : [],
     proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await context.addCookies([...jar.values()].map(cookie => ({ ...cookie, url: origin })));
@@ -56,11 +58,11 @@ try {
   const errors = [];
   page.on("pageerror", error => errors.push(error.name));
   stage = "upload-interrupted-registration";
-  await page.goto(`${origin}/admin/projetos/${projectId}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${origin}/admin/projetos/${projectId}`, { waitUntil: "load" });
   assert.equal(new URL(page.url()).pathname, `/admin/projetos/${projectId}`);
   const image = await sharp({ create: { width: 64, height: 48, channels: 3, background: { r: 140, g: 112, b: 78 } } }).webp().toBuffer();
   await page.getByLabel("Arquivos", { exact: true }).setInputFiles({ name: "synthetic-private-recovery.webp", mimeType: "image/webp", buffer: image });
-  await page.getByLabel(/Descrição da imagem 1:/).fill("Synthetic private audit image, not a real project photo");
+  await page.locator('.project-media').getByPlaceholder("Descreva o que aparece na fotografia").fill("Synthetic private audit image, not a real project photo");
   let blocked = 0;
   await page.route("**/rest/v1/project_media*", route => {
     if (route.request().method() === "POST") { blocked++; return route.abort("failed"); }
@@ -181,8 +183,8 @@ try {
   }
   if (token) assert.ifError((await admin.auth.admin.signOut(token, "local")).error);
   jar.clear();
-  assert.deepEqual(await rows("projects"), baselineProjects);
-  assert.deepEqual(await rows("project_media"), baselineMedia);
+  assert.ok(JSON.stringify(await rows("projects")) === JSON.stringify(baselineProjects), "Original projects changed");
+  assert.ok(JSON.stringify(await rows("project_media")) === JSON.stringify(baselineMedia), "Original media changed");
   const leftover = await admin.storage.from(bucket).list(projectId);
   assert.ifError(leftover.error);
   assert.deepEqual(leftover.data, []);

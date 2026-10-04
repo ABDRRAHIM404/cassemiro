@@ -89,6 +89,7 @@ try {
       assert.deepEqual(errors, [], "Editor runtime errors");
       console.log(JSON.stringify({ width, editorProjects: before.projects.length, decodedGalleryImages: images, cspViolations: 0, runtimeErrors: 0, overflow: false }));
       if (width === 390) {
+        const expiryChecks = [];
         for (const media of before.project_media) {
           const redirected = await context.request.get(`${origin}/api/project-media/${media.id}`, { maxRedirects: 0 });
           assert.equal(redirected.status(), 302);
@@ -110,6 +111,26 @@ try {
           // A private bucket is not made public by its published media route.
           const raw = await fetch(`${url}/storage/v1/object/public/${bucketName}/${media.storage_path}`, { signal: AbortSignal.timeout(15000) });
           assert.ok(!raw.ok, "Unsigned private object unexpectedly public");
+          if (process.env.AUDIT_SIGNED_URL_EXPIRY === "yes") expiryChecks.push({ mediaId: media.id, signedUrl: signed.href, expiresAt: claims.exp * 1000 });
+        }
+        if (expiryChecks.length) {
+          const deadline = Math.max(...expiryChecks.map(check => check.expiresAt)) + 5000;
+          console.log(JSON.stringify({ checkpoint: "signed-url-expiry-wait", objects: expiryChecks.length }));
+          while (Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, Math.max(1, Math.min(30000, deadline - Date.now()))));
+          for (const check of expiryChecks) {
+            let expired;
+            try { expired = await context.request.get(check.signedUrl, { headers: { "cache-control": "no-cache" } }); }
+            catch { throw new Error("Expired object check failed; bearer URL withheld"); }
+            assert.ok([400, 401, 403].includes(expired.status()), "Expired bearer URL unexpectedly delivered object");
+            const renewed = await context.request.get(`${origin}/api/project-media/${check.mediaId}`, { maxRedirects: 0 });
+            assert.equal(renewed.status(), 302);
+            assert.notEqual(renewed.headers().location, check.signedUrl);
+            let fresh;
+            try { fresh = await context.request.get(renewed.headers().location); }
+            catch { throw new Error("Renewed object check failed; bearer URL withheld"); }
+            assert.equal(fresh.status(), 200);
+          }
+          console.log(JSON.stringify({ expiredSignedUrlsDenied: expiryChecks.length, freshAuthorizedUrlsDelivered: expiryChecks.length }));
         }
       }
     } finally { await context.close(); }
@@ -136,7 +157,7 @@ try {
       assert.equal(revoked.error, null, "Isolated session revocation failed");
     }
     jar.clear();
-    assert.deepEqual(await snapshot(), before, "Original project/media rows changed");
+    assert.ok(JSON.stringify(await snapshot()) === JSON.stringify(before), "Original project/media rows changed");
     console.log(JSON.stringify({ isolatedSessionRevoked: Boolean(token), projectMediaRowsUnchanged: true }));
   }
 }

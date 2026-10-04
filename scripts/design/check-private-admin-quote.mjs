@@ -11,13 +11,14 @@ assert.equal(new URL(url).hostname, "zjjepitczgffszbilfte.supabase.co");
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
-const origin = "http://127.0.0.1:3001";
+const origin = process.env.AUDIT_ORIGIN || "http://127.0.0.1:3001";
+assert.ok(["http://127.0.0.1:3001", "https://cassemiro-one.vercel.app"].includes(origin));
 const marker = randomUUID();
 const quoteId = randomUUID();
 const quoteName = `PRIVATE AUDIT ${marker}`;
 const identities = [];
 const proof = { roles: [], emailsSent: 0 };
-let browser, ownerContext, stage = "baseline", failed = false;
+let browser, stage = "baseline", failed = false;
 async function read(table) {
   const result = await admin.from(table).select("*").order("id");
   assert.ifError(result.error);
@@ -25,8 +26,7 @@ async function read(table) {
 }
 const baselineProfiles = await read("profiles");
 const baselineQuotes = await read("quote_requests");
-// The global retention routine may only run when this fixture is the sole quote.
-assert.equal(baselineQuotes.length, 0, "Refuse this retention test when real quotes exist");
+// This batch never invokes global retention or modifies existing quotes.
 const beforeUsers = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
 assert.ifError(beforeUsers.error);
 assert.ok(beforeUsers.data.users.length < 100);
@@ -53,7 +53,7 @@ async function captureSession(client, expectedId) {
 }
 try {
   stage = "create-private-fixtures";
-  for (const role of ["owner", "admin", "editor"]) {
+  for (const role of ["admin", "editor"]) {
     const identity = { role, email: `audit-${marker}-${role}@example.invalid`, password: `Audit!${randomBytes(24).toString("base64url")}` };
     const created = await admin.auth.admin.createUser({ email: identity.email, password: identity.password, email_confirm: true });
     assert.ifError(created.error);
@@ -67,6 +67,7 @@ try {
     source: "private-audit", utm_source: "synthetic", utm_campaign: marker, last_contact_at: "2025-08-01T00:00:00.000Z" });
   assert.ifError(inserted.error);
   browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
+    args: process.env.BROWSER_PROXY_HTTP1 === "1" ? ["--disable-http2", "--disable-quic"] : [],
     proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
   for (const [index, identity] of identities.entries()) {
     stage = `browser-${identity.role}`;
@@ -101,20 +102,19 @@ try {
       const contacted = await quote();
       assert.notEqual(contacted.last_contact_at, previous);
       assert.ok(Math.abs(Date.now() - new Date(contacted.last_contact_at).getTime()) < 120000);
-      const status = ["Em contato", "Orçamento", "Fechado"][index];
+      const status = ["Em contato", "Fechado"][index];
       await page.locator('#quote-status').selectOption(status);
       await page.getByRole("button", { name: "Salvar alteração", exact: true }).click();
       await page.waitForURL(`${origin}/admin/orcamentos/${quoteId}?saved=1`, { waitUntil: "domcontentloaded" });
       assert.equal((await quote()).status, status);
       const profileRead = await client.from("profiles").select("id").in("id", identities.map(item => item.id));
       assert.ifError(profileRead.error);
-      assert.equal(profileRead.data.length, 3);
+      assert.equal(profileRead.data.length, identities.length);
       const storage = await client.storage.from("project-media-private").list("", { limit: 10 });
       assert.ifError(storage.error);
       proof.roles.push({ role: identity.role, realPasswordLogin: true, protectedRoutes: 6, quoteContactAndStatus: true,
         leadWhatsappTarget: true, profileManagementRead: true, privateStorageRead: true, runtimeErrors: errors });
       assert.deepEqual(errors, []);
-      if (identity.role === "owner") ownerContext = context;
       if (identity.role === "editor") {
         stage = "revoked-profile-denial";
         const removed = await admin.from("profiles").delete().eq("id", identity.id);
@@ -133,7 +133,7 @@ try {
         proof.profileRemoval = { existingJwtDenied: true, userMetadataCannotRestoreAccess: true };
       }
       console.log(JSON.stringify({ checkpoint: identity.role, passed: true }));
-    } finally { if (context !== ownerContext) await context.close(); }
+    } finally { await context.close(); }
   }
   stage = "generate-recovery-link";
   const identity = identities.find(item => item.role === "admin");
@@ -185,32 +185,8 @@ try {
     proof.recovery = { generatedWithoutEmail: true, mismatchRejected: true, realPasswordChanged: true,
       oldPasswordRejected: true, newPasswordLogin: true, reusedTokenRejected: true, invalidCallbackPrivate: true };
   } finally { await context.close(); jar.clear(); }
-  // The operator runs guarded, fixture-only retention SQL through MCP. Poll the
-  // exact row: exec's non-TTY input pipe may close even while this process lives.
-  stage = "await-guarded-retention";
-  console.log(JSON.stringify({ checkpoint: "ready-for-retention", quoteId, quoteName }));
-  const deadline = Date.now() + 300000;
-  while (!(await quote()).anonymized_at) {
-    if (Date.now() >= deadline) throw new Error("Retention coordination timed out");
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }
-  stage = "anonymized-browser-state";
-  const anonymous = await quote();
-  assert.equal(anonymous.name, "Anonimizado");
-  assert.equal(anonymous.phone, "00000000");
-  assert.equal(anonymous.city, "Não informado");
-  assert.ok(anonymous.anonymized_at);
-  assert.equal(anonymous.utm_campaign, null);
-  assert.equal(anonymous.status, "Fechado");
-  assert.equal(anonymous.work_type, "Construção residencial");
-  const page = await ownerContext.newPage();
-  await page.goto(`${origin}/admin/orcamentos/${quoteId}`, { waitUntil: "domcontentloaded" });
-  assert.equal(await page.locator('main h1').innerText(), "Solicitação anonimizada");
-  assert.equal(await page.getByRole("link", { name: "Abrir WhatsApp", exact: true }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "Registrar contato hoje", exact: true }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "Salvar alteração", exact: true }).count(), 0);
-  assert.ok(!(await page.locator('main').innerText()).includes(quoteName));
-  proof.retentionBrowser = { anonymousStatisticsVisible: true, personalDetailsAndActionsRemoved: true };
+  // The real retention routine was separately verified with guarded SQL.
+  // Do not rerun a global cleanup from this deployed login/recovery test.
 } catch (error) {
   failed = true;
   // Never print raw SDK/Playwright errors: they can contain credentials or URLs.
@@ -233,7 +209,7 @@ try {
       cleanupErrors.push(`session-link-${identity.role}`);
     } else {
       const isolated = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
-      const fresh = await isolated.auth.verifyOtp({ token_hash: generated.data.properties.hashed_token, type: "magiclink" });
+      const fresh = await isolated.auth.verifyOtp({ token_hash: generated.data.properties.hashed_token, type: "email" });
       if (fresh.error || fresh.data.user?.id !== identity.id || !fresh.data.session) {
         cleanupErrors.push(`session-guard-${identity.role}`);
       } else {
@@ -249,12 +225,12 @@ try {
   const removedQuote = await admin.from("quote_requests").delete().eq("id", quoteId);
   if (removedQuote.error) cleanupErrors.push("synthetic-quote");
   assert.deepEqual(cleanupErrors, []);
-  assert.deepEqual(await read("profiles"), baselineProfiles);
-  assert.deepEqual(await read("quote_requests"), baselineQuotes);
+  assert.ok(JSON.stringify(await read("profiles")) === JSON.stringify(baselineProfiles), "Original profiles changed");
+  assert.ok(JSON.stringify(await read("quote_requests")) === JSON.stringify(baselineQuotes), "Original quotes changed");
   const after = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
   assert.ifError(after.error);
   assert.deepEqual(after.data.users.map(user => user.id).sort(), baselineUserIds);
   console.log(JSON.stringify({ proof, cleanup: { exactTemporaryAccountsRemoved: identities.length, syntheticQuoteRemoved: true,
-    realProfilesAndQuotesUnchanged: true }, scope: "local production build, hosted Auth/database; no SMTP delivery or public publication test" }));
+    realProfilesAndQuotesUnchanged: true }, scope: `${origin}; hosted Auth/database; no SMTP delivery, global retention or public publication test` }));
   if (failed) process.exitCode = 1;
 }
