@@ -351,6 +351,16 @@ There are **seven main open workstreams**, not seven individual bugs. Each has m
 
 Owner-held exclusions remain paid leaked-password protection, alteration of the exact real Sérgio portrait, and the RAiDEN test testimonial the owner will remove later. Do not count those as unauthorized edits to perform. This count groups the latest open gates; the original reports remain a historical baseline rather than a current outstanding-ticket counter.
 
+## Live photograph-background contrast sampling — 4 October
+
+The existing `check-image-text-contrast.mjs` ran against production at 1366, 768 and 390×844 with reduced motion. It samples the rendered background beneath near-solid glyph pixels while calculating contrast from nominal CSS foreground colors, consistent with [W3C's contrast guidance](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html). This is a bounded photo-overlay review, not a full accessibility certification. No local build/dev server or CMS write occurred.
+
+Sérgio plus all four keyboard-selected trust states produced 196 records: 147 measured passes, 49 inconclusive records, and zero measured failures. Measured minima were 7.671:1 at 1366, 5.371:1 at 768 and 5.921:1 at 390 px. The trust introduction specifically measured 9.153:1, 5.371:1 and 5.921:1 respectively. Inconclusive results include tiny phase indices, visually hidden announcement text, and the first Sérgio body paragraph at 1366 px; no reliable near-solid glyph sample was obtained for those records. They remain unproven, not passes. Translucent ancestor text is skipped by the method and is not included in these counts.
+
+The initial project state and site footer produced another 75 records, all measured passes: 25 per width, with minimum contrast 7.118:1. The plain opaque footer permits a computed-solid-background fallback when near-solid glyph pixels are unavailable; image/gradient sections do not receive that fallback. There were no captured browser runtime exceptions in either completed run. This does not cover the alternate active project, every image-overlay region, ordinary-motion/parallax/hover positions, icons/focus cues, or screen-reader announcements.
+
+The checker now supports the established opt-in proxy compatibility flags, blocks browser non-GET requests, bounds image-load waits, and leaves intentionally offstage carousel images alone until selected. Runtime exception logs contain names rather than potentially credential-bearing messages. These are verifier safeguards, not application styling changes. Scoped lint and diff checks pass. No measured application contrast defect was established in these sampled states, so no visual redesign was introduced. The broader accessibility workstream remains open.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

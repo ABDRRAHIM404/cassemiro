@@ -17,14 +17,16 @@ const ratio = (first, second) => {
   return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
 };
 const browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
+    args: process.env.BROWSER_PROXY_HTTP1 === "1" ? ["--disable-http2", "--disable-quic"] : [],
     proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
 const results = [];
 try {
   for (const width of [1366, 768, 390]) {
     const page = await browser.newPage({ viewport: { width, height: 844 }, reducedMotion: "reduce", deviceScaleFactor: 1 });
+    await page.route("**/*", route => route.request().method() === "GET" ? route.continue() : route.abort());
     try {
       const errors = [];
-      page.on("pageerror", error => errors.push(error.message));
+      page.on("pageerror", error => errors.push(error.name));
       await page.goto(origin, { waitUntil: "domcontentloaded" });
       await page.evaluate(() => document.fonts.ready);
       const states = group === "ending" ? [
@@ -39,7 +41,12 @@ try {
         const selector = section === "footer" ? "footer:not(main footer)" : `#${section}`;
         // Lazy images must enter the viewport before decode() can complete.
         await page.locator(selector).scrollIntoViewIfNeeded();
-        await page.locator(`${selector} img`).evaluateAll(images => Promise.all(images.map(image => image.decode())));
+        for (const image of await page.locator(`${selector} img`).all()) {
+          if (section === "projetos" && !await image.evaluate(el => Boolean(el.closest('[data-active="true"]')))) continue;
+          await image.scrollIntoViewIfNeeded();
+          await page.waitForFunction(el => el.complete && el.naturalWidth > 0, await image.elementHandle(), { timeout: 20000 });
+          await image.evaluate(el => el.decode());
+        }
         if (pillar) {
           const control = page.getByRole("button", { name: new RegExp(pillar) });
           await control.focus();
