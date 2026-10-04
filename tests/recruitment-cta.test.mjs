@@ -9,7 +9,7 @@ test("homepage recruitment link sits beside WhatsApp and uses its own configurab
   assert.match(links[0][1], /business\.quoteMessage/);
   assert.equal(links[0][3].trim(), "Falar no WhatsApp");
   assert.equal(links[1][1], "business.recruitmentMessage.trim() || defaultBusinessSettings.recruitmentMessage");
-  assert.equal(links[1][3].trim(), "Faça parte da nossa equipe");
+  assert.equal(links[1][3].trim(), "Trabalhe conosco");
   assert.match(links[1][2], /target="_blank" rel="noreferrer"/);
   assert.doesNotMatch(links[1][1], /quoteMessage/);
   assert.doesNotMatch(source, /use client|onClick=/);
