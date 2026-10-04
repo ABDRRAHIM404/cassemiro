@@ -1,6 +1,6 @@
 export const siteConfig = {
   name: "CASSEMIRO",
-  descriptor: "Construção & Reformas",
+  descriptor: "Construções & Reformas",
   slogan: "Do alicerce ao acabamento.",
   legalName: "Cassemiro Construções LTDA",
   phoneDisplay: "(15) 99610-1849",

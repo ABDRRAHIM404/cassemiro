@@ -14,7 +14,7 @@ export function GET() {
           h("path", { d: "m6 11 18 10 18-12L24 1 6 11Z", fill: "#b08b5a", opacity: 0.9 })),
         h("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
           h("div", { style: { fontSize: 52, letterSpacing: 9 } }, "CASSEMIRO"),
-          h("div", { style: { fontSize: 18, letterSpacing: 4, color: "#b08b5a" } }, "CONSTRUÇÃO & REFORMAS"))),
+          h("div", { style: { fontSize: 18, letterSpacing: 4, color: "#b08b5a" } }, "CONSTRUÇÕES & REFORMAS"))),
       h("div", { style: { display: "flex", flexDirection: "column", gap: 18 } },
         h("div", { style: { fontSize: 58, maxWidth: 900, lineHeight: 1.15 } }, "Do alicerce ao acabamento."),
         h("div", { style: { fontSize: 24, color: "#b08b5a" } }, "Sorocaba e região")),

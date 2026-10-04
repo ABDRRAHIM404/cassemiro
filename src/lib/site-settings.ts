@@ -14,7 +14,7 @@ export const defaultBusinessSettings: BusinessSettings = {
 };
 
 export const defaultHomepageContent: HomepageContent = {
-  heroEyebrow: "Construção & Reformas · Sorocaba e região", heroLineOne: "Do alicerce", heroLineTwo: "ao acabamento.",
+  heroEyebrow: "Construções & Reformas · Sorocaba e região", heroLineOne: "Do alicerce", heroLineTwo: "ao acabamento.",
   heroIntro: "Experiência prática, execução responsável e cuidado em cada detalhe da sua obra.",
   aboutEyebrow: "Uma vida dedicada à construção", aboutTitle: "Construir certo é respeitar a confiança de quem contrata.",
   aboutParagraphOne: "Sérgio Cassemiro reúne mais de 43 anos de experiência prática na construção civil. Um conhecimento desenvolvido diretamente no canteiro, acompanhando de perto materiais, equipes, prazos e acabamentos.",
@@ -43,5 +43,9 @@ export function parseBusinessSettings(rows: SettingRow[]) {
 
 export function parseHomepageContent(rows: SettingRow[]) {
   const value = objectValue(mapRows(rows).get("homepage_content"));
-  return Object.fromEntries(Object.entries(defaultHomepageContent).map(([key, fallback]) => [key, stringValue(value[key], fallback)])) as typeof defaultHomepageContent;
+  return Object.fromEntries(Object.entries(defaultHomepageContent).map(([key, fallback]) => {
+    const text = stringValue(value[key], fallback);
+    // Update the previously stored default too, without overwriting custom copy.
+    return [key, key === "heroEyebrow" && text === "Construção & Reformas · Sorocaba e região" ? fallback : text];
+  })) as typeof defaultHomepageContent;
 }
