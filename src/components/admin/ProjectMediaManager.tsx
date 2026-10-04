@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { updateProjectMediaAlt } from "@/app/admin/(protected)/projetos/actions";
 import { createClient } from "@/lib/supabase/client";
 import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
+import type { MediaUploadAttempt } from "@/lib/admin/media-upload";
+import { uploadProjectMedia } from "@/lib/admin/upload-project-media";
 import type { Database } from "@/types/supabase";
 import { WorkspaceSubmit } from "./WorkspaceSubmit";
 
@@ -14,6 +16,7 @@ type MediaType = "image" | "video" | "before" | "after";
 type UploadSession = {
   files: File[];
   uploaded: Set<number>;
+  attempts: Map<number, MediaUploadAttempt>;
   nextOrder: number;
   firstImageUrl: string | null;
   mediaType: MediaType;
@@ -58,6 +61,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
       uploadSessionRef.current = {
         files,
         uploaded: new Set(),
+        attempts: new Map(),
         nextOrder: initialMedia.reduce((max, item) => Math.max(max, item.sort_order), -1) + 1,
         firstImageUrl: null,
         mediaType,
@@ -73,29 +77,21 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
         setMessage(`A enviar arquivo ${index + 1} de ${session.files.length}…`);
         const isVideo = file.type.startsWith("video/");
         const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
-        const path = `${projectId}/${crypto.randomUUID()}.${extension}`;
-        const mediaId = crypto.randomUUID();
-        const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-        if (uploadError) throw new Error(`Falha ao enviar ${file.name}.`);
-
-        const url = projectMediaUrl(mediaId);
+        let attempt = session.attempts.get(index);
+        if (!attempt) {
+          attempt = { id: crypto.randomUUID(), path: `${projectId}/${crypto.randomUUID()}.${extension}`, started: false, storageUploaded: false };
+          session.attempts.set(index, attempt);
+        }
+        const url = projectMediaUrl(attempt.id);
         const type: MediaType = isVideo ? "video" : session.mediaType;
-        const { error: recordError } = await supabase.from("project_media").insert({
-          id: mediaId,
+        await uploadProjectMedia(supabase, attempt, file, {
           project_id: projectId,
           type,
           url,
-          storage_path: path,
           alt_text: session.altTexts[index],
           sort_order: session.nextOrder,
           before_after_group: type === "before" || type === "after" ? session.group || "comparativo-1" : null
         });
-        if (recordError) {
-          const { error: cleanupError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
-          throw new Error(cleanupError
-            ? `Falha ao registrar ${file.name} e limpar o arquivo enviado. Contacte o suporte.`
-            : `Falha ao registrar ${file.name}.`);
-        }
         session.uploaded.add(index);
         session.nextOrder += 1;
         if (!isVideo && !session.firstImageUrl) session.firstImageUrl = url;

@@ -64,6 +64,8 @@ Open `Projetos` (Projects) to manage CASSEMIRO's real portfolio.
 
 Additional photos and videos can be managed later in `Galeria do projeto` (Project gallery) on the edit screen.
 
+If the connection fails during an upload, keep the current tab open and use `Tentar novamente` (Try again). The uploader keeps the same file identity and checks whether it was already saved, so retrying does not create another copy or delete a file whose save response was lost. A file whose gallery registration could not be confirmed is kept privately for recovery, not automatically removed. Retry before refreshing or leaving the page: pending file selections and retry identities are held only in this tab. If you have already left, inspect the draft/gallery before selecting photos again; contact support if a private uploaded file remains without a gallery record.
+
 Media can be classified as an image, video, before image, or after image. To create a comparison, use the same name in `Grupo comparativo` (Comparison group) for the before and after images.
 
 The public `Projetos` (Projects) link appears only when at least one project is published. Deleting a project also permanently deletes its files.

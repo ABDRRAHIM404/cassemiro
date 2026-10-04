@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { completeProjectCreation, createProjectForUpload } from "@/app/admin/(protected)/projetos/actions";
 import { createClient } from "@/lib/supabase/client";
-import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
+import { projectMediaUrl } from "@/lib/project-media";
+import type { MediaUploadAttempt } from "@/lib/admin/media-upload";
+import { uploadProjectMedia } from "@/lib/admin/upload-project-media";
 import type { Database } from "@/types/supabase";
 import { WorkspaceSubmit } from "./WorkspaceSubmit";
 
@@ -30,6 +32,7 @@ export function ProjectForm({
     files: File[];
     altTexts: string[];
     uploaded: Set<number>;
+    attempts: Map<number, MediaUploadAttempt>;
     coverUrl: string | null;
   } | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
@@ -70,6 +73,7 @@ export function ProjectForm({
           files: photos,
           altTexts,
           uploaded: new Set(),
+          attempts: new Map(),
           coverUrl: null
         };
         setDraftId(created.id);
@@ -81,29 +85,20 @@ export function ProjectForm({
         if (draft.uploaded.has(index)) continue;
         setMessage(`A enviar imagem ${index + 1} de ${photos.length}…`);
         const extension = photo.type === "image/jpeg" ? "jpg" : photo.type.split("/")[1];
-        const path = `${draft.id}/${crypto.randomUUID()}.${extension}`;
-        const mediaId = crypto.randomUUID();
-        const { error: uploadError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET)
-          .upload(path, photo, { contentType: photo.type, upsert: false });
-        if (uploadError) throw new Error(`Não foi possível enviar ${photo.name}.`);
-
-        const url = projectMediaUrl(mediaId);
-        const { error: recordError } = await supabase.from("project_media").insert({
-          id: mediaId,
+        let attempt = draft.attempts.get(index);
+        if (!attempt) {
+          attempt = { id: crypto.randomUUID(), path: `${draft.id}/${crypto.randomUUID()}.${extension}`, started: false, storageUploaded: false };
+          draft.attempts.set(index, attempt);
+        }
+        const url = projectMediaUrl(attempt.id);
+        await uploadProjectMedia(supabase, attempt, photo, {
           project_id: draft.id,
           type: "image",
           url,
-          storage_path: path,
           alt_text: draft.altTexts[index],
           sort_order: index,
           before_after_group: null
         });
-        if (recordError) {
-          const { error: cleanupError } = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).remove([path]);
-          throw new Error(cleanupError
-            ? `Não foi possível guardar ${photo.name} na galeria nem limpar o arquivo enviado. Contacte o suporte.`
-            : `Não foi possível guardar ${photo.name} na galeria.`);
-        }
         draft.uploaded.add(index);
         setUploadedCount(draft.uploaded.size);
         draft.coverUrl ??= url;
