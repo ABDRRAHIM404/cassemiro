@@ -12,5 +12,7 @@ test("public header uses the client logo with responsive sizing and accessible b
   assert.match(header, /height=\{980\}/);
   assert.match(css, /\.clientLogo \{[^}]*height: 64px/);
   assert.match(css, /\.clientLogo \{ height: 56px/);
+  assert.match(css, /\.clientLogo \{[^}]*mix-blend-mode: lighten/);
+  assert.match(css, /\.header \{[^}]*isolation: isolate/);
   assert.ok(existsSync(new URL("../public/images/brand/client-logo-construcoes-dark-v1.png", import.meta.url)));
 });

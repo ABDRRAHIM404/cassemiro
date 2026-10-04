@@ -2,6 +2,7 @@
   position: fixed;
   inset: 0 0 auto;
   z-index: 100;
+  isolation: isolate;
   color: var(--ivory);
   background: #11120f;
   border-bottom: 1px solid rgb(176 139 90 / 18%);
@@ -16,7 +17,8 @@
   gap: 32px;
 }
 .logo { display: flex; flex-shrink: 0; }
-.clientLogo { display: block; width: auto; height: 64px; object-fit: contain; }
+/* Blend the dark backing into this header without changing the logo artwork. */
+.clientLogo { display: block; width: auto; height: 64px; object-fit: contain; mix-blend-mode: lighten; }
 .nav { display: flex; align-items: center; gap: 28px; font-size: 13px; }
 .nav > a { min-height: 44px; display: flex; align-items: center; position: relative; color: #c6c5bf; transition: color 180ms ease; }
 .nav > a:hover, .nav > a[aria-current="page"] { color: var(--ivory); }
