@@ -11,7 +11,8 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 assert.equal(new URL(url).hostname, "zjjepitczgffszbilfte.supabase.co");
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
-const origin = "http://127.0.0.1:3001";
+const origin = process.env.AUDIT_ORIGIN ?? "http://127.0.0.1:3001";
+assert.ok(["http://127.0.0.1:3001", "https://cassemiro-one.vercel.app"].includes(origin), "Unexpected private-test origin");
 const slug = `private-audit-${randomUUID()}`;
 const title = `PRIVATE AUDIT TEST ${slug.slice(-12)}`;
 const bucket = "project-media-private";
@@ -57,6 +58,8 @@ async function files() {
   return result.data;
 }
 try {
+  const bucketCheck = await admin.storage.getBucket(bucket);
+  assert.ok(!bucketCheck.error && bucketCheck.data.public === false, "Fixture bucket must be private");
   const users = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
   if (users.error) throw new Error("Unable to resolve existing admin");
   const user = users.data.users.find(item => item.email === process.argv[2]);
@@ -74,6 +77,7 @@ try {
   session = verified.data.session;
   assert.equal(verified.data.user.id, user.id);
   browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
+    args: process.env.BROWSER_PROXY_HTTP1 === "1" ? ["--disable-http2", "--disable-quic"] : [],
     proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await context.addCookies([...jar.values()].map(cookie => ({ ...cookie, url: origin })));
@@ -81,7 +85,7 @@ try {
   page.setDefaultTimeout(60000);
   page.setDefaultNavigationTimeout(60000);
   const errors = [];
-  page.on("pageerror", error => errors.push(error.message));
+  page.on("pageerror", error => errors.push(error.name));
   page.on("dialog", dialog => dialog.accept());
   // The sole failure is BEFORE media insertion: Storage remains real/private.
   let uploads = 0, insertAttempts = 0;
@@ -180,7 +184,8 @@ try {
     status: page ? await page.locator('.project-form__status').allTextContents().catch(() => []) : [],
     fixtureMedia: fixtureId ? (await media()).length : 0,
     fixtureObjects: fixtureId ? (await files()).length : 0 }));
-  throw error;
+  // Transport exceptions can include signed download URLs; keep them out of logs.
+  throw new Error(`Private lifecycle check failed (${error.name})`);
 } finally {
   if (browser) await browser.close();
   // Even a failed browser assertion must not leave a private test behind.
@@ -198,12 +203,17 @@ try {
       assert.equal((await files()).length, 0);
     }
   } finally {
-    if (session) await admin.auth.admin.signOut(session.access_token, "local");
+    if (session) {
+      const revoked = await admin.auth.admin.signOut(session.access_token, "local");
+      assert.ok(!revoked.error, "Isolated test-session revocation failed");
+      proof.sessionRevoked = true;
+    }
     jar.clear();
   }
-  assert.deepEqual(await rows("projects"), baseline.projects, "Real projects must be unchanged");
-  assert.deepEqual(await rows("project_media"), baseline.media, "Real media must be unchanged");
+  assert.ok(JSON.stringify(await rows("projects")) === JSON.stringify(baseline.projects), "Real projects must be unchanged");
+  assert.ok(JSON.stringify(await rows("project_media")) === JSON.stringify(baseline.media), "Real media must be unchanged");
   const sort = items => [...items].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  assert.deepEqual(sort(await associations()), sort(baseline.links), "Real associations must be unchanged");
-  console.log(JSON.stringify({ proof, fixtureRemoved: true, customerRowsUnchanged: true, scope: "local production build, real hosted Supabase, existing owner; no publication test" }));
+  assert.ok(JSON.stringify(sort(await associations())) === JSON.stringify(sort(baseline.links)), "Real associations must be unchanged");
+  assert.equal(await fixture(), null, "Exact private fixture must be removed");
+  console.log(JSON.stringify({ origin, proof, fixtureRemoved: true, customerRowsUnchanged: true, scope: "Existing owner, real hosted Supabase, explicitly approved private fixture; no publication or email test" }));
 }
