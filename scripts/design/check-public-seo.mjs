@@ -6,6 +6,8 @@ const origin = process.env.SEO_TEST_ORIGIN ?? "https://cassemiro-one.vercel.app"
 assert.ok(["https://cassemiro-one.vercel.app", "http://127.0.0.1:3006"].includes(origin));
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
 const browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
+  // Opt-in compatibility for the owner's HTTP proxy; not a performance profile.
+  args: process.env.BROWSER_PROXY_HTTP1 === "1" ? ["--disable-http2", "--disable-quic"] : [],
   proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
 const results = [], images = new Map();
 const canonicalOrigin = "https://cassemiro-one.vercel.app";
