@@ -27,11 +27,8 @@
 .root :is(a, button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .root button { cursor: pointer; }
 .root button:disabled { cursor: default; opacity: .5; }
-.sidebar { position: fixed; inset: 0 auto 0 0; width: 220px; display: flex; flex-direction: column; padding: 32px 18px 24px; overflow-y: auto; color: #f5f2e8; background: #171a16; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: 220px; display: flex; flex-direction: column; padding: 32px 18px 24px; overflow-y: auto; color: #f5f2e8; background: #171a16; isolation: isolate; }
 .logo { display: flex; align-items: center; min-height: 48px; padding: 0 4px; margin-bottom: 44px; }
-.logo :global(.logo__mark) { width: 27px; height: 32px; }
-.logo :global(.logo__type strong) { font-size: 12px; letter-spacing: .21em; }
-.logo :global(.logo__type small) { font-size: 6px; }
 .navigation { display: grid; gap: 6px; }
 .navigation a { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 10px 12px; color: #bfc2b6; transition: background .2s, color .2s; }
 .navigation a:hover { color: #fffaf0; background: #262b23; }

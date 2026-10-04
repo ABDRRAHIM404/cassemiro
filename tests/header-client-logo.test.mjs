@@ -17,7 +17,7 @@ test("public header uses the client logo with responsive sizing and accessible b
   assert.ok(existsSync(new URL("../public/images/brand/client-logo-construcoes-dark-v1.png", import.meta.url)));
 });
 
-test("footer matches the header client logo without changing the admin brand", () => {
+test("footer matches the header client logo and stays lazy-loaded", () => {
   const footer = readFileSync(new URL("../src/components/layout/Footer.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../src/components/layout/Footer.module.css", import.meta.url), "utf8");
   assert.match(footer, /src="\/images\/brand\/client-logo-construcoes-dark-v1\.png"/);
