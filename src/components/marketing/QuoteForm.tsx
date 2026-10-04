@@ -3,10 +3,11 @@
 import { useMemo, useRef, useState } from "react";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { whatsappUrl } from "@/config/site";
-import { parseBrazilianDate } from "@/features/quotes/date";
+import { calendarDateToBrazilian, maskBrazilianDate, parseBrazilianDate } from "@/features/quotes/date";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { CheckCircle } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { CalendarBlank } from "@phosphor-icons/react/dist/csr/CalendarBlank";
 import styles from "./QuoteForm.module.css";
 
 type QuoteData = { name: string; phone: string; city: string; workType: string; description: string; desiredStart: string };
@@ -120,7 +121,20 @@ export function QuoteForm({ whatsappPhone }: { whatsappPhone?: string }) {
       </div>
       <div className={`${styles.field} ${styles.full}`}>
         <label htmlFor="desiredStart">Quando gostaria de começar? <span>Opcional</span></label>
-        <input id="desiredStart" name="desiredStart" type="text" inputMode="numeric" autoComplete="off" maxLength={10} placeholder="DD/MM/AAAA" value={data.desiredStart} onChange={(e) => update("desiredStart", e.target.value)} aria-invalid={attempted && errors.desiredStart} aria-describedby={`desiredStart-hint${attempted && errors.desiredStart ? " desiredStart-error" : ""}`} />
+        <div className={styles.dateEntry}>
+          <input id="desiredStart" name="desiredStart" type="text" inputMode="numeric" autoComplete="off" maxLength={10} placeholder="DD/MM/AAAA" value={data.desiredStart} onChange={(e) => {
+            const input = e.currentTarget;
+            const digitsBeforeCaret = input.value.slice(0, input.selectionStart ?? input.value.length).replace(/\D/g, "").length;
+            const formatted = maskBrazilianDate(input.value);
+            update("desiredStart", formatted);
+            const caret = Math.min(formatted.length, digitsBeforeCaret + (digitsBeforeCaret > 2 ? 1 : 0) + (digitsBeforeCaret > 4 ? 1 : 0));
+            requestAnimationFrame(() => { if (document.activeElement === input) input.setSelectionRange(caret, caret); });
+          }} aria-invalid={attempted && errors.desiredStart} aria-describedby={`desiredStart-hint${attempted && errors.desiredStart ? " desiredStart-error" : ""}`} />
+          <div className={styles.calendarControl}>
+            <CalendarBlank size={22} weight="thin" aria-hidden="true" />
+            <input type="date" aria-label="Escolher data no calendário" title="Escolher data no calendário" value={parseBrazilianDate(data.desiredStart) ?? ""} onChange={(e) => update("desiredStart", calendarDateToBrazilian(e.target.value))} />
+          </div>
+        </div>
         <small id="desiredStart-hint" className={styles.hint}>Use dia/mês/ano. Se preferir, deixe em branco.</small>
         {attempted && errors.desiredStart && <small id="desiredStart-error">Informe uma data válida no formato DD/MM/AAAA.</small>}
       </div>

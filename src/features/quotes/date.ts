@@ -12,3 +12,15 @@ export function parseBrazilianDate(value: string): string | null {
 
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
+/** Format progressively without assuming a locale or constructing a UTC date. */
+export function maskBrazilianDate(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join("/");
+}
+
+export function calendarDateToBrazilian(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const [year, month, day] = value.split("-");
+  const formatted = `${day}/${month}/${year}`;
+  return parseBrazilianDate(formatted) ? formatted : "";
+}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { quoteRequestSchema } from "../src/features/quotes/validation.ts";
-import { parseBrazilianDate } from "../src/features/quotes/date.ts";
+import { calendarDateToBrazilian, maskBrazilianDate, parseBrazilianDate } from "../src/features/quotes/date.ts";
 
 const validQuote = {
   name: "Cliente Teste",
@@ -10,6 +10,20 @@ const validQuote = {
   workType: "Reforma",
   description: "Reforma de uma residência existente.",
 };
+
+test("Brazilian date mask inserts slashes while typing or pasting and permits clearing", () => {
+  for (const [input, expected] of [["", ""], ["0", "0"], ["05", "05"], ["051", "05/1"], ["0511", "05/11"], ["05112026", "05/11/2026"], ["05/11/2026", "05/11/2026"], ["05112026123", "05/11/2026"]]) {
+    assert.equal(maskBrazilianDate(input), expected);
+  }
+  assert.equal(parseBrazilianDate(maskBrazilianDate("05112026")), "2026-11-05");
+  assert.equal(parseBrazilianDate(maskBrazilianDate("31022026")), null);
+});
+
+test("native calendar values become day/month/year without timezone conversion", () => {
+  assert.equal(calendarDateToBrazilian("2026-11-05"), "05/11/2026");
+  assert.equal(calendarDateToBrazilian("2028-02-29"), "29/02/2028");
+  for (const input of ["", "2027-02-29", "2026-13-05", "05/11/2026"]) assert.equal(calendarDateToBrazilian(input), "");
+});
 
 test("quote validation accepts the empty honeypot used by the form", () => {
   assert.equal(quoteRequestSchema.safeParse({ ...validQuote, company: "" }).success, true);
