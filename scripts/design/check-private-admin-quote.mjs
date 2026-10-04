@@ -67,7 +67,7 @@ try {
     source: "private-audit", utm_source: "synthetic", utm_campaign: marker, last_contact_at: "2025-08-01T00:00:00.000Z" });
   assert.ifError(inserted.error);
   browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
-    proxy: { server: "http://192.168.1.144:8080", bypass: "localhost,127.0.0.1" } });
+    proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
   for (const [index, identity] of identities.entries()) {
     stage = `browser-${identity.role}`;
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });

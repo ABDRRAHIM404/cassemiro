@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { PRIVATE_PROJECT_MEDIA_BUCKET } from "@/lib/project-media";
+import { PRIVATE_PROJECT_MEDIA_BUCKET, projectMediaUrl } from "@/lib/project-media";
+import { interruptedMediaIdentity, isInterruptedUploadOldEnough } from "@/lib/admin/interrupted-media";
 
 const optionalText = (max: number) => z.string().trim().max(max).transform((value) => value || null);
 const projectSchema = z.object({
@@ -170,6 +171,50 @@ export async function updateProjectMediaAlt(projectId: string, mediaId: string, 
   const { data: savedProject } = await supabase.from("projects").select("slug").eq("id", project.data).maybeSingle();
   revalidateProjects(savedProject?.slug);
   redirect(`/admin/projetos/${project.data}?alt=1`);
+}
+
+export async function recoverInterruptedProjectMedia(projectId: string, path: string, formData: FormData) {
+  const project = z.uuid().safeParse(projectId);
+  if (!project.success) redirect("/admin/projetos?error=Projeto+inválido.");
+  const destination = `/admin/projetos/${project.data}`;
+  const fail = (message: string): never => redirect(`${destination}?uploads=1&error=${encodeURIComponent(message)}`);
+  const mediaId = interruptedMediaIdentity(project.data, path);
+  const alt = z.string().trim().min(5).max(180).safeParse(String(formData.get("alt_text") ?? ""));
+  const type = z.enum(["image", "before", "after"]).safeParse(String(formData.get("media_type") ?? "image"));
+  const group = z.string().trim().max(80).safeParse(String(formData.get("before_after_group") ?? ""));
+  if (!mediaId || !alt.success) fail("Revise o arquivo e a descrição de 5 a 180 caracteres.");
+  if (!type.success || !group.success || (type.data !== "image" && !group.data)) fail("Confirme o tipo e o grupo das imagens Antes/Depois.");
+  const { supabase } = await requireAdmin();
+  const { data: savedProject, error: projectError } = await supabase.from("projects").select("slug").eq("id", project.data).maybeSingle();
+  if (projectError || !savedProject) fail("Não foi possível confirmar o projeto.");
+  const matches = (row: { project_id: string; storage_path: string | null; url: string } | null) =>
+    !!row && row.project_id === project.data && row.storage_path === path && row.url === projectMediaUrl(mediaId!);
+  const existing = await supabase.from("project_media").select("project_id,storage_path,url").eq("id", mediaId!).maybeSingle();
+  if (existing.error) fail("Não foi possível confirmar a galeria. O arquivo foi preservado.");
+  if (existing.data && !matches(existing.data)) fail("Este envio não corresponde ao registro existente. Contacte o suporte.");
+  if (!existing.data) {
+    const object = await supabase.storage.from(PRIVATE_PROJECT_MEDIA_BUCKET).info(path);
+    if (object.error || !object.data) fail("O arquivo não está disponível. Nenhum arquivo foi alterado.");
+    const file = object.data!;
+    if (!isInterruptedUploadOldEnough(file.lastModified ?? file.updatedAt ?? file.createdAt)) fail("Aguarde pelo menos 10 minutos após o envio antes de recuperar.");
+    const mime = file.contentType;
+    const allowed: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif", mp4: "video/mp4", webm: "video/webm" };
+    if (mime !== allowed[path.split(".").at(-1)!.toLowerCase()] || !file.size || file.size > 50 * 1024 * 1024) fail("Tipo ou tamanho do arquivo inválido. Contacte o suporte.");
+    const order = await supabase.from("project_media").select("sort_order").eq("project_id", project.data).order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    if (order.error) fail("Não foi possível confirmar a ordem da galeria.");
+    const inserted = await supabase.from("project_media").insert({ id: mediaId!, project_id: project.data, storage_path: path,
+      url: projectMediaUrl(mediaId!), type: mime!.startsWith("video/") ? "video" : type.data!, alt_text: alt.data!,
+      before_after_group: !mime!.startsWith("video/") && type.data !== "image" ? group.data! : null,
+      sort_order: (order.data?.sort_order ?? -1) + 1 });
+    if (inserted.error) {
+      // A lost response or concurrent same-ID save can already have committed.
+      const reconciled = await supabase.from("project_media").select("project_id,storage_path,url").eq("id", mediaId!).maybeSingle();
+      if (reconciled.error || !matches(reconciled.data)) fail("Não foi possível confirmar a recuperação. O arquivo foi preservado; tente novamente.");
+    }
+  }
+  // Explicitly do not publish, replace the cover, upload again or delete Storage.
+  revalidateProjects(savedProject!.slug);
+  redirect(`${destination}?uploads=1&recovered=1`);
 }
 
 export async function deleteProject(projectId: string) {

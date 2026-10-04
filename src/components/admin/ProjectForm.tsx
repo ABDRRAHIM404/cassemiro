@@ -87,7 +87,8 @@ export function ProjectForm({
         const extension = photo.type === "image/jpeg" ? "jpg" : photo.type.split("/")[1];
         let attempt = draft.attempts.get(index);
         if (!attempt) {
-          attempt = { id: crypto.randomUUID(), path: `${draft.id}/${crypto.randomUUID()}.${extension}`, started: false, storageUploaded: false };
+          const id = crypto.randomUUID();
+          attempt = { id, path: `${draft.id}/upload-${id}.${extension}`, started: false, storageUploaded: false };
           draft.attempts.set(index, attempt);
         }
         const url = projectMediaUrl(attempt.id);

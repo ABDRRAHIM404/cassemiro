@@ -17,7 +17,7 @@ const ratio = (first, second) => {
   return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
 };
 const browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome", headless: true,
-  proxy: { server: "http://192.168.1.144:8080", bypass: "localhost,127.0.0.1" } });
+    proxy: { server: process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "http://192.168.1.187:8080", bypass: "localhost,127.0.0.1" } });
 const results = [];
 try {
   for (const width of [1366, 768, 390]) {

@@ -79,7 +79,8 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
         const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
         let attempt = session.attempts.get(index);
         if (!attempt) {
-          attempt = { id: crypto.randomUUID(), path: `${projectId}/${crypto.randomUUID()}.${extension}`, started: false, storageUploaded: false };
+          const id = crypto.randomUUID();
+          attempt = { id, path: `${projectId}/upload-${id}.${extension}`, started: false, storageUploaded: false };
           session.attempts.set(index, attempt);
         }
         const url = projectMediaUrl(attempt.id);
