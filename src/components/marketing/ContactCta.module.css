@@ -1,6 +1,6 @@
 .root { position: relative; overflow: hidden; padding-block: 88px 96px; background: #11120f; color: var(--ivory); isolation: isolate; scroll-margin-top: 72px; }
 .shell { width: min(1160px,calc(100% - 144px)); margin-inline: auto; }
-.content { max-width: 650px; }
+.content { max-width: 850px; }
 .context { display: flex; align-items: center; gap: 16px; margin: 0 0 28px; color: #c4c6ba; font-size: 12px; line-height: 1.5; }
 .context::before { content: ""; display: block; width: 32px; height: 1px; background: var(--bronze-light); }
 .content h2 { max-width: 620px; margin: 0 0 24px; font-family: var(--serif); font-size: clamp(38px,4vw,56px); letter-spacing: -.02em; line-height: 1.1; text-wrap: balance; }

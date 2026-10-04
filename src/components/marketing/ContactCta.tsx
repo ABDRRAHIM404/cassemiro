@@ -19,6 +19,7 @@ export function ContactCta({ content = defaultHomepageContent, business = defaul
           <div className={styles.actions}>
             <Link href="/contato" className={styles.primary}>Solicitar orçamento <ArrowIcon /></Link>
             <a href={`https://wa.me/${business.phoneE164}?text=${encodeURIComponent(business.quoteMessage || quoteMessage)}`} target="_blank" rel="noreferrer" className={styles.secondary}>Falar no WhatsApp <ArrowIcon /></a>
+            <a href={`https://wa.me/${business.phoneE164}?text=${encodeURIComponent(business.recruitmentMessage.trim() || defaultBusinessSettings.recruitmentMessage)}`} target="_blank" rel="noreferrer" className={styles.secondary}>Faça parte da nossa equipe <ArrowIcon /></a>
           </div>
           <div className={styles.direct}>
             <Phone size={24} weight="thin" aria-hidden="true" />
