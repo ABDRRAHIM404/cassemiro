@@ -10,6 +10,8 @@ import type { MediaUploadAttempt } from "@/lib/admin/media-upload";
 import { uploadProjectMedia } from "@/lib/admin/upload-project-media";
 import type { Database } from "@/types/supabase";
 import { WorkspaceSubmit } from "./WorkspaceSubmit";
+import { UploadFileProgress } from "./UploadFileProgress";
+import { updateUploadFileState, type UploadFileProgressItem } from "@/lib/admin/upload-progress";
 
 type Media = Database["public"]["Tables"]["project_media"]["Row"];
 type MediaType = "image" | "video" | "before" | "after";
@@ -42,6 +44,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
   const [selectedFiles, setSelectedFiles] = useState<Array<{ name: string; type: string }>>([]);
   const [altDrafts, setAltDrafts] = useState<string[]>([]);
   const [group, setGroup] = useState("");
+  const [fileProgress, setFileProgress] = useState<UploadFileProgressItem[]>([]);
 
   async function upload() {
     if (busy) return;
@@ -58,6 +61,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
     setMessage(uploadSessionRef.current ? "A continuar o envio…" : "A enviar arquivos…");
     const supabase = createClient();
     if (!uploadSessionRef.current) {
+      setFileProgress(files.map(file => ({ name: file.name, state: "pending" })));
       uploadSessionRef.current = {
         files,
         uploaded: new Set(),
@@ -70,10 +74,13 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
       };
     }
     const session = uploadSessionRef.current;
+    let currentIndex: number | null = null;
 
     try {
       for (const [index, file] of session.files.entries()) {
         if (session.uploaded.has(index)) continue;
+        currentIndex = index;
+        setFileProgress(items => updateUploadFileState(items, index, "uploading"));
         setMessage(`A enviar arquivo ${index + 1} de ${session.files.length}…`);
         const isVideo = file.type.startsWith("video/");
         const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
@@ -94,9 +101,11 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
           before_after_group: type === "before" || type === "after" ? session.group || "comparativo-1" : null
         });
         session.uploaded.add(index);
+        setFileProgress(items => updateUploadFileState(items, index, "saved"));
         session.nextOrder += 1;
         if (!isVideo && !session.firstImageUrl) session.firstImageUrl = url;
       }
+      currentIndex = null;
 
       if (!heroImage && session.firstImageUrl) {
         const { error: coverError } = await supabase.from("projects")
@@ -110,6 +119,10 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
       setSelectedFiles([]);
       setAltDrafts([]);
     } catch (error) {
+      if (currentIndex !== null) {
+        const index = currentIndex;
+        setFileProgress(items => updateUploadFileState(items, index, "unconfirmed"));
+      }
       const detail = error instanceof Error ? error.message : "Não foi possível concluir o envio.";
       setMessage(`${detail} ${session.uploaded.size} de ${session.files.length} arquivos guardados. Tente novamente para continuar sem duplicar os já enviados.`);
       setRetryPending(true);
@@ -180,6 +193,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
           const selected = Array.from(event.target.files ?? [], (file) => ({ name: file.name, type: file.type }));
           setSelectedFiles(selected);
           setAltDrafts(selected.map(() => ""));
+          setFileProgress([]);
         }} /></label>
         <label className="admin-field"><span>Tipo</span><select value={mediaType} onChange={(event) => setMediaType(event.target.value as MediaType)} disabled={retryPending || busy}><option value="image">Imagem</option><option value="before">Antes</option><option value="after">Depois</option></select></label>
         {!!selectedFiles.length && <div className="project-media__alt-inputs">
@@ -191,6 +205,7 @@ export function ProjectMediaManager({ projectId, initialMedia, heroImage }: { pr
         {(mediaType === "before" || mediaType === "after") && <label className="admin-field"><span>Grupo comparativo</span><input value={group} onChange={(event) => setGroup(event.target.value)} maxLength={80} placeholder="Ex.: fachada" disabled={retryPending || busy} /></label>}
         <button type="button" onClick={upload} disabled={busy}>{busy ? "Enviando…" : retryPending ? "Tentar novamente" : "Enviar arquivos"}</button>
         {message && <p role={retryPending ? "alert" : "status"}>{message}</p>}
+        <UploadFileProgress items={fileProgress} />
       </div>
       {initialMedia.length ? (
         <div className="project-media__grid">

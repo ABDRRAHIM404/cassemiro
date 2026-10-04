@@ -9,6 +9,8 @@ import type { MediaUploadAttempt } from "@/lib/admin/media-upload";
 import { uploadProjectMedia } from "@/lib/admin/upload-project-media";
 import type { Database } from "@/types/supabase";
 import { WorkspaceSubmit } from "./WorkspaceSubmit";
+import { UploadFileProgress } from "./UploadFileProgress";
+import { updateUploadFileState, type UploadFileProgressItem } from "@/lib/admin/upload-progress";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type Service = Pick<Database["public"]["Tables"]["services"]["Row"], "id" | "title">;
@@ -42,6 +44,7 @@ export function ProjectForm({
   const [uploadedCount, setUploadedCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [fileProgress, setFileProgress] = useState<UploadFileProgressItem[]>([]);
 
   async function createWithPhotos(formData: FormData) {
     if (busy) return;
@@ -59,6 +62,8 @@ export function ProjectForm({
 
     setBusy(true);
     setMessage(draftRef.current ? "A continuar o envio…" : "A criar projeto…");
+    if (!draftRef.current) setFileProgress(photos.map(photo => ({ name: photo.name, state: "pending" })));
+    let currentIndex: number | null = null;
     try {
       // The files are deliberately not in FormData: Server Actions have a small request limit.
       if (!draftRef.current) {
@@ -83,6 +88,8 @@ export function ProjectForm({
       const supabase = createClient();
       for (const [index, photo] of photos.entries()) {
         if (draft.uploaded.has(index)) continue;
+        currentIndex = index;
+        setFileProgress(items => updateUploadFileState(items, index, "uploading"));
         setMessage(`A enviar imagem ${index + 1} de ${photos.length}…`);
         const extension = photo.type === "image/jpeg" ? "jpg" : photo.type.split("/")[1];
         let attempt = draft.attempts.get(index);
@@ -101,15 +108,21 @@ export function ProjectForm({
           before_after_group: null
         });
         draft.uploaded.add(index);
+        setFileProgress(items => updateUploadFileState(items, index, "saved"));
         setUploadedCount(draft.uploaded.size);
         draft.coverUrl ??= url;
       }
+      currentIndex = null;
 
       setMessage("A concluir projeto…");
       const completed = await completeProjectCreation(draft.id, draft.publishRequested, draft.coverUrl);
       if (completed.error) throw new Error(completed.error);
       router.replace(`/admin/projetos/${draft.id}?created=1`);
     } catch (error) {
+      if (currentIndex !== null) {
+        const index = currentIndex;
+        setFileProgress(items => updateUploadFileState(items, index, "unconfirmed"));
+      }
       const detail = error instanceof Error ? error.message : "Não foi possível concluir o envio das imagens.";
       const draft = draftRef.current;
       setMessage(draft
@@ -145,6 +158,7 @@ export function ProjectForm({
             setPhotoCount(names.length);
             setPhotoNames(names);
             setPhotoAlts(names.map(() => ""));
+            setFileProgress([]);
           }} /></label>
           <p>{photoCount ? `${photoCount} ${photoCount === 1 ? "imagem selecionada" : "imagens selecionadas"}. A primeira será a capa.` : "Selecione as imagens reais agora; serão enviadas e associadas ao projeto ao guardar."}</p>
           {!!photoNames.length && <div className="project-form__photo-alts">
@@ -154,6 +168,7 @@ export function ProjectForm({
             </label>)}
           </div>}
           {draftId && <p>{uploadedCount} de {photoCount} imagens guardadas neste rascunho. Os dados principais já foram guardados; edite-os no rascunho, se necessário.</p>}
+          <UploadFileProgress items={fileProgress} />
           <small>JPG, PNG, WebP ou AVIF · até 50 MB por imagem. Para publicar agora, descreva cada fotografia.</small>
         </div>}
       </section>
