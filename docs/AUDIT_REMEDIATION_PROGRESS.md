@@ -308,6 +308,16 @@ The carousel root and stage now use `overflow: clip` so neighboring photographs 
 
 The new `check-live-responsive.mjs` covers 1920, 1440, 1366, 1024, 768, 430, 390 and 360 px, with all six service headings, Sérgio, trust, projects and footer geometry, real image decoding, carousel arrows, and compact-menu open/Escape focus restoration. It also tabs through the catalogue and requires zero internal scroll and a centered active photograph. Its first image check failed at 768 px before individual lazy images were brought into view; the subsequently bounded four-width run decoded those images successfully. This does not establish the precise cause of that first decode failure. The first mobile-menu assertion also ran before its visibility transition completed; it now waits for the navigation to become visible rather than changing the menu itself. Initial desktop/mobile geometry runs and the fresh focus probe are diagnostic evidence, not sign-off on the corrected full checker. Targeted lint, the clipping regression and diff checks pass; live post-deploy verification is pending. No local build/dev server was run.
 
+### Post-deployment result
+
+Production deployment `dpl_EJmfRtvLoww1MRstrHNcsEegEBUC` reached READY with application commit `06afce424f1a4927bdc09f049e161de84467e752`, and the production alias resolved to that exact deployment. Vercel's cloud build log reported deployment completed; no local build/dev server ran. All 56 lightweight unit tests and scoped checker/test lint passed.
+
+The corrected full live sweep passed all eight requested widths: 1920, 1440, 1366, 1024, 768, 430, 390 and 360 px. Every width checked 11 section/heading positions, zero whole-page horizontal overflow, zero captured runtime errors, centered catalogue geometry after keyboard focus, and next/previous arrow title updates with exactly one active project. Compact-menu opening, Escape closing and focus restoration passed at 768, 430, 390 and 360 px. The active photograph and the next photograph decoded after real arrow selection. Reviewed 430 px and 768 px screenshots showed the active project centered with its matching caption; the 768 px Sérgio composition retained the original real portrait and corrected role text.
+
+The first post-deployment sweep stopped making progress on a clipped, offstage mobile lazy image: the checker had tried to decode every carousel image before selecting it. That run was terminated, not counted as a pass. The checker now skips inactive carousel images until the real next arrow selects them, and bounds image-load waits to 20 seconds. The subsequent complete eight-width run finished successfully. No application behavior was changed for that verifier correction.
+
+These results close this specific carousel focus-scroll defect and the requested responsive geometry/control sweep, not physical iOS momentum, drag/swipe quality on real hardware, all contrast/screen-reader checks, publication/write workflows, email delivery or field performance. Existing customer rows and publication states stayed untouched; all browser non-GET requests were blocked. The audit remains incomplete at its separately documented gates.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

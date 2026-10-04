@@ -26,8 +26,15 @@ try {
         await target.scrollIntoViewIfNeeded();
         if (selector.startsWith("#")) {
           for (const image of await target.locator("img").all()) {
+            // Offstage mobile slides are deliberately clipped and lazy-loaded.
+            // Verify those photographs after selecting them with the real arrows.
+            if (selector === "#projetos" && !await image.evaluate(el => el.closest('[data-active="true"]'))) continue;
             await image.scrollIntoViewIfNeeded();
-            try { await image.evaluate(el => el.decode()); }
+            try {
+              await image.waitFor({ state: "visible", timeout: 20000 });
+              await page.waitForFunction(el => el.complete && el.naturalWidth > 0, await image.elementHandle(), { timeout: 20000 });
+              await image.evaluate(el => el.decode());
+            }
             catch {
               const diagnostic = await image.evaluate(el => ({ source: new URL(el.currentSrc || el.src, location.href).pathname, complete: el.complete, naturalWidth: el.naturalWidth, loading: el.loading }));
               throw new Error(`Image decode failed at ${width}, ${selector}: ${JSON.stringify(diagnostic)}`);
@@ -62,6 +69,9 @@ try {
       await carousel.getByRole("button", { name: "Próximo projeto", exact: true }).click();
       await page.waitForFunction(title => document.querySelector('#projetos [aria-live="polite"] h3')?.textContent !== title, firstTitle);
       assert.equal(await carousel.locator('[data-active="true"]').count(), 1);
+      const nextPhoto = carousel.locator('[data-active="true"] img');
+      await page.waitForFunction(el => el.complete && el.naturalWidth > 0, await nextPhoto.elementHandle(), { timeout: 20000 });
+      await nextPhoto.evaluate(el => el.decode());
       await carousel.getByRole("button", { name: "Projeto anterior", exact: true }).click();
       assert.equal(await caption.innerText(), firstTitle);
       let menuChecked = false;
