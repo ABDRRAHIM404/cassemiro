@@ -90,22 +90,24 @@ try {
         assert.deepEqual(await page.evaluate(() => window.auditCspViolations), [], "Legitimate admin scripts must not be blocked");
         if (cspNonces.size === 1) {
           // Local synthetic DOM probe only. No network, CMS save or handler call.
-          await page.evaluate(() => {
+          await page.evaluate(nonce => {
             window.auditUntrustedScriptRan = false;
-            const script = document.createElement("script");
-            script.textContent = "window.auditUntrustedScriptRan = true";
-            document.body.append(script); script.remove();
-          });
+            window.auditTrustedScriptRan = false;
+            // strict-dynamic intentionally trusts dynamically inserted scripts.
+            // srcdoc inherits this policy and lets us test parser-inserted markup.
+            const frame = document.createElement("iframe");
+            frame.id = "audit-csp-probe"; frame.hidden = true;
+            frame.srcdoc = `<script nonce="${nonce}">document.addEventListener('securitypolicyviolation',e=>parent.auditCspViolations.push(e.effectiveDirective))</script><script>parent.auditUntrustedScriptRan=true</script><script nonce="${nonce}">parent.auditTrustedScriptRan=true</script>`;
+            document.body.append(frame);
+          }, nonce);
           await page.waitForFunction(() => window.auditCspViolations.length > 0);
           assert.equal(await page.evaluate(() => window.auditUntrustedScriptRan), false);
           assert.deepEqual(await page.evaluate(() => window.auditCspViolations), ["script-src-elem"]);
-          await page.evaluate(nonce => {
-            const script = document.createElement("script"); script.nonce = nonce;
-            script.textContent = "window.auditTrustedScriptRan = true";
-            document.body.append(script); script.remove();
-            window.auditCspViolations = [];
-          }, nonce);
           assert.equal(await page.evaluate(() => window.auditTrustedScriptRan), true);
+          await page.evaluate(() => {
+            document.getElementById("audit-csp-probe").remove();
+            window.auditCspViolations = [];
+          });
         }
         console.log(JSON.stringify({ adminCsp: { width, path, freshNonce: true, matchingFrameworkNonces: true, noLegitimateViolations: true, inlineProbeTested: cspNonces.size === 1 } }));
       }
@@ -256,6 +258,17 @@ try {
       await sibling.close();
       await page.getByRole("switch", { name: "Modo escuro" }).click();
       await theme("dark");
+      if (process.env.AUDIT_ADMIN_CSP === "yes") {
+        // Exercise actual Next links too: document nonces must not break RSC navigation.
+        for (const path of ["/admin/projetos", "/admin/servicos"]) {
+          if (width === 390) await page.locator('details summary').filter({ hasText: "Menu" }).click();
+          await page.locator(`a[href="${path}"]`).filter({ visible: true }).first().click();
+          await page.waitForURL(`${origin}${path}`);
+          await theme("dark");
+          assert.deepEqual(await page.evaluate(() => window.auditCspViolations), [], "Client navigation must not violate admin CSP");
+        }
+        console.log(JSON.stringify({ adminCspClientNavigation: { width, passed: true, themePreserved: true } }));
+      }
       await page.goto(origin, { waitUntil: "domcontentloaded" });
       assert.equal(await page.locator("[data-admin-theme]").count(), 0, "Admin theme leaked into public shell");
       assert.equal(await page.locator('header a[href="/"]').first().evaluate(el => getComputedStyle(el.closest("header")).backgroundColor), "rgb(17, 18, 15)");
