@@ -47,7 +47,8 @@ test("actual proxy forwards fresh nonces through auth refresh and secures anonym
   const originalFetch = globalThis.fetch;
   try {
     globalThis.fetch = () => { throw new Error("Network forbidden in CSP regression"); };
-    const { proxy, config } = await import("../proxy.ts");
+    // The proxy must live beside src/app or Next will silently ignore it.
+    const { proxy, config } = await import("../src/proxy.ts");
     assert.deepEqual(config.matcher, ["/admin/:path*"]);
     const nonces = new Set();
     for (const refresh of [false, true]) {
