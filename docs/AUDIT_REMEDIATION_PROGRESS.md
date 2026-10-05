@@ -460,6 +460,20 @@ The first native-key attempt failed its return-title observation assertion. Insp
 
 Remaining publication/cache and actual global-settings save checks still require an isolated staging environment or separately scoped authorization. The current Preview configuration shares Production's Supabase settings; the pending request to create free isolated staging has not been approved. Existing private-fixture approval does not authorize public test publication, global company-settings edits, real-network quote saturation or paid resources.
 
+## Owner decision: defer staging — 5 October
+
+After reconnection, the project-scoped MCP returned the expected CASSEMIRO URL and no existing development branches. Current Supabase documentation states that preview branches incur usage charges, so none was created under the owner's free-only authorization. The owner subsequently instructed us to abandon staging and move on. Staging setup is now deferred by that decision; do not keep asking for a staging project or treat automatic continuation as permission to buy a branch.
+
+Actual global-settings/content saves, publication/unpublication cache transitions and shared-network HTTP quote saturation remain unverified, not passed or silently removed from the audit. Existing completed private-fixture checks remain valid within their documented scope. This decision does not authorize performing those deferred tests against production. Continue independent read-only checks and fixes without changing public/customer data.
+
+## Live WCAG 2.2 target sizing and invalid-form associations — 5 October
+
+The owner asked to move on from staging, so the next independent check used public GET-only browsing. The installed axe-core 4.13.0 ran its WCAG 2.2 AA `target-size` rule against the live homepage, contact, services and admin-login pages at 360×844 and 1366×844. It additionally checked the open 360 px menu and the contact form's empty-error state at both widths: eleven page/state observations and 261 evaluated target occurrences, not 261 unique controls. All observations had zero target-size violations and zero inconclusive results. This is not a complete WCAG audit, physical touch test, hover/animation-state review or authenticated admin certification.
+
+At both widths, clicking the hydrated contact form's empty submit focused the first invalid field. Name, phone, city, work type and description each exposed `aria-invalid=true`, an `aria-describedby` reference to its matching error ID, and nonempty error text. There were zero attempted quote API requests, blocked non-GET requests or browser runtime exceptions. No lead, email, account or CMS record was created. No local build or dev server ran.
+
+`check-live-target-size.mjs` preserves this check with explicit existing Playwright/axe paths, a fixed production origin, interception of every non-GET request and assertions that the actual target-size rule evaluated controls. A regression guard protects write blocking, invalid-form request exclusion, inconclusive-result rejection and the narrow reported scope. All 72 repository tests, scoped ESLint and diff checks pass. No application defect was established in these states, so no speculative control resizing was applied. The deferred staging gates and separately documented visual contrast, physical-device, email and security-policy decisions remain distinct.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
