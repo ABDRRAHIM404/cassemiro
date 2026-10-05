@@ -25,20 +25,24 @@ try {
     });
     const page = await context.newPage();
     page.on("pageerror", error => errors.push(error.name));
-    const scan = async (path, state) => {
-      const result = await page.evaluate(async () => {
-        const result = await globalThis.axe.run(document, {
-          runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] }
-        });
+    const scan = async (path, state, contrastSelector = null) => {
+      const result = await page.evaluate(async ({ path, contrastSelector }) => {
+        // Whole-document contrast cannot resolve offscreen content-visibility
+        // chapters against their viewport-sticky image. Test those after scroll.
+        const options = contrastSelector ? { runOnly: ["color-contrast"] } : {
+          runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] },
+          ...(path === "/" ? { rules: { "color-contrast": { enabled: false } } } : {})
+        };
+        const result = await globalThis.axe.run(contrastSelector ? document.querySelector(contrastSelector) : document, options);
         return {
           version: globalThis.axe.version,
           passes: result.passes.map(rule => rule.id),
           violations: result.violations.map(rule => ({ id: rule.id, targets: rule.nodes.map(node => node.target) })),
           incomplete: result.incomplete.map(rule => ({ id: rule.id, targets: rule.nodes.map(node => node.target) }))
         };
-      });
+      }, { path, contrastSelector });
       console.log(JSON.stringify({ width, path, state, ...result }));
-      assert.ok(result.passes.length > 0, "Rules must actually evaluate the page");
+      assert.ok(result.passes.length + result.incomplete.length + result.violations.length > 0, "Rules must actually evaluate the page");
       assert.deepEqual(result.violations, []);
       // Never call these contrast records passes; the separate rendered-pixel
       // verifier covers selected photographs, not every item below.
@@ -55,6 +59,11 @@ try {
         await page.evaluate(axeSource);
         await scan(path, path === "/admin/redefinir-senha" ? "signed-out-reset-login-error" : "default");
         if (path === "/") {
+          for (const selector of ["#servicos", "#etapa-2", "#etapa-3", "#etapa-4", "#etapa-5", "#etapa-6"]) {
+            await page.locator(selector).scrollIntoViewIfNeeded();
+            await page.screenshot(); // Force the actual visible chapter to paint.
+            await scan(path, `visible-${selector.slice(1)}-contrast`, selector);
+          }
           const stage = page.getByRole("group", { name: "Use as setas para navegar pelos projetos", exact: true });
           await page.waitForFunction(element => {
             const key = Object.keys(element).find(key => key.startsWith("__reactProps$"));
@@ -76,7 +85,7 @@ try {
       assert.deepEqual(errors, []);
       assert.equal(nonGetRequests, 0);
       console.log(JSON.stringify({ width, runtimeErrors: errors, nonGetRequests,
-        scope: "Automated default-page and selected-carousel rules only; color-contrast incompletes are not passes; not full WCAG or physical assistive-technology certification" }));
+        scope: "Automated default-page and selected-carousel rules; homepage whole-document contrast excluded, six visible chapters sampled separately; color-contrast incompletes are not passes; not full WCAG or physical assistive-technology certification" }));
     } finally { await context.close(); }
   }
 } finally { await browser.close(); }

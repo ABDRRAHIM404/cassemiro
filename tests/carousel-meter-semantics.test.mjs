@@ -20,6 +20,9 @@ test("public accessibility checker blocks writes and does not certify inconclusi
   assert.match(source, /assert\.deepEqual\(result\.violations, \[\]\)/);
   assert.match(source, /incomplete\.filter\(rule => rule\.id !== "color-contrast"\)/);
   assert.match(source, /color-contrast incompletes are not passes/);
+  assert.match(source, /visible-\$\{selector\.slice\(1\)\}-contrast/);
+  assert.match(source, /scrollIntoViewIfNeeded\(\)/);
+  assert.match(source, /"#etapa-6"/);
   assert.match(source, /\/admin\/esqueci-senha/);
   assert.match(source, /\/admin\/redefinir-senha/);
 });
