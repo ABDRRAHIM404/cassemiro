@@ -18,16 +18,22 @@ try {
       assert.equal(response.status(), 200);
       const section = page.locator("#porque");
       await section.scrollIntoViewIfNeeded();
-      const group = section.getByRole("group", { name: "Compromissos CASSEMIRO" });
       await page.waitForFunction(() => {
-        const button = document.querySelector('#porque [role="group"] button');
-        const key = button && Object.keys(button).find(key => key.startsWith("__reactProps$"));
-        return key && typeof button[key]?.onClick === "function";
-      }, undefined, { timeout: 30000 });
+        const image = document.querySelector("#porque img");
+        return image?.complete && image.naturalWidth > 0;
+      });
+      const group = section.getByRole("list", { name: "Compromissos CASSEMIRO" });
+      assert.equal(await group.getByRole("listitem").count(), 4);
+      assert.equal(await section.getByRole("button").count(), 0);
       for (const title of ["Qualidade", "Prazos", "Experiência", "Confiança"]) {
-        await group.getByRole("button", { name: title }).click();
-        await section.getByRole("heading", { name: title, exact: true }).waitFor();
+        assert.equal(await section.getByRole("heading", { name: title, exact: true }).count(), 1);
+        assert.ok(await section.getByRole("heading", { name: title, exact: true }).isVisible());
       }
+      assert.ok(await group.getByText("Cuidado técnico, inclusive no que não se vê.", { exact: true }).isVisible());
+      assert.ok(await group.getByText("Planejamento claro em cada etapa da obra.", { exact: true }).isVisible());
+      assert.ok(await group.getByText("Mais de quatro décadas orientando cada decisão.", { exact: true }).isVisible());
+      assert.ok(await group.getByText("Presença e responsabilidade do início ao fim.", { exact: true }).isVisible());
+      await section.screenshot({ path: `/tmp/cassemiro-trust-${width}-${reducedMotion}.png` });
       const initial = await section.evaluate(element => {
         window.scrollTo({ top: window.scrollY + element.getBoundingClientRect().top - 88, behavior: "instant" });
         return { height: element.getBoundingClientRect().height, position: getComputedStyle(element.firstElementChild).position };

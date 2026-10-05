@@ -608,6 +608,12 @@ The production token-hash callback verifier passed both existing-owner sign-in a
 
 The three-part goal is therefore not fully achieved: the redirect and natural-scrolling changes are deployed and verified, while quote notifications are implemented/tested but cannot send without the owner-deferred Gmail credential and a subsequent real delivery check. Keep this delivery gate open; do not report automatic emails as active, purchase a provider, or substitute code-only proof for receipt in `Cassemiro.obras@gmail.com`.
 
+### Owner follow-up: show all trust pillars — 5 October
+
+The owner rejected click-to-reveal trust content. Application commit `8457837` replaces the active pillar and repeated selector labels with one semantic list: all four titles, icons and descriptions are visible together. Desktop uses a compact two-by-two composition beside the heading; mobile stacks the four items. No state, selectors, hidden pillars or page-scroll handlers remain. The existing project photo, ivory/bronze palette and normal document flow are retained.
+
+Vercel production deployment `dpl_EjPGS17sR8aXvkocxQh1QSdkxHGi` is READY with cloud completion logs. Focused source tests and lint pass. Live desktop wheel, two mobile touch widths and reduced-motion checks verify all four descriptions without interaction, no duplicate headings, no selector buttons, no horizontal overflow, no runtime exceptions and natural continuation to Projects. Loaded-background desktop/mobile screenshots were inspected. No local build/dev server or customer-data writes ran. Quote email activation remains deferred independently.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
