@@ -450,6 +450,16 @@ The initial prototype interacted before Orca finished starting and supplied no a
 
 All 70 repository tests pass; targeted checker lint, syntax and diff checks pass. The added regression guard verifies private-session/preferences setup, real readiness/speech assertions, non-GET interception and exact spawned-process cleanup. The broader accessibility and audit gates remain open. Temporary logs contain only public-site/process diagnostics and remain outside the repository; no credentials or signed-in browser state were persisted.
 
+## Native keyboard and bidirectional Orca verification — 5 October
+
+The X-01 keyboard check now injects native X11 events into the checker's own isolated Xwayland display, rather than using Chromium's protocol keyboard events. Tab reached the active “Ver projeto” link; Shift-Tab returned to “Próximo projeto”. Enter selected “Residência Contemporânea” from “Residência Contemporânea Linear”; Space rotated back to the original project. Real Orca-generated speech contained each newly active title. Focus remained on the navigation button, with zero browser runtime exceptions and zero attempted non-GET requests. The completed isolated run used `/tmp/cassemiro-orca-hw1nfF`; its owned browser/Orca/compositor processes were closed afterward. No login, mutation, email, audio playback or local application build occurred.
+
+The first native-key attempt failed its return-title observation assertion. Inspection after cleanup showed that Orca had generated the restored title, but its separately opened diagnostic file buffered that output until shutdown. The installed `/usr/bin/orca` opens that file without unbuffered mode, and `orca/debug.py` writes diagnostic lines without flushing. The checker now runs the same installed Orca CLI with its normal diagnostic stderr under `python3 -u`, accumulating output in memory. It changes diagnostic capture only, not speech generation or assertion requirements. The failed run remains a failed observation, not a retroactive pass; the subsequent complete run independently passed both title assertions.
+
+`orca-private-key.py` refuses a normal desktop environment before loading X11 or injecting events. A regression test executes that refusal path. The private bus, in-memory GSettings backend, separate preferences and disabled audio transport remain in place. All 71 repository tests and scoped ESLint/diff checks pass. These are native injected events, not physical keyboard hardware; audible pronunciation, mobile VoiceOver, every page/form and full accessibility conformance remain unverified. This adds evidence to X-01 without claiming the whole accessibility audit is complete.
+
+Remaining publication/cache and actual global-settings save checks still require an isolated staging environment or separately scoped authorization. The current Preview configuration shares Production's Supabase settings; the pending request to create free isolated staging has not been approved. Existing private-fixture approval does not authorize public test publication, global company-settings edits, real-network quote saturation or paid resources.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

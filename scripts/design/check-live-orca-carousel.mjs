@@ -1,8 +1,8 @@
 // Read-only public check on a private D-Bus/display with separate Orca prefs.
 // Records real Orca-generated speech text, not audible voice quality or WCAG certification.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, readFile } from "node:fs/promises";
+import { spawn, execFileSync } from "node:child_process";
+import { mkdtemp, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -26,14 +26,14 @@ if (!process.argv.includes("--isolated-worker")) {
     // Do not connect to the owner's audio service or speak on their desktop.
     SPEECHD_ADDRESS: `unix_socket:${dir}/no-audio.sock`, SPEECHD_CMD: "/bin/false" };
   const children = [];
-  let browser, compositorLog = "", stage = "isolated-display";
+  let browser, compositorLog = "", orcaOutput = "", stage = "isolated-display";
   async function stop(child) {
     if (child.exitCode !== null || child.signalCode !== null) return;
     child.kill("SIGTERM");
     await Promise.race([new Promise(resolve => child.once("exit", resolve)), wait(5000)]);
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
   }
-  async function orcaLog() { return readFile(`${dir}/orca.log`, "utf8").catch(() => ""); }
+  async function orcaLog() { return orcaOutput; }
   try {
     const weston = spawn("weston", ["--backend=headless", "--renderer=pixman", "--xwayland", "--no-config", "--width=1366", "--height=768", "--socket=cassemiro-audit"], { env, stdio: ["ignore", "ignore", "pipe"] });
     children.push(weston);
@@ -62,7 +62,9 @@ if (!process.argv.includes("--isolated-worker")) {
     const response = await page.goto("https://cassemiro-one.vercel.app", { waitUntil: "load", timeout: 60000 });
     assert.equal(response.status(), 200);
     stage = "orca-readiness";
-    const orca = spawn("orca", ["--user-prefs", `${dir}/prefs`, "--debug-file", `${dir}/orca.log`, "--disable", "braille"], { env, stdio: "ignore" });
+    const orca = spawn("python3", ["-u", new URL("./orca-unbuffered.py", import.meta.url).pathname, "--user-prefs", `${dir}/prefs`, "--disable", "braille"], { env, stdio: ["ignore", "ignore", "pipe"] });
+    orca.stderr.setEncoding("utf8");
+    orca.stderr.on("data", data => { orcaOutput += data; });
     children.push(orca);
     const startupDeadline = performance.now() + 60000;
     while (performance.now() < startupDeadline && !(await orcaLog()).includes("Starting Atspi main event loop")) {
@@ -77,9 +79,14 @@ if (!process.argv.includes("--isolated-worker")) {
     await next.scrollIntoViewIfNeeded();
     await next.focus();
     await wait(2000);
+    const nativeKey = (key, shift = false) => execFileSync("python3", [new URL("./orca-private-key.py", import.meta.url).pathname, key, ...(shift ? ["--shift"] : [])], { env, timeout: 5000 });
+    nativeKey("Tab");
+    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === "Ver projeto");
+    nativeKey("Tab", true);
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Próximo projeto");
     const beforeTitle = await page.locator("#projetos h3").innerText();
     const logStart = (await orcaLog()).length;
-    await next.press("Enter");
+    nativeKey("Return");
     await page.waitForFunction(previous => document.querySelector("#projetos h3")?.textContent !== previous, beforeTitle);
     const afterTitle = await page.locator("#projetos h3").innerText();
     console.log(JSON.stringify({ checkpoint: "selected-project", beforeTitle, afterTitle, logStart }));
@@ -92,11 +99,24 @@ if (!process.argv.includes("--isolated-worker")) {
     }
     console.log(JSON.stringify({ checkpoint: "generated-announcements", speech }));
     assert.ok(speech.some(line => line.includes(afterTitle)), "Orca must generate the newly active project's title");
+    const returnLogStart = (await orcaLog()).length;
+    nativeKey("space");
+    await page.waitForFunction(previous => document.querySelector("#projetos h3")?.textContent !== previous, afterTitle);
+    assert.equal(await page.locator("#projetos h3").innerText(), beforeTitle);
+    const returnDeadline = performance.now() + 20000;
+    let returnSpeech = [];
+    while (performance.now() < returnDeadline) {
+      returnSpeech = (await orcaLog()).slice(returnLogStart).split("\n").filter(line => line.includes("SPEECH OUTPUT:"));
+      if (returnSpeech.some(line => line.includes(beforeTitle))) break;
+      await wait(250);
+    }
+    assert.ok(returnSpeech.some(line => line.includes(beforeTitle)), "Orca must generate the restored project's title");
+    assert.equal(await next.evaluate(element => element === document.activeElement), true);
     assert.deepEqual(errors, []);
     // Optional analytics can attempt POSTs. Every non-GET is intercepted above;
     // don't mislabel a blocked request as a completed mutation or a failed AT check.
-    console.log(JSON.stringify({ passed: true, beforeTitle, afterTitle, speech, blockedNonGetRequests: attemptedWrites, runtimeErrors: errors,
-      artifactDirectory: dir, scope: "real Orca-generated text for one desktop carousel change; no audio playback, not physical keyboard routing, mobile VoiceOver or complete screen-reader certification" }));
+    console.log(JSON.stringify({ passed: true, beforeTitle, afterTitle, speech, returnSpeech, nativeKeys: ["Tab", "Shift-Tab", "Enter", "Space"], focusRetained: true, blockedNonGetRequests: attemptedWrites, runtimeErrors: errors,
+      artifactDirectory: dir, scope: "native X11 injected keyboard events and real Orca-generated carousel text; no audio playback, not physical hardware, mobile VoiceOver or complete screen-reader certification" }));
   } catch (error) {
     console.log(JSON.stringify({ failed: true, stage, errorName: error.name,
       sourceLocation: error.stack?.match(/check-live-orca-carousel\.mjs:\d+:\d+/)?.[0], artifactDirectory: dir }));
