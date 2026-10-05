@@ -6,10 +6,10 @@ Deploy the Next.js application to Vercel and keep Supabase as the database, auth
 
 1. Import the Git repository into Vercel.
 2. Select the Next.js framework preset and Node.js 22.
-3. Copy every required value from `.env.example` into the Production environment. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY` or `SENTRY_AUTH_TOKEN` as public variables.
+3. Copy every required value from `.env.example` into the Production environment. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_APP_PASSWORD`, `RESEND_API_KEY` or `SENTRY_AUTH_TOKEN` as public variables.
 4. Set `NEXT_PUBLIC_SITE_URL` to the final HTTPS origin without a trailing slash.
-5. Add the production origin and `/auth/callback` URL to the Supabase Auth redirect allow list.
-6. Verify the sending domain in Resend and set `RESEND_FROM_EMAIL`.
+5. Set Supabase Site URL to `https://cassemiro-one.vercel.app/` and allow `https://cassemiro-one.vercel.app/auth/callback`. Remove localhost from this production project's allow list; see [Auth/email setup](AUTH_EMAIL_SETUP.md).
+6. Add `GMAIL_APP_PASSWORD` for low-volume quote alerts, or configure Resend with a verified sender. Auth SMTP is configured separately in Supabase.
 7. Enable Web Analytics in the Vercel project dashboard.
 8. Optionally create a Sentry Next.js project and provide its DSN plus source-map credentials.
 9. Deploy, then run the launch checklist below.

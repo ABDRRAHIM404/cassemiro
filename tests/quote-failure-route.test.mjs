@@ -5,22 +5,23 @@ import { inspect } from "node:util";
 
 test("actual quote handler redacts storage/provider failures while retaining 500/201 semantics", async () => {
   const stateKey = Symbol.for("cassemiro.quote-failure-test");
-  const state = { databaseError: null, providerError: null, providerThrows: false, captures: [], inserts: 0, sends: 0 };
+  const state = { databaseError: null, missingSaved: false, providerError: null, providerThrows: false, captures: [], inserts: 0, sends: 0, messages: [] };
   globalThis[stateKey] = state;
   const stateSource = 'const state=globalThis[Symbol.for("cassemiro.quote-failure-test")];';
   const mocks = {
     "next/server": 'export class NextRequest extends Request {} export class NextResponse extends Response {static json(body, options){return Response.json(body,options)}}',
     "@/lib/rate-limit": 'export const quoteClientIdentity=()=>"isolated-test"; export const checkQuoteRateLimit=async()=>({allowed:true,error:false});',
-    "@/lib/supabase/admin": `${stateSource} export const createSupabaseAdmin=()=>({from:()=>({insert:()=>{state.inserts++;return {select:()=>({single:async()=>({data:state.databaseError?null:{id:"synthetic-id",created_at:"2026-10-05T00:00:00Z"},error:state.databaseError})})}}})});`,
+    "@/lib/supabase/admin": `${stateSource} export const createSupabaseAdmin=()=>({from:()=>({insert:()=>{state.inserts++;return {select:()=>({single:async()=>({data:state.databaseError||state.missingSaved?null:{id:"synthetic-id",created_at:"2026-10-05T00:00:00Z"},error:state.databaseError})})}}})});`,
     "@sentry/nextjs": `${stateSource} export const captureException=(error,context)=>state.captures.push({error,context});`,
-    "resend": `${stateSource} export class Resend {emails={send:async()=>{state.sends++;if(state.providerThrows)throw state.providerError;return {error:state.providerError}}};}`,
+    "resend": `${stateSource} export class Resend {emails={send:async(message,options)=>{state.sends++;state.messages.push({message,options});if(state.providerThrows)throw state.providerError;return {error:state.providerError}}};}`,
   };
   const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
     if (Object.hasOwn(mocks, specifier)) return { url: `data:text/javascript,${encodeURIComponent(mocks[specifier])}`, shortCircuit: true };
     if (specifier.startsWith("@/")) return nextResolve(new URL(`../src/${specifier.slice(2)}.ts`, import.meta.url).href, context);
+    if (["./notification-config", "./notification-message"].includes(specifier)) return nextResolve(new URL(`${specifier}.ts`, context.parentURL).href, context);
     return nextResolve(specifier, context);
   } });
-  const envNames = ["RESEND_API_KEY", "QUOTE_NOTIFICATION_EMAIL", "RESEND_FROM_EMAIL"];
+  const envNames = ["RESEND_API_KEY", "QUOTE_NOTIFICATION_EMAIL", "RESEND_FROM_EMAIL", "GMAIL_APP_PASSWORD"];
   const originalEnv = envNames.map(name => process.env[name]);
   const originalConsoleError = console.error;
   const originalFetch = globalThis.fetch;
@@ -30,6 +31,7 @@ test("actual quote handler redacts storage/provider failures while retaining 500
     globalThis.fetch = () => { throw new Error("Network forbidden in isolated quote test"); };
     console.error = (...values) => logs.push(values);
     envNames.forEach(name => { process.env[name] = "synthetic-test-only"; });
+    delete process.env.GMAIL_APP_PASSWORD;
     const { POST } = await import("../src/app/api/quotes/route.ts");
     const privateText = "Private Customer contact@example.invalid +5515999990000";
     const payload = { name: "Private Customer", phone: "+5515999990000", city: "Synthetic City", workType: "Construção residencial", description: privateText };
@@ -54,6 +56,7 @@ test("actual quote handler redacts storage/provider failures while retaining 500
     }
     assert.equal(state.inserts, 3);
     assert.equal(state.sends, 2);
+    assert.ok(state.messages.every(({message,options})=>message.to==="Cassemiro.obras@gmail.com"&&options.idempotencyKey==="quote-notification-synthetic-id"));
     assert.equal(state.captures.length, 3);
     assert.equal(logs.length, 3);
     for (const capture of state.captures) {
@@ -61,6 +64,9 @@ test("actual quote handler redacts storage/provider failures while retaining 500
       assert.equal(capture.error.cause, undefined);
     }
     assert.ok(!inspect({ logs, captures: state.captures }, { depth: null }).includes(privateText));
+    state.missingSaved=true;
+    assert.equal((await submit()).status,500);
+    assert.equal(state.sends,2,"Missing saved row must never trigger notification");
   } finally {
     globalThis.fetch = originalFetch;
     console.error = originalConsoleError;

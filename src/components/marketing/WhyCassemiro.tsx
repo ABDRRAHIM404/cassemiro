@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ShieldCheck } from "@phosphor-icons/react/dist/csr/ShieldCheck";
 import { Timer } from "@phosphor-icons/react/dist/csr/Timer";
 import { HardHat } from "@phosphor-icons/react/dist/csr/HardHat";
@@ -17,62 +17,12 @@ const pillars = [
 ] as const;
 
 export function WhyCassemiro({ imageUrl }: { imageUrl?: string | null }) {
-  const sectionRef = useRef<HTMLElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<Array<HTMLButtonElement | null>>([]);
   const [active, setActive] = useState(0);
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const mobile = window.matchMedia("(max-width: 760px)");
-    let frame = 0;
-    let lastScrollChoice = -1;
-    let visible = false;
-    const update = () => {
-      frame = 0;
-      if (!visible || reducedMotion.matches) return;
-      const rect = section.getBoundingClientRect();
-      const header = window.innerWidth <= 1000 ? 64 : 72;
-      // The mobile stage also leaves room for the fixed contact bar. Measure
-      // its actual height so all four phases finish before the section exits.
-      const distance = Math.max(1, rect.height - (stageRef.current?.getBoundingClientRect().height ?? window.innerHeight - header));
-      const progress = Math.min(1, Math.max(0, (header - rect.top) / distance));
-      const choice = Math.min(pillars.length - 1, Math.floor(progress * pillars.length));
-      section.style.setProperty("--trust-progress", String(progress));
-      // Only discrete phase changes enter React. Hover/focus remains selected
-      // until scrolling actually reaches another phase.
-      if (choice !== lastScrollChoice) {
-        lastScrollChoice = choice;
-        setActive(choice);
-      }
-    };
-    const requestUpdate = () => {
-      if (!frame) frame = requestAnimationFrame(update);
-    };
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      if (visible) requestUpdate();
-    });
-    observer.observe(section);
-    window.addEventListener("scroll", requestUpdate, { passive: true });
-    window.addEventListener("resize", requestUpdate, { passive: true });
-    reducedMotion.addEventListener("change", requestUpdate);
-    mobile.addEventListener("change", requestUpdate);
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", requestUpdate);
-      window.removeEventListener("resize", requestUpdate);
-      reducedMotion.removeEventListener("change", requestUpdate);
-      mobile.removeEventListener("change", requestUpdate);
-    };
-  }, []);
-
   return (
-    <section id="porque" ref={sectionRef} className={styles.root} aria-labelledby="why-title">
-      <div ref={stageRef} className={styles.stage}>
+    <section id="porque" className={styles.root} aria-labelledby="why-title">
+      <div className={styles.stage}>
         <div className={styles.media} aria-hidden="true">
           <Image src={imageUrl || "/media/hero/frames-webp/frame_100.webp"} alt="" fill sizes="100vw" unoptimized={Boolean(imageUrl?.startsWith("/api/project-media/"))} />
         </div>

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { quoteRequestSchema } from "@/features/quotes/validation";
 import { checkQuoteRateLimit, quoteClientIdentity } from "@/lib/rate-limit";
 import { readLimitedJson } from "@/lib/http/read-limited-json";
 import { optionalNotificationError } from "@/lib/quotes/optional-notification";
+import { sendQuoteNotification } from "@/lib/quotes/send-notification";
 import { quoteFailureDiagnostic } from "@/lib/quotes/failure-diagnostic";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import * as Sentry from "@sentry/nextjs";
@@ -16,10 +16,6 @@ function privateJson(body: unknown, status: number) {
     status,
     headers: { "Cache-Control": "private, no-store, max-age=0" }
   });
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"]/gu, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character] ?? character);
 }
 
 export async function POST(request: NextRequest) {
@@ -84,27 +80,13 @@ export async function POST(request: NextRequest) {
     return privateJson({ error: "Não foi possível registrar a solicitação. Tente novamente ou fale pelo WhatsApp." }, 500);
   }
 
-  const resendKey = process.env.RESEND_API_KEY;
-  const notificationEmail = process.env.QUOTE_NOTIFICATION_EMAIL;
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
-
-  if (resendKey && notificationEmail && fromEmail) {
-    const emailError = await optionalNotificationError(async () => {
-      const resend = new Resend(resendKey);
-      const desiredStart = quote.desiredStart || "Não informado";
-      return resend.emails.send({
-        from: fromEmail,
-        to: notificationEmail,
-        subject: `Novo orçamento — ${quote.name} · ${quote.workType}`,
-        html: `<h1>Nova solicitação de orçamento</h1><p><strong>Nome:</strong> ${escapeHtml(quote.name)}</p><p><strong>Telefone:</strong> ${escapeHtml(quote.phone)}</p><p><strong>Cidade:</strong> ${escapeHtml(quote.city)}</p><p><strong>Tipo de obra:</strong> ${escapeHtml(quote.workType)}</p><p><strong>Data desejada:</strong> ${escapeHtml(desiredStart)}</p><p><strong>Descrição:</strong><br>${escapeHtml(quote.description).replace(/\n/gu, "<br>")}</p><p><strong>Recebido em:</strong> ${escapeHtml(savedQuote.created_at)}</p>`
-      });
-    });
-    if (emailError) {
-      const diagnostic = quoteFailureDiagnostic("quote_notification", emailError);
-      console.error(diagnostic.error.message, diagnostic.tags);
-      Sentry.captureException(diagnostic.error, { tags: diagnostic.tags });
-    }
+  // Never notify before the database confirms a saved quote. Email failures
+  // must not erase the lead or encourage customers to submit it twice.
+  const emailError = await optionalNotificationError(() => sendQuoteNotification(quote, savedQuote));
+  if (emailError) {
+    const diagnostic = quoteFailureDiagnostic("quote_notification", emailError);
+    console.error(diagnostic.error.message, diagnostic.tags);
+    Sentry.captureException(diagnostic.error, { tags: diagnostic.tags });
   }
-
   return privateJson({ ok: true, id: savedQuote.id }, 201);
 }

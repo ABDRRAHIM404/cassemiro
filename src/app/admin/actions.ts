@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { authCallbackUrl, safeAdminDestination } from "@/lib/auth/redirects";
 
 const loginSchema = z.object({
   email: z.email(),
@@ -23,23 +23,10 @@ const newPasswordSchema = z.object({
   confirm_password: z.string()
 }).refine((value) => value.password === value.confirm_password);
 
-function safeAdminDestination(next?: string) {
-  return next?.startsWith("/admin") && !next.startsWith("//") ? next : "/admin";
-}
-
 function loginRedirect(message: string, next?: string): never {
   const params = new URLSearchParams({ error: message });
-  if (next?.startsWith("/admin") && !next.startsWith("//")) params.set("next", next);
+  if (next) params.set("next", safeAdminDestination(next));
   redirect(`/admin/login?${params.toString()}`);
-}
-
-async function authOrigin() {
-  const requestHeaders = await headers();
-  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  const forwardedHost = requestHeaders.get("x-forwarded-host");
-  const host = forwardedHost ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
-  return configuredOrigin ?? (host ? `${protocol}://${host}` : "http://localhost:3000");
 }
 
 export async function login(formData: FormData) {
@@ -82,7 +69,6 @@ export async function sendMagicLink(formData: FormData) {
 
   if (!parsed.success) loginRedirect("Digite um e-mail válido.");
 
-  const origin = await authOrigin();
   const next = safeAdminDestination(parsed.data.next);
 
   const supabase = await createClient();
@@ -90,7 +76,7 @@ export async function sendMagicLink(formData: FormData) {
     email: parsed.data.email,
     options: {
       shouldCreateUser: false,
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`
+      emailRedirectTo: authCallbackUrl(next)
     }
   });
 
@@ -108,10 +94,9 @@ export async function requestPasswordReset(formData: FormData) {
   const parsed = passwordResetSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) redirect("/admin/esqueci-senha?error=Digite+um+e-mail+válido.");
 
-  const origin = await authOrigin();
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/admin/redefinir-senha")}`
+    redirectTo: authCallbackUrl("/admin/redefinir-senha")
   });
 
   if (error) redirect("/admin/esqueci-senha?error=Não+foi+possível+enviar+o+link+agora.+Tente+mais+tarde.");

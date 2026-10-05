@@ -14,7 +14,7 @@ Confirm the user is authenticated, the `project-media` bucket exists, the file u
 
 ## Quote saves but email does not arrive
 
-The database write intentionally succeeds independently. Check `RESEND_API_KEY`, the verified sender, notification recipient and deployment logs.
+The database write intentionally succeeds independently. Check the server-only `GMAIL_APP_PASSWORD` and redeploy after adding it, or check the alternative `RESEND_API_KEY` and verified sender. The recipient is always `Cassemiro.obras@gmail.com`. A Gmail password change revokes app passwords. Check sanitized deployment logs and the inbox/spam folder; see [Auth/email setup](AUTH_EMAIL_SETUP.md).
 
 ## Analytics has no data
 

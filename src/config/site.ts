@@ -7,7 +7,7 @@ export const siteConfig = {
   phoneE164: "5515996101849",
   email: "Cassemiro.obras@gmail.com",
   serviceAreas: ["Sorocaba", "Votorantim", "Itu", "Porto Feliz"],
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://cassemiro-one.vercel.app"
 } as const;
 
 export const services = [

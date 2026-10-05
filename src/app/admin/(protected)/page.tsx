@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { quoteNotificationsConfigured } from "@/lib/quotes/notification-config";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
@@ -7,9 +8,7 @@ function formatDate(value: string) {
 
 export default async function AdminOverviewPage() {
   const { supabase, profile } = await requireAdmin();
-  const emailNotificationsConfigured = Boolean(
-    process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL && process.env.QUOTE_NOTIFICATION_EMAIL
-  );
+  const emailNotificationsConfigured = quoteNotificationsConfigured();
   const [newQuotes, totalQuotes, projects, testimonials, recent] = await Promise.all([
     supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "Novo").is("anonymized_at", null),
     supabase.from("quote_requests").select("id", { count: "exact", head: true }).is("anonymized_at", null),
