@@ -19,7 +19,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { data: media, error: mediaError } = await admin.from("project_media")
     .select("storage_path, projects(is_published)").eq("id", id).maybeSingle();
   if (mediaError) {
-    console.error("Project media lookup failed", mediaError.message);
+    // Database diagnostics can contain private object paths or submitted values.
+    // Keep this explicit report bounded; never forward the raw error object.
+    console.error("Project media lookup failed");
     return new Response(null, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
   if (!media?.storage_path || !media.projects) return notFound();

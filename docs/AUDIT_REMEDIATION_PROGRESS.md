@@ -474,6 +474,14 @@ At both widths, clicking the hydrated contact form's empty submit focused the fi
 
 `check-live-target-size.mjs` preserves this check with explicit existing Playwright/axe paths, a fixed production origin, interception of every non-GET request and assertions that the actual target-size rule evaluated controls. A regression guard protects write blocking, invalid-form request exclusion, inconclusive-result rejection and the narrow reported scope. All 72 repository tests, scoped ESLint and diff checks pass. No application defect was established in these states, so no speculative control resizing was applied. The deferred staging gates and separately documented visual contrast, physical-device, email and security-policy decisions remain distinct.
 
+## Private-media lookup diagnostic hardening — 5 October
+
+The next security review found one remaining explicit raw database-message sink: the media GET handler logged `mediaError.message` on lookup failure. Database messages may contain submitted values or private object paths. No historical or live customer-data disclosure was established. That report now emits only the fixed string “Project media lookup failed”; it never forwards the original error object or reads its message/details/cause. Route status, authorization, signed-link lifetime and cache policy are unchanged. This is scoped to that explicit log, not ambient Sentry request context or every diagnostic in the application.
+
+An isolated Node test imports and executes the actual media GET handler with in-memory database/Storage/Auth doubles and all network forbidden. Invalid UUIDs return uncached 404 without a lookup; absent configuration returns uncached 503. Three lookup failures—including an Error with a private cause and a deliberately throwing message getter—return an empty, uncached 503 without signing or session lookup, and logs contain exactly the fixed string. Missing media and an anonymous draft request return 404; a published image still redirects with `private, no-store` and `no-referrer`. No real record, credential, signed URL or email was involved. All 73 repository tests, targeted route/test ESLint and diff checks pass. No local build/dev server ran. The Next.js route guidance preserved async params and existing HTTP semantics; no Supabase schema or access-policy change was made.
+
+Staging remains deferred at the owner's request. This change does not close the separate email, field/physical-device, strict CSP or complete telemetry privacy gates.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
