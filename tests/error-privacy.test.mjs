@@ -36,7 +36,6 @@ test("installed Sentry SDK applies the filter before the in-memory transport", a
     dsn: "https://synthetic@example.invalid/1",
     integrations: [],
     stackParser: () => [],
-    sendDefaultPii: false,
     beforeSend: protectErrorPrivacy,
     transport: () => ({
       send: async envelope => { envelopes.push(envelope); return { statusCode: 200 }; },
@@ -71,7 +70,7 @@ test("all three Sentry runtimes install the same error filter without enabling a
   for (const path of ["sentry.server.config.ts", "sentry.edge.config.ts", "instrumentation-client.ts"]) {
     const source = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
     assert.match(source, /beforeSend: protectErrorPrivacy/);
-    assert.match(source, /sendDefaultPii: false/);
+    assert.doesNotMatch(source, /sendDefaultPii/);
     assert.match(source, /tracesSampleRate: 0\.1/);
     assert.match(source, /process\.env\.(?:NEXT_PUBLIC_)?SENTRY_DSN/);
   }
