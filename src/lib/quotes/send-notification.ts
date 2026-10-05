@@ -18,7 +18,7 @@ export async function sendQuoteNotification(quote: QuoteRequestInput, saved: { i
         ...message, from: { name: "CASSEMIRO", address: QUOTE_NOTIFICATION_EMAIL },
         messageId: `<quote-${saved.id}@cassemiro-one.vercel.app>`
       });
-      if (!result.accepted?.some(address => (typeof address === "string" ? address : address.address).toLowerCase() === QUOTE_NOTIFICATION_EMAIL.toLowerCase())) {
+      if (!result.accepted?.some((address: string | { address: string }) => (typeof address === "string" ? address : address.address).toLowerCase() === QUOTE_NOTIFICATION_EMAIL.toLowerCase())) {
         return { error: new Error("Quote notification recipient was not accepted") };
       }
       return {};
