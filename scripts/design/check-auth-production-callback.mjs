@@ -42,7 +42,7 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       assert.deepEqual(errors, []); assert.equal(writes, 0);
       // Reusing the consumed token must fail to login, never localhost.
-      const repeat = await page.request.get(callback.href, { maxRedirects: 0 });
+      const repeat = await page.request.get(callback.href, { maxRedirects: 0 }).catch(() => { throw new Error("Consumed-token callback check failed"); });
       assert.equal(repeat.status(), 307);
       const repeatTarget = new URL(repeat.headers().location); assert.equal(repeatTarget.origin, origin); assert.equal(repeatTarget.pathname, "/admin/login");
       console.log(JSON.stringify({ liveAuthCallback: { type: verifyType, destination: target, canonicalOrigin: true, sessionVerified: true, consumedTokenRejected: true, emailSent: false, passwordChanged: false, browserWrites: 0, runtimeErrors: 0 } }));

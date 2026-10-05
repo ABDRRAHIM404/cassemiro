@@ -19,6 +19,11 @@ try {
       const section = page.locator("#porque");
       await section.scrollIntoViewIfNeeded();
       const group = section.getByRole("group", { name: "Compromissos CASSEMIRO" });
+      await page.waitForFunction(() => {
+        const button = document.querySelector('#porque [role="group"] button');
+        const key = button && Object.keys(button).find(key => key.startsWith("__reactProps$"));
+        return key && typeof button[key]?.onClick === "function";
+      }, undefined, { timeout: 30000 });
       for (const title of ["Qualidade", "Prazos", "Experiência", "Confiança"]) {
         await group.getByRole("button", { name: title }).click();
         await section.getByRole("heading", { name: title, exact: true }).waitFor();
