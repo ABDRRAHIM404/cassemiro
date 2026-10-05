@@ -482,6 +482,14 @@ An isolated Node test imports and executes the actual media GET handler with in-
 
 Staging remains deferred at the owner's request. This change does not close the separate email, field/physical-device, strict CSP or complete telemetry privacy gates.
 
+## Automatic error-report request privacy — 5 October
+
+Following the owner's decision to defer staging, the next source review found that all three optional Sentry runtimes lacked a final error-event request filter. This is a preventive collection-control gap, not evidence of a customer-data disclosure. The browser, Node and Edge configurations now explicitly disable default PII collection and share a `beforeSend` filter that removes the entire request context (including bodies, headers, cookies and URL), user context, breadcrumbs and arbitrary extras. Error messages, stack traces, release information and existing operation/error-code tags remain available. The existing DSN condition and 10% trace sampling are unchanged; no monitoring service, domain or paid feature was enabled.
+
+Four isolated regression checks exercise the actual TypeScript filter, minimal events, runtime wiring and the installed Sentry SDK's processing into a strictly in-memory transport. Network access is forbidden in the transport test; synthetic request/token/contact values are absent from its outgoing error envelope while the safe diagnostic and operation tags survive. Scoped ESLint and diff checks pass. No local build or dev server was run; GitHub/Vercel remains the deployment verification path.
+
+This closes only these ancillary error-event fields. It does not claim that arbitrary exception messages, custom contexts/tags, performance spans, logs, third-party analytics or every telemetry channel are fully scrubbed. No real customer event or notification was sent. Staging publication/global settings tests remain deferred rather than passed, and the previously documented email/domain, CSP, upstream advisory and physical-device/field gates remain open.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
