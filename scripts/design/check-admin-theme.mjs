@@ -24,6 +24,7 @@ const jar = new Map();
 let token;
 let browser;
 let blockedWrites = 0;
+const accessibilityFindings = [];
 const counts = async () => {
   const result = {};
   for (const table of ["projects", "project_media", "quote_requests", "profiles"]) {
@@ -81,6 +82,19 @@ try {
     const contrast = async () => {
       const mobileMenu = page.locator('details').filter({ has: page.locator('summary', { hasText: "Menu" }) });
       if (width === 390) await mobileMenu.locator('summary').click();
+      const scanAccessibility = async menu => {
+        if (!process.env.AXE_CORE_SCRIPT) return;
+        if (!await page.evaluate(() => Boolean(window.axe))) await page.addScriptTag({ path: process.env.AXE_CORE_SCRIPT });
+        const accessibility = await page.evaluate(async () => {
+          const result = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] } });
+          const summarize = rules => rules.map(rule => ({ id: rule.id, impact: rule.impact, targets: rule.nodes.map(node => node.target) }));
+          return { violations: summarize(result.violations), incomplete: summarize(result.incomplete) };
+        });
+        const observation = { width, path: new URL(page.url()).pathname, theme: await page.locator("[data-admin-theme]").getAttribute("data-admin-theme"), menu, ...accessibility };
+        accessibilityFindings.push(observation);
+        console.log(JSON.stringify({ adminAccessibility: observation }));
+      };
+      await scanAccessibility(width === 390 ? "open" : "desktop");
       // Measure opaque text against its nearest opaque CSS background, not
       // image overlays, disabled controls, or a blanket WCAG conformance claim.
       const samples = await page.evaluate(() => {
@@ -104,6 +118,7 @@ try {
           }).filter(sample => sample.ratio !== null);
       });
       if (width === 390) await mobileMenu.locator('summary').click();
+      if (width === 390) await scanAccessibility("closed");
       for (const sample of samples) assert.ok(sample.ratio >= 4.5, `${sample.element} normal-text contrast ${sample.ratio.toFixed(2)} below 4.5`);
       return samples.map(sample => sample.ratio);
     };
@@ -165,6 +180,7 @@ try {
     assert.equal(blockedWrites, 0, "Unexpected browser write attempted");
     console.log(JSON.stringify({ anonymousProtection: true, blockedBrowserWrites: blockedWrites, scope: "Read-only existing-owner theme checks; no saves, uploads or new accounts" }));
   } finally { await anonymous.close(); }
+  assert.equal(accessibilityFindings.reduce((count, result) => count + result.violations.length, 0), 0, "Automatic admin accessibility violations require review");
 } finally {
   try { await browser?.close(); }
   finally {

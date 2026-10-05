@@ -70,5 +70,9 @@ test("live admin theme checker selects an explicit owner and remains read-only",
   assert.match(checker, /assert\.equal\(blockedWrites, 0/);
   assert.match(checker, /signOut\(token, "local"\)/);
   assert.match(checker, /assert\.deepEqual\(await counts\(\), before/);
+  assert.match(checker, /AXE_CORE_SCRIPT/);
+  assert.match(checker, /"wcag22aa"/);
+  assert.match(checker, /Automatic admin accessibility violations require review/);
+  assert.doesNotMatch(checker, /node\.html|node\.failureSummary/);
   assert.doesNotMatch(checker, /\.createUser\(|\.updateUserById\(|\.insert\(|\.delete\(/);
 });
