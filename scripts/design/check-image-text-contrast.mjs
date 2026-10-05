@@ -6,7 +6,7 @@ import sharp from "sharp";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
 const origin = process.argv[2] ?? "http://127.0.0.1:3001";
 const group = process.argv[3] ?? "trust";
-if (!["trust", "ending"].includes(group)) throw new Error("Unexpected audit group");
+if (!["trust", "ending", "chapters"].includes(group)) throw new Error("Unexpected audit group");
 if (!["http://127.0.0.1:3001", "https://cassemiro-one.vercel.app"].includes(origin)) throw new Error("Unexpected audit origin");
 const luminance = rgb => rgb.map(value => {
   const channel = value / 255;
@@ -31,14 +31,16 @@ try {
       await page.evaluate(() => document.fonts.ready);
       const projectCount = group === "ending" ? await page.locator('#projetos article[data-active]').count() : 0;
       if (group === "ending" && !projectCount) throw new Error("No actual project slides available for contrast verification");
-      const states = group === "ending" ? [
+      const states = group === "chapters" ? Array.from({ length: 6 }, (_, index) => ({
+        section: index === 0 ? "servicos" : `etapa-${index + 1}`, phase: index + 1, pillar: null, projectIndex: null
+      })) : group === "ending" ? [
         ...Array.from({ length: projectCount }, (_, projectIndex) => ({ section: "projetos", pillar: null, projectIndex })),
         { section: "footer", pillar: null, projectIndex: null },
       ] : [
         { section: "sobre", pillar: null, projectIndex: null },
         ...["Qualidade", "Prazos", "Experiência", "Confiança"].map(pillar => ({ section: "porque", pillar, projectIndex: null })),
       ];
-      for (const { section, pillar, projectIndex } of states) {
+      for (const { section, phase, pillar, projectIndex } of states) {
         // Testimonials also contain a semantic footer; select site contentinfo.
         const selector = section === "footer" ? "footer:not(main footer)" : `#${section}`;
         // Lazy images must enter the viewport before decode() can complete.
@@ -86,6 +88,21 @@ try {
           await element.evaluate(element => {
             window.scrollTo(0, element.getBoundingClientRect().top + scrollY - innerHeight / 2);
           });
+          if (group === "chapters") {
+            // The story illustration is a viewport-sticky sibling, not an
+            // image inside the chapter. Observe its actual phase and decode
+            // only the visible artwork without scrolling away from the text.
+            await page.waitForFunction(({ selector, phase }) =>
+              document.querySelector(selector)?.closest('[data-phase]')?.dataset.phase === String(phase), { selector, phase });
+            const artwork = page.locator('[data-artwork]').filter({ visible: true });
+            for (const picture of await artwork.all()) {
+              if (await picture.evaluate(el => Number(getComputedStyle(el).opacity) < .99)) continue;
+              const image = picture.locator('img');
+              await page.waitForFunction(el => el.complete && el.naturalWidth > 0, await image.elementHandle(), { timeout: 20000 });
+              await image.evaluate(el => el.decode());
+            }
+            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+          }
           const metadata = await element.evaluate(element => {
             const style = getComputedStyle(element), rect = element.getBoundingClientRect();
             let opacity = 1;
@@ -154,5 +171,5 @@ try {
     } finally { await page.close(); }
   }
 } finally { await browser.close(); }
-console.log(JSON.stringify({ origin, group, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests all actual keyboard-selected project states/footer; reduced motion; not transition/scroll/hover states or WCAG certification" }));
+console.log(JSON.stringify({ origin, group, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests all actual keyboard-selected project states/footer; chapters group tests six naturally scrolled construction phases with decoded sticky artwork; reduced motion; not transition/scroll/hover states or WCAG certification" }));
 if (results.some(result => result.status === "review")) process.exitCode = 1;

@@ -25,6 +25,9 @@ test("services unfold on natural scrolling without arrows, frame decoding, or Re
   assert.ok(css.includes("prefers-reduced-motion: reduce"));
   assert.ok(css.includes("position: sticky"));
   assert.ok(!css.includes("clip-path: inset"));
-  assert.ok(!css.includes("mask-image"));
+  // Text backing may feather its edges; the approved artwork must remain
+  // complete and unmasked. Exempt only that non-image pseudo-element.
+  const artworkCss = css.replace(/\.chapterCopy::before\s*\{[^}]*\}/g, "");
+  assert.ok(!artworkCss.includes("mask-image"));
   assert.ok(component.includes("data-artwork={artwork.name}"));
 });

@@ -14,3 +14,14 @@ test("ending contrast verifier samples every actual carousel state after keyboar
   assert.match(source, /result\.projectIndex === projectIndex/);
   assert.match(source, /not transition\/scroll\/hover states or WCAG certification/);
 });
+
+test("chapter contrast verifier checks the actual sticky phase and decoded artwork", () => {
+  const source = readFileSync(new URL("../scripts/design/check-image-text-contrast.mjs", import.meta.url), "utf8");
+  assert.match(source, /Array\.from\(\{ length: 6 \}/);
+  assert.match(source, /phase: index \+ 1/);
+  assert.match(source, /closest\('\[data-phase\]'\)\?\.dataset\.phase === String\(phase\)/);
+  assert.match(source, /getComputedStyle\(el\)\.opacity/);
+  assert.match(source, /only the visible artwork without scrolling away from the text/);
+  assert.match(source, /chapters group tests six naturally scrolled construction phases/);
+  assert.match(source, /status: measured \? minimum >= threshold \? "pass" : "review" : "inconclusive"/);
+});
