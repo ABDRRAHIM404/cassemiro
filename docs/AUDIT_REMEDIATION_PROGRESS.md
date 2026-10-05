@@ -490,6 +490,14 @@ Four isolated regression checks exercise the actual TypeScript filter, minimal e
 
 This closes only these ancillary error-event fields. It does not claim that arbitrary exception messages, custom contexts/tags, performance spans, logs, third-party analytics or every telemetry channel are fully scrubbed. No real customer event or notification was sent. Staging publication/global settings tests remain deferred rather than passed, and the previously documented email/domain, CSP, upstream advisory and physical-device/field gates remain open.
 
+## Project-index accessible naming — 5 October
+
+A broader GET-only axe-core 4.13.0 scan at 390 and 1366 px found an `aria-prohibited-attr` inconclusive record on the homepage project index at both widths. Manual source review confirmed an author-provided `aria-label` on a generic `div`, whose implicit role prohibits naming under [WAI-ARIA](https://www.w3.org/TR/wai-aria-1.2/#generic). The index now has an explicit named `group` role; its existing number, visual progress line, caption announcement and interaction remain unchanged. No additional live region or keyboard stop was added.
+
+The initial scan found no automatic violations on the homepage, contact, services, projects, privacy and admin-login pages at these two widths. Homepage photographic-overlay color-contrast records remain inconclusive, not passes. An initially guessed `/admin/recuperar-senha` URL returned the expected 404; current file conventions show the actual recovery routes are `/admin/esqueci-senha` and `/admin/redefinir-senha`. The saved checker uses those real routes and requires HTTP 200 rather than treating a successful 404-page accessibility scan as recovery-page evidence.
+
+`check-live-public-accessibility.mjs` now checks eight real route requests at both widths, including the signed-out reset route's explicit redirect to login with its invalid/expired-link alert (not the authenticated password form). It prohibits all non-GET traffic, reports automatic violations and incompletes separately, rejects all non-contrast inconclusives, and verifies the named index, active slide and retained keyboard focus for every actual homepage project. Two regression guards protect the naming and verifier's write/coverage safeguards. All 79 repository tests, local scoped ESLint and diff checks pass. Deployment and the post-deployment scan are still separate gates; no local build, authenticated state, quote submission or customer mutation was used. This is not complete WCAG, real-device or full screen-reader certification.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

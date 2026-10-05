@@ -141,7 +141,7 @@ export function ProjectsJourney({ items }: { items: HomepageProject[] }) {
       </noscript>
       <header className={`${styles.shell} ${styles.header}`}>
         <Reveal><p className={styles.context}>Projetos selecionados</p><h2 id="projects-title">Obras que permanecem.</h2></Reveal>
-        <div className={styles.meter} aria-label={`Projeto ${active + 1} de ${projects.length}`}>
+        <div className={styles.meter} role="group" aria-label={`Projeto ${active + 1} de ${projects.length}`}>
           <span>{String(active + 1).padStart(2, "0")}</span><span aria-hidden="true">/</span><span>{String(projects.length).padStart(2, "0")}</span>
           <i aria-hidden="true"><b style={{ transform: `scaleX(${(active + 1) / projects.length})` }} /></i>
         </div>
