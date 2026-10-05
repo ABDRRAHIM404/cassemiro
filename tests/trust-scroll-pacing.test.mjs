@@ -9,11 +9,13 @@ test("trust section is normal document flow without a pinned scroll runway on an
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
-test("trust retains content and manual pillar controls without listening to or cancelling page gestures", () => {
+test("trust shows every pillar once without selectors or cancelled page gestures", () => {
   const source = readFileSync("src/components/marketing/WhyCassemiro.tsx", "utf8");
   assert.doesNotMatch(source, /addEventListener|useEffect|requestAnimationFrame|scrollTo|stageRef|sectionRef/);
-  assert.doesNotMatch(source, /mobileDetail|\{pillar\.text\}/);
-  assert.match(source, /onClick=\{\(\) => setActive\(index\)\}/);
-  assert.match(source, /onPointerEnter/);
+  assert.doesNotMatch(source, /useState|useRef|setActive|onClick|onPointerEnter|aria-pressed|aria-hidden=\{active|<button/);
+  assert.match(source, /<ul className=\{styles\.pillars\}/);
+  assert.match(source, /<li className=\{styles\.pillar\}/);
+  assert.equal((source.match(/pillars\.map/g) || []).length, 1);
+  assert.match(source, /<p>\{text\}<\/p>/);
   for (const pillar of ["Qualidade", "Prazos", "Experiência", "Confiança"]) assert.ok(source.includes(pillar));
 });
