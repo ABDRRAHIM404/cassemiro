@@ -38,7 +38,8 @@ test("actual Gmail/Resend transports use only the business inbox and complete es
     for(const value of [quote.name,quote.phone,quote.city,quote.workType,quote.description,"05/11/2026","05/10/2026","11:20:30"])assert.ok(state.message.text.includes(value),`Missing text field ${value}`);
     assert.ok(!state.message.html.includes("<script>"));assert.ok(state.message.html.includes("&lt;script&gt;"));assert.ok(state.message.html.includes("loja &amp; escritório.<br>Segunda linha"));
     assert.ok(state.message.text.includes("https://cassemiro-one.vercel.app/admin/orcamentos/synthetic-quote"));
-    state.accepted=[];assert.ok((await sendQuoteNotification(quote,saved)).error);assert.equal(state.closed,2);
+    state.accepted=[{name:"CASSEMIRO",address:"Cassemiro.obras@gmail.com"}];assert.deepEqual(await sendQuoteNotification(quote,saved),{});
+    state.accepted=[];assert.ok((await sendQuoteNotification(quote,saved)).error);assert.equal(state.closed,3);
     delete process.env.GMAIL_APP_PASSWORD;process.env.RESEND_API_KEY="synthetic-only";process.env.RESEND_FROM_EMAIL="verified@example.invalid";
     assert.equal(quoteNotificationsConfigured(),true);assert.equal((await sendQuoteNotification({...quote,desiredStart:""},saved)).error,null);
     assert.equal(state.message.to,"Cassemiro.obras@gmail.com");assert.ok(state.message.text.includes("Não informada"));
