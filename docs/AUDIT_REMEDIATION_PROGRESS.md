@@ -560,6 +560,8 @@ After the owner deferred staging and asked to move on, inspection of the install
 
 The shared error-event filter now removes only this concrete-path field, retaining the Next router kind, route template, route type and unrelated runtime context. All three runtimes already use this filter. A regression covers query-code removal, retained diagnostics and idempotence; the installed browser SDK's in-memory transport test also verifies the duplicate path is absent from the actual outgoing error envelope. Network is prohibited in that test. All 86 tests, scoped ESLint and diff checks pass. No local build/dev server was run. Cloud deployment verification remains pending at this entry; actual external ingestion, arbitrary exception messages/custom contexts and performance traces remain outside this bounded proof. The approved design, customer data and public-page caching are unchanged.
 
+Application commit `f1c6745` was verified READY in production deployment `dpl_9Uiuys7zDgbjMjxho14Y5sZpMWqd`, with the production alias attached and a completed 16-second Vercel cloud build. A GET-only live Chromium smoke check of the homepage and admin login at 390 and 1366 px returned HTTP 200 in all four observations, with no horizontal overflow, runtime exceptions or attempted non-GET requests. This checks deployment/rendering regression, not real external error ingestion; the outgoing-payload proof remains the synthetic in-memory SDK test. No owner session, customer record, email or monitoring service was changed.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
