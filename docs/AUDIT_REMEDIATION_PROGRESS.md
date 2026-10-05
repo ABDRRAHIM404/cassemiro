@@ -578,6 +578,8 @@ The owner asked us to choose the best scope after the explicit admin-only/site-w
 
 The Supabase refresh response explicitly forwards request headers both initially and after cookie renewal. Refreshed cookies are retained on anonymous redirects; final admin responses are private/no-store. The authorization model, database/Storage policies, credentials, content and design are unchanged. Three regressions cover the actual proxy with mocked Auth and real Next request/response objects, fresh nonces, caller-header replacement, cookie/header forwarding, anonymous redirects, production/dev distinctions and admin-only rendering scope. Network is prohibited in the isolated proxy test. Initial native-Node import resolution was corrected to `next/server.js` in the test harness; no app import convention was changed to satisfy it. Focused tests and scoped lint pass; complete tests/cloud/live verification are separate pending gates. No local build/dev server ran.
 
+The first cloud deployment (`c6901c0`) built successfully but a live header check still returned the global compatible policy and HTML had no script nonce. It is not counted as a successful hardening deployment. The static CSP header is now limited to non-admin paths; global non-CSP security headers remain on all paths. Next's installed route parser was exercised against homepage/contact/API/admin lookalike paths and the actual `/admin` tree to confirm correct exclusion. Focused tests and lint pass again; the correction requires a new cloud/live verification.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

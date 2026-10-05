@@ -27,7 +27,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        // Admin CSP comes from the request-specific proxy, not a static header.
+        source: "/((?!admin(?:/|$)).*)",
         headers: [
           { key: "Content-Security-Policy", value: [
             "default-src 'self'",
@@ -43,6 +44,11 @@ const nextConfig: NextConfig = {
             "frame-ancestors 'self'",
             "form-action 'self'"
           ].join("; ") },
+        ]
+      },
+      {
+        source: "/(.*)",
+        headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },

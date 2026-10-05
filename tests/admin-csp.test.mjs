@@ -87,4 +87,5 @@ test("dynamic rendering stays inside admin; public baseline policy remains compa
   }
   const config = await readFile(new URL("../next.config.ts", import.meta.url), "utf8");
   assert.match(config, /script-src 'self' 'unsafe-inline'/);
+  assert.ok(config.includes('source: "/((?!admin(?:/|$)).*)"'), "Static CSP must not override admin response nonces");
 });
