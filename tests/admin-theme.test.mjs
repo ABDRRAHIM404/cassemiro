@@ -73,6 +73,23 @@ test("live admin theme checker selects an explicit owner and remains read-only",
   assert.match(checker, /AXE_CORE_SCRIPT/);
   assert.match(checker, /"wcag22aa"/);
   assert.match(checker, /Automatic admin accessibility violations require review/);
+  assert.match(checker, /AUDIT_FOCUSED_CONTRAST/);
+  assert.match(checker, /scrollIntoViewIfNeeded\(\)/);
+  assert.match(checker, /elementFromPoint/);
+  assert.match(checker, /sample\.ratio >= sample\.required/);
+  assert.match(checker, /graphical \? 3 : 4\.5/);
+  assert.match(checker, /translucent background/);
   assert.doesNotMatch(checker, /node\.html|node\.failureSummary/);
   assert.doesNotMatch(checker, /\.createUser\(|\.updateUserById\(|\.insert\(|\.delete\(/);
+});
+
+test("light admin table hover retains readable bronze links without changing dark or status colors", () => {
+  const css = readFileSync(new URL("../src/components/admin/AdminWorkspace.module.css", import.meta.url), "utf8");
+  const rule = css.match(/\.root\[data-admin-theme="light"\] :global\(\.admin-table tr:hover td a:not\(\.status\)\) \{ color: (#[\da-f]{6}); \}/);
+  assert.ok(rule, "Hover correction must remain scoped to light table links, excluding statuses");
+  const background = css.match(/\.root :global\(\.admin-table tr:hover\) \{ background: (#[\da-f]{6}); \}/)[1];
+  const luminance = hex => hex.slice(1).match(/../g).map(part => parseInt(part, 16) / 255).map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4).reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
+  const a = luminance(rule[1]), b = luminance(background);
+  assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5);
+  assert.match(css, /\.root :global\(\.admin-table td a\).*color: var\(--accent\)/);
 });

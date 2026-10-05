@@ -534,6 +534,14 @@ The corrected live run completed 45 observations: 30 at 390×844 (open/closed me
 
 Both runs completed cleanup with locally scoped isolated-session revocation and unchanged hosted project/media/quote/profile counts. The corrected run attempted zero non-GET browser requests and captured zero runtime exceptions or whole-page overflow. All 82 tests, scoped lint, syntax and diff checks passed. No account, email, password, publication state or production content was changed; no local build/dev server ran. No application defect was established by these automatic checks. The next contrast work is bounded to the remaining specific labels/controls, not another whole-site repeat; staged write/publication and other external gates remain deferred/open as previously documented.
 
+## Focused admin hover contrast correction — 5 October
+
+The next check targets only the earlier inconclusive table links/cells, enabled service reorder arrows and testimonial supporting label. It scrolls each target into view, checks its center is uncovered, measures computed opaque foreground/background colors at rest and hover, and rejects unresolved compositing, image or translucent backgrounds. Text requires 4.5:1; graphical arrows/star ratings require 3:1. Disabled controls are not included. Values, customer text, HTML and credentials are never printed. Browser requests remain GET-only and only the isolated existing-owner session is locally revoked.
+
+The first live baseline run failed on a light-theme overview table link while hovered: 4.44:1 against the row's hover background, below 4.5:1. Its test session was revoked and hosted counts were unchanged. The baseline stopped at this first failure; it is not evidence that the other focused routes/states passed.
+
+The admin CSS module now uses a slightly darker bronze `#7a5b36` for ordinary links inside hovered light-theme table rows. The default bronze, dark theme, status-badge colors, table background, dimensions, customer data and public website are unchanged. A regression verifies the scoped selector excludes status badges, preserves normal links, and exceeds 4.5:1 against the actual hover background. All 83 tests, scoped lint and diff checks pass, with no local build/dev server. The complete focused live run after deployment remains to be recorded; the broader audit is not complete.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

@@ -123,6 +123,62 @@ try {
       return samples.map(sample => sample.ratio);
     };
     try {
+      if (process.env.AUDIT_FOCUSED_CONTRAST === "yes") {
+        for (const mode of ["light", "dark"]) {
+          for (const path of ["/admin", "/admin/projetos", "/admin/servicos", "/admin/depoimentos", "/admin/orcamentos"]) {
+            await goto(path);
+            const toggle = page.getByRole("switch", { name: "Modo escuro" });
+            if (await toggle.getAttribute("aria-checked") !== String(mode === "dark")) await toggle.click();
+            await theme(mode);
+            const targets = page.locator('.admin-table td a, .admin-table td:not(:has(*)), .admin-service-order button:not(:disabled), .testimonial-list article > div > span');
+            const samples = [];
+            for (let index = 0; index < await targets.count(); index++) {
+              const target = targets.nth(index);
+              await target.scrollIntoViewIfNeeded();
+              await page.mouse.move(0, 0);
+              for (const state of ["rest", "hover"]) {
+                if (state === "hover") await target.hover();
+                const sample = await target.evaluate(async el => {
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  const color = value => {
+                    const parts = value.match(/[\d.]+/g)?.map(Number);
+                    if (!parts || parts.length < 3 || parts.length > 4) return null;
+                    return { rgb: parts.slice(0, 3), alpha: parts[3] ?? 1 };
+                  };
+                  const luminance = rgb => rgb.map(n => n / 255).map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4).reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
+                  const foreground = color(getComputedStyle(el).color);
+                  let background;
+                  for (let parent = el; parent; parent = parent.parentElement) {
+                    const style = getComputedStyle(parent);
+                    if (Number(style.opacity) !== 1 || style.filter !== "none" || style.mixBlendMode !== "normal") return { inconclusive: "composited ancestor" };
+                    if (!background) {
+                      if (style.backgroundImage !== "none") return { inconclusive: "image background" };
+                      const candidate = color(style.backgroundColor);
+                      if (candidate?.alpha === 1) background = candidate;
+                      else if (candidate?.alpha > 0) return { inconclusive: "translucent background" };
+                    }
+                  }
+                  const rect = el.getBoundingClientRect();
+                  const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+                  if (!hit || !el.contains(hit)) return { inconclusive: "not visibly uncovered" };
+                  if (!background || foreground?.alpha !== 1) return { inconclusive: "non-opaque colors" };
+                  const a = luminance(foreground.rgb), b = luminance(background.rgb);
+                  const graphical = el.matches('.admin-service-order button') || /^★+$/.test(el.textContent.trim());
+                  return { ratio: (Math.max(a, b) + .05) / (Math.min(a, b) + .05), required: graphical ? 3 : 4.5, graphical };
+                });
+                assert.ok(!sample.inconclusive, `Focused ${path} ${state} sample ${index}: ${sample.inconclusive}`);
+                assert.ok(sample.ratio >= sample.required, `Focused ${path} ${mode} ${state} sample ${index}: ${sample.ratio.toFixed(2)} below ${sample.required}`);
+                samples.push(sample);
+              }
+            }
+            assert.ok(samples.length, "Expected real contrast targets");
+            console.log(JSON.stringify({ focusedAdminContrast: { width, path, theme: mode, samples: samples.length, graphicalSamples: samples.filter(sample => sample.graphical).length, minimum: Number(Math.min(...samples.map(sample => sample.ratio)).toFixed(2)), method: "Visible opaque computed colors, rest and hover" } }));
+          }
+        }
+        assert.deepEqual(errors, [], "Browser runtime errors");
+        assert.equal(blockedWrites, 0, "Unexpected browser write attempted");
+        continue;
+      }
       await goto("/admin");
       await theme("light");
       const contrastRatios = await contrast();
