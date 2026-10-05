@@ -30,6 +30,29 @@ test("minimal error events remain valid", () => {
   assert.deepEqual(protectErrorPrivacy({ type: undefined }), { type: undefined });
 });
 
+test("Next request-error context drops concrete paths but keeps route templates", () => {
+  const event = {
+    contexts: {
+      nextjs: {
+        request_path: "/auth/callback?code=synthetic-private-code",
+        router_kind: "App Router",
+        router_path: "/auth/callback",
+        route_type: "route"
+      },
+      runtime: { name: "node", version: "synthetic-version" }
+    }
+  };
+  assert.equal(protectErrorPrivacy(event), event);
+  assert.deepEqual(event.contexts.nextjs, {
+    router_kind: "App Router",
+    router_path: "/auth/callback",
+    route_type: "route"
+  });
+  assert.deepEqual(event.contexts.runtime, { name: "node", version: "synthetic-version" });
+  assert.ok(!JSON.stringify(event).includes("synthetic-private-code"));
+  assert.deepEqual(protectErrorPrivacy(event), event);
+});
+
 test("installed Sentry SDK applies the filter before the in-memory transport", async () => {
   const envelopes = [];
   const client = new BrowserClient({
@@ -51,6 +74,11 @@ test("installed Sentry SDK applies the filter before the in-memory transport", a
       user: { email: "private@example.invalid" },
       breadcrumbs: [{ message: "private-history" }],
       extra: { submitted: "private-form" },
+      contexts: { nextjs: {
+        request_path: "/auth/callback?code=private-context-token",
+        router_path: "/auth/callback",
+        route_type: "route"
+      } },
       tags: { operation: "quote_insert", code: "23514" }
     });
     assert.equal(await client.flush(2000), true);
@@ -58,6 +86,7 @@ test("installed Sentry SDK applies the filter before the in-memory transport", a
     const event = envelopes[0][1][0][1];
     assert.equal(event.message, "Synthetic diagnostic");
     assert.deepEqual(event.tags, { operation: "quote_insert", code: "23514" });
+    assert.deepEqual(event.contexts.nextjs, { router_path: "/auth/callback", route_type: "route" });
     assert.ok(!JSON.stringify(envelopes).includes("private-"));
     assert.ok(!JSON.stringify(envelopes).includes("private@example.invalid"));
   } finally {

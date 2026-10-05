@@ -554,6 +554,12 @@ Only the founder caption's mobile color, under the existing 760 px breakpoint, n
 
 Application commit `636775a` was verified READY on the production alias. The deployed higher-density founder/trust rerun completed all 70 selected records: 70 measured passes, zero inconclusives, zero measured failures and zero runtime exceptions. The previously failing mobile caption now measures 5.986:1; its unchanged desktop/tablet measurements are both 10.860:1. This closes this caption defect and the selected tiny-label measurements, not normal-motion/hover coverage, all pixel densities, physical-device review or complete WCAG compliance. No portrait/image asset or customer data was modified. The full audit remains open at its other documented gates.
 
+## Next request-error URL privacy — 5 October
+
+After the owner deferred staging and asked to move on, inspection of the installed Sentry Next.js SDK (`build/esm/common/captureRequestError.js`) found a specific duplicate request field: `contexts.nextjs.request_path` receives Next's concrete request path. The installed Next instrumentation guide explicitly includes query strings in that path. Removing `event.request` alone does not remove this copy, which can contain recovery codes or other submitted query values. This is a preventive collection gap, not evidence that a real credential was transmitted; no monitoring service was enabled or customer error generated.
+
+The shared error-event filter now removes only this concrete-path field, retaining the Next router kind, route template, route type and unrelated runtime context. All three runtimes already use this filter. A regression covers query-code removal, retained diagnostics and idempotence; the installed browser SDK's in-memory transport test also verifies the duplicate path is absent from the actual outgoing error envelope. Network is prohibited in that test. All 86 tests, scoped ESLint and diff checks pass. No local build/dev server was run. Cloud deployment verification remains pending at this entry; actual external ingestion, arbitrary exception messages/custom contexts and performance traces remain outside this bounded proof. The approved design, customer data and public-page caching are unchanged.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.
