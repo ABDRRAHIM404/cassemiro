@@ -514,6 +514,16 @@ Application commit `83d5c2a` was pushed and verified READY on the production ali
 
 A separate GET-only geometry check visited the live structural chapter at widths 360, 390, 768, 1000, 1001 and 1366 px. Document scroll width matched viewport width at all six; the backing was present through 1000 px and absent at 1001/1366, confirming the desktop boundary. Existing artwork, chapter text, publication state and customer data were unchanged. Broader trust/founder tiny-label contrast and the previously documented external/deferred audit gates remain open.
 
+## Broader route and admin-theme checks — 5 October
+
+The owner deferred staging; it is not a prerequisite for the remaining read-only checks and skipped write/publication tests are not counted as successful. No staging resources were provisioned.
+
+All 13 published sitemap routes were visited at 360×900 and 1920×900: the homepage, contact, service index and six service details, project index and two project details, and privacy notice. All 26 requests returned HTTP 200 with no document-width overflow, runtime exceptions, non-GET browser requests, automatic axe violations or incomplete results under the selected rules. Whole-document homepage color contrast was excluded because of the previously documented offscreen/sticky-art measurement limitation; this does not certify homepage contrast or full WCAG compliance. These checks extend coverage to service/project details and the viewport extremes.
+
+The existing admin theme verifier assumed a singleton owner and referenced the obsolete `quotes` table. It now requires an explicit existing confirmed owner email, verifies that account's owner profile, snapshots `quote_requests`, and asserts that no browser write was attempted. No account is created, no email sent, and no password reset. Its isolated session is revoked with local scope, not by signing out the owner's other sessions. Regression coverage guards these restrictions.
+
+The live verifier passed at 390×844 and 1366×844. It measured the overview in light mode and seven protected routes in both light and dark modes, adding desktop sidebar and opened mobile-navigation labels/site links to the existing opaque-background samples. Each width yielded 259 measured samples, with minimum contrast 4.62:1 and no sampled failure. Keyboard theme switching, preference persistence, cross-tab synchronization, public-theme isolation and anonymous protection passed. There was no horizontal overflow, runtime exception or attempted non-GET browser request. Hosted project/media/quote/profile counts were unchanged and isolated-session cleanup succeeded. Counts alone do not establish row-content integrity; the GET-only interception and absence of database mutation calls constrain this test. Image overlays, unvisited control states, physical devices and full assistive-technology conformance remain unproven. No application style/content change was indicated. All 82 repository tests, scoped lint and diff checks passed; no local build/dev server was run.
+
 ## Completion gates
 
 - All in-scope code changes pass lint, typecheck, build, relevant automated tests, and a live browser check.

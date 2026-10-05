@@ -9,8 +9,15 @@ const origin = "https://cassemiro-one.vercel.app";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 assert.equal(new URL(url).hostname, "zjjepitczgffszbilfte.supabase.co");
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-const profile = await admin.from("profiles").select("id").eq("role", "owner").single();
+const ownerEmail = process.env.AUDIT_EXISTING_OWNER_EMAIL?.trim().toLowerCase();
+assert.ok(ownerEmail, "Explicit existing owner email required");
+const users = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
+assert.equal(users.error, null, "Existing owner lookup failed");
+const owner = users.data.users.find(user => user.email?.toLowerCase() === ownerEmail && user.email_confirmed_at);
+assert.ok(owner, "Existing confirmed owner required; no account will be created");
+const profile = await admin.from("profiles").select("id, role").eq("id", owner.id).single();
 assert.equal(profile.error, null, "Existing owner lookup failed");
+assert.equal(profile.data.role, "owner", "Explicit account must already be an owner");
 const identity = await admin.auth.admin.getUserById(profile.data.id);
 assert.ok(!identity.error && identity.data.user?.email_confirmed_at, "Existing confirmed owner required");
 const jar = new Map();
@@ -19,7 +26,7 @@ let browser;
 let blockedWrites = 0;
 const counts = async () => {
   const result = {};
-  for (const table of ["projects", "project_media", "quotes", "profiles"]) {
+  for (const table of ["projects", "project_media", "quote_requests", "profiles"]) {
     const response = await admin.from(table).select("id", { count: "exact", head: true });
     assert.equal(response.error, null, `Read-only ${table} count failed`);
     result[table] = response.count;
@@ -72,6 +79,8 @@ try {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "Page overflow");
     };
     const contrast = async () => {
+      const mobileMenu = page.locator('details').filter({ has: page.locator('summary', { hasText: "Menu" }) });
+      if (width === 390) await mobileMenu.locator('summary').click();
       // Measure opaque text against its nearest opaque CSS background, not
       // image overlays, disabled controls, or a blanket WCAG conformance claim.
       const samples = await page.evaluate(() => {
@@ -81,7 +90,7 @@ try {
           return channels.slice(0, 3).map(n => n / 255).map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4)
             .reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
         };
-        return [...document.querySelectorAll('.admin-field > span, .admin-table th, .admin-notice, .admin-email-warning, [role="switch"]')]
+        return [...document.querySelectorAll('.admin-field > span, .admin-table th, .admin-notice, .admin-email-warning, [role="switch"], nav[aria-label="Navegação administrativa"] a span, aside p, aside a[href="/"], details summary, details a[href="/"]')]
           .filter(el => el.getBoundingClientRect().width > 0 && getComputedStyle(el).visibility === "visible")
           .map(el => {
             const foreground = luminance(getComputedStyle(el).color);
@@ -94,6 +103,7 @@ try {
             return { element: el.tagName.toLowerCase(), ratio: foreground === null || background === null ? null : (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05) };
           }).filter(sample => sample.ratio !== null);
       });
+      if (width === 390) await mobileMenu.locator('summary').click();
       for (const sample of samples) assert.ok(sample.ratio >= 4.5, `${sample.element} normal-text contrast ${sample.ratio.toFixed(2)} below 4.5`);
       return samples.map(sample => sample.ratio);
     };
@@ -101,6 +111,12 @@ try {
       await goto("/admin");
       await theme("light");
       const contrastRatios = await contrast();
+      const routes = ["/admin/projetos", "/admin/projetos/novo", "/admin/servicos", "/admin/depoimentos", "/admin/conteudo", "/admin/configuracoes", "/admin/orcamentos"];
+      for (const path of routes) {
+        await goto(path);
+        await theme("light");
+        contrastRatios.push(...await contrast());
+      }
       const toggle = page.getByRole("switch", { name: "Modo escuro" });
       const box = await toggle.boundingBox();
       assert.ok(box.width >= 44 && box.height >= 44, "Theme touch target below 44px");
@@ -109,7 +125,7 @@ try {
       await theme("dark");
       assert.equal(await toggle.evaluate(el => el === document.activeElement), true);
       const visited = [];
-      for (const path of ["/admin/projetos", "/admin/projetos/novo", "/admin/servicos", "/admin/depoimentos", "/admin/conteudo", "/admin/configuracoes", "/admin/orcamentos"]) {
+      for (const path of routes) {
         await goto(path);
         await theme("dark");
         contrastRatios.push(...await contrast());
@@ -146,6 +162,7 @@ try {
     await page.goto(`${origin}/admin/configuracoes`, { waitUntil: "domcontentloaded", timeout: 30000 });
     assert.equal(new URL(page.url()).pathname, "/admin/login");
     assert.equal(await page.locator("[data-admin-theme]").count(), 0);
+    assert.equal(blockedWrites, 0, "Unexpected browser write attempted");
     console.log(JSON.stringify({ anonymousProtection: true, blockedBrowserWrites: blockedWrites, scope: "Read-only existing-owner theme checks; no saves, uploads or new accounts" }));
   } finally { await anonymous.close(); }
 } finally {

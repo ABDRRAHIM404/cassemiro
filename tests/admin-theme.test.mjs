@@ -58,3 +58,17 @@ test("admin theme stays inside the protected shell and has an accessible switch"
   assert.doesNotMatch(theme, /document\.(documentElement|body)/);
   assert.doesNotMatch(publicLayout, /AdminTheme/);
 });
+
+test("live admin theme checker selects an explicit owner and remains read-only", () => {
+  const checker = readFileSync(new URL("../scripts/design/check-admin-theme.mjs", import.meta.url), "utf8");
+  assert.match(checker, /AUDIT_EXISTING_OWNER_EMAIL/);
+  assert.match(checker, /assert\.equal\(profile\.data\.role, "owner"/);
+  assert.match(checker, /"quote_requests"/);
+  assert.doesNotMatch(checker, /"quotes"|\.eq\("role", "owner"\)\.single\(\)/);
+  assert.match(checker, /Navegação administrativa/);
+  assert.match(checker, /await theme\("light"\);\s*contrastRatios\.push/);
+  assert.match(checker, /assert\.equal\(blockedWrites, 0/);
+  assert.match(checker, /signOut\(token, "local"\)/);
+  assert.match(checker, /assert\.deepEqual\(await counts\(\), before/);
+  assert.doesNotMatch(checker, /\.createUser\(|\.updateUserById\(|\.insert\(|\.delete\(/);
+});
