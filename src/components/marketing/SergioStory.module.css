@@ -33,7 +33,7 @@
   .scrim { top: 0; bottom: auto; height: min(72svh, 620px); background: linear-gradient(0deg, #11120f 0%, rgb(17 18 15 / 95%) 12%, rgb(17 18 15 / 46%) 38%, transparent 62%); }
   .composition { width: calc(100% - 40px); min-height: 0; padding-block: min(49svh, 440px) 64px; }
   .copy { width: 100%; max-width: 560px; }
-  .context { margin-bottom: 20px; font-size: 10px; }
+  .context { margin-bottom: 20px; color: #f1f0e8; font-size: 10px; }
   .copy h2 { font-size: clamp(40px, 10.8vw, 52px); }
   .role { margin-bottom: 24px; }
   .experience { margin-bottom: 24px; }

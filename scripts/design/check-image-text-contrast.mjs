@@ -6,6 +6,9 @@ import sharp from "sharp";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
 const origin = process.argv[2] ?? "http://127.0.0.1:3001";
 const group = process.argv[3] ?? "trust";
+const deviceScaleFactor = Number(process.env.AUDIT_TEXT_DPR ?? 1);
+if (![1, 2, 3].includes(deviceScaleFactor)) throw new Error("Unexpected audit pixel density");
+const tinyTextOnly = process.env.AUDIT_TINY_TEXT_ONLY === "yes";
 if (!["trust", "ending", "chapters"].includes(group)) throw new Error("Unexpected audit group");
 if (!["http://127.0.0.1:3001", "https://cassemiro-one.vercel.app"].includes(origin)) throw new Error("Unexpected audit origin");
 const luminance = rgb => rgb.map(value => {
@@ -22,7 +25,7 @@ const browser = await chromium.launch({ executablePath: "/home/bng/.cache/ms-pla
 const results = [];
 try {
   for (const width of [1366, 768, 390]) {
-    const page = await browser.newPage({ viewport: { width, height: 844 }, reducedMotion: "reduce", deviceScaleFactor: 1 });
+    const page = await browser.newPage({ viewport: { width, height: 844 }, reducedMotion: "reduce", deviceScaleFactor });
     await page.route("**/*", route => route.request().method() === "GET" ? route.continue() : route.abort());
     try {
       const errors = [];
@@ -112,17 +115,27 @@ try {
               rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } };
           });
           if (metadata.opacity < .99) continue;
+          if (tinyTextOnly && metadata.fontSize > 12) continue;
           const foreground = metadata.color.match(/[\d.]+/g)?.map(Number);
           if (!foreground || foreground.length !== 3) throw new Error("Unsupported foreground color");
-          const full = await sharp(await page.screenshot()).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-          const hidden = await page.addStyleTag({ content: `${selector} [data-contrast-probe], ${selector} [data-contrast-probe] * { color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; }` });
-          const background = await sharp(await page.screenshot()).removeAlpha().raw().toBuffer();
-          await hidden.evaluate(element => element.remove());
           const rect = metadata.rect;
+          const clip = { x: Math.max(0, Math.floor(rect.x)), y: Math.max(73, Math.floor(rect.y)),
+            width: 0, height: 0 };
+          clip.width = Math.max(0, Math.min(width, Math.ceil(rect.x + rect.width)) - clip.x);
+          clip.height = Math.max(0, Math.min(844 - 54, Math.ceil(rect.y + rect.height)) - clip.y);
+          if (!clip.width || !clip.height) {
+            results.push({ width, section, pillar, projectIndex, text: metadata.text, samples: 0, minimum: null,
+              method: "outside-usable-viewport", threshold: 4.5, status: "inconclusive" });
+            continue;
+          }
+          const full = await sharp(await page.screenshot({ clip })).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+          const hidden = await page.addStyleTag({ content: `${selector} [data-contrast-probe], ${selector} [data-contrast-probe] * { color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; }` });
+          const background = await sharp(await page.screenshot({ clip })).removeAlpha().raw().toBuffer();
+          await hidden.evaluate(element => element.remove());
           let minimum = Infinity, samples = 0;
-          for (let y = Math.max(73, Math.floor(rect.y)); y < Math.min(844 - 54, Math.ceil(rect.y + rect.height)); y++) {
-            for (let x = Math.max(0, Math.floor(rect.x)); x < Math.min(width, Math.ceil(rect.x + rect.width)); x++) {
-              const offset = (y * width + x) * full.info.channels;
+          for (let y = 0; y < full.info.height; y++) {
+            for (let x = 0; x < full.info.width; x++) {
+              const offset = (y * full.info.width + x) * full.info.channels;
               const visible = [...full.data.subarray(offset, offset + 3)];
               const beneath = [...background.subarray(offset, offset + 3)];
               // Ignore background and glyph edges; retain near-solid CSS-color ink.
@@ -171,5 +184,5 @@ try {
     } finally { await page.close(); }
   }
 } finally { await browser.close(); }
-console.log(JSON.stringify({ origin, group, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests all actual keyboard-selected project states/footer; chapters group tests six naturally scrolled construction phases with decoded sticky artwork; reduced motion; not transition/scroll/hover states or WCAG certification" }));
+console.log(JSON.stringify({ origin, group, deviceScaleFactor, tinyTextOnly, results, scope: "sampled solid glyph positions at three widths; trust group tests founder and four keyboard-selected trust states; ending group tests all actual keyboard-selected project states/footer; chapters group tests six naturally scrolled construction phases with decoded sticky artwork; reduced motion; not transition/scroll/hover states or WCAG certification" }));
 if (results.some(result => result.status === "review")) process.exitCode = 1;
