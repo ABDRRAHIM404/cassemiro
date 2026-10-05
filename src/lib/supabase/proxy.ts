@@ -5,7 +5,7 @@ import type { Database } from "@/types/supabase";
 const publicAdminRoutes = new Set(["/admin/login", "/admin/esqueci-senha", "/admin/redefinir-senha"]);
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,10 +15,11 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, cacheHeaders) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: request.headers } });
           cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          Object.entries(cacheHeaders ?? {}).forEach(([key, value]) => response.headers.set(key, value));
         }
       }
     }
@@ -31,7 +32,9 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     url.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));
+    return redirect;
   }
 
   return response;

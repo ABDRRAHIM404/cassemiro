@@ -60,9 +60,14 @@ try {
       return route.abort();
     });
     await context.addCookies([...jar.values()].map(({ name, value }) => ({ name, value, url: origin })));
+    if (process.env.AUDIT_ADMIN_CSP === "yes") await context.addInitScript(() => {
+      window.auditCspViolations = [];
+      document.addEventListener("securitypolicyviolation", event => window.auditCspViolations.push(event.effectiveDirective));
+    });
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", error => errors.push(error.name));
+    const cspNonces = new Set();
     const goto = async path => {
       const response = await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded", timeout: 30000 });
       assert.equal(response.status(), 200, `Unexpected status on ${path}`);
@@ -72,6 +77,38 @@ try {
         const key = button && Object.keys(button).find(key => key.startsWith("__reactProps$"));
         return key && typeof button[key]?.onClick === "function";
       }, undefined, { timeout: 20000 });
+      if (process.env.AUDIT_ADMIN_CSP === "yes") {
+        const policy = response.headers()["content-security-policy"];
+        const script = policy?.split("; ").find(part => part.startsWith("script-src "));
+        assert.ok(script?.includes("'strict-dynamic'") && !script.includes("'unsafe-inline'") && !script.includes("'unsafe-eval'"));
+        const nonce = script.match(/'nonce-([^']+)'/)?.[1];
+        assert.ok(nonce && !cspNonces.has(nonce), "Every admin document needs a fresh nonce");
+        cspNonces.add(nonce);
+        assert.ok(response.headers()["cache-control"]?.includes("no-store"));
+        const scripts = await page.evaluate(() => [...document.scripts].filter(el => !el.src && el.textContent.trim()).map(el => el.nonce));
+        assert.ok(scripts.length && scripts.every(value => value === nonce), "Inline framework scripts must carry the response nonce");
+        assert.deepEqual(await page.evaluate(() => window.auditCspViolations), [], "Legitimate admin scripts must not be blocked");
+        if (cspNonces.size === 1) {
+          // Local synthetic DOM probe only. No network, CMS save or handler call.
+          await page.evaluate(() => {
+            window.auditUntrustedScriptRan = false;
+            const script = document.createElement("script");
+            script.textContent = "window.auditUntrustedScriptRan = true";
+            document.body.append(script); script.remove();
+          });
+          await page.waitForFunction(() => window.auditCspViolations.length > 0);
+          assert.equal(await page.evaluate(() => window.auditUntrustedScriptRan), false);
+          assert.deepEqual(await page.evaluate(() => window.auditCspViolations), ["script-src-elem"]);
+          await page.evaluate(nonce => {
+            const script = document.createElement("script"); script.nonce = nonce;
+            script.textContent = "window.auditTrustedScriptRan = true";
+            document.body.append(script); script.remove();
+            window.auditCspViolations = [];
+          }, nonce);
+          assert.equal(await page.evaluate(() => window.auditTrustedScriptRan), true);
+        }
+        console.log(JSON.stringify({ adminCsp: { width, path, freshNonce: true, matchingFrameworkNonces: true, noLegitimateViolations: true, inlineProbeTested: cspNonces.size === 1 } }));
+      }
     };
     const theme = async expected => {
       await page.locator(`[data-admin-theme="${expected}"]`).waitFor();
