@@ -28,19 +28,97 @@ public class MainActivity extends Activity {
         }
         return null;
     }
-    private RouterApi routerFor(String ip){return new RouterApi(ip,wifiRoute());}
-    private String networkInfo(){
+    private java.net.Proxy configuredProxy(boolean wifiOnly) {
+        android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        if(cm==null)return null;
+        android.net.ProxyInfo proxyInfo=null;
+        if(wifiOnly) {
+            android.net.Network net=wifiRoute();
+            android.net.LinkProperties lp=net==null?null:cm.getLinkProperties(net);
+            if(lp!=null)proxyInfo=lp.getHttpProxy();
+        } else {
+            proxyInfo=cm.getDefaultProxy();
+        }
+        if(proxyInfo==null||proxyInfo.getHost()==null||proxyInfo.getHost().isEmpty()||proxyInfo.getPort()<1)
+            return null; // PAC-only proxies require browser resolution, not raw HttpURLConnection.
+        return new java.net.Proxy(java.net.Proxy.Type.HTTP,
+            new java.net.InetSocketAddress(proxyInfo.getHost(),proxyInfo.getPort()));
+    }
+    private String proxyLabel(boolean wifiOnly) {
+        java.net.Proxy proxy=configuredProxy(wifiOnly);
+        if(proxy==null)return "none reported";
+        java.net.InetSocketAddress socket=(java.net.InetSocketAddress)proxy.address();
+        return socket.getHostString()+":"+socket.getPort();
+    }
+    private RouterApi routerFor(String ip){return routerFor(ip,0);}
+    private RouterApi routerFor(String ip,int route) {
+        android.net.Network wifi=wifiRoute();
+        if((route==0||route==1)&&wifi==null)throw new IllegalStateException("No Wi-Fi network is connected");
+        if(route==1||route==3) {
+            java.net.Proxy proxy=configuredProxy(route==1);
+            if(proxy==null)throw new IllegalStateException("No HTTP proxy is configured for the selected route");
+            return new RouterApi(ip,route==1?wifi:null,proxy);
+        }
+        return new RouterApi(ip,route==0?wifi:null,java.net.Proxy.NO_PROXY);
+    }
+    private String gateway() {
+        android.net.Network wifi=wifiRoute();
+        if(wifi==null)return "unknown (not connected)";
+        android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        android.net.LinkProperties lp=cm.getLinkProperties(wifi);
+        if(lp!=null)for(android.net.RouteInfo route:lp.getRoutes()){
+            java.net.InetAddress g=route.getGateway();
+            if(route.isDefaultRoute()&&g instanceof java.net.Inet4Address&&!g.isAnyLocalAddress())
+                return g.getHostAddress();
+        }
+        // Some Android 15/16 firmwares expose an on-link 0.0.0.0 route.
+        // Prefer actual DHCP values over mistaking 0.0.0.0 for the router.
+        try {
+            android.net.wifi.WifiManager wm=(android.net.wifi.WifiManager)getApplicationContext()
+                .getSystemService(WIFI_SERVICE);
+            android.net.DhcpInfo dhcp=wm==null?null:wm.getDhcpInfo();
+            if(dhcp!=null&&dhcp.gateway!=0) {
+                int g=dhcp.gateway;
+                return (g&255)+"."+((g>>8)&255)+"."+((g>>16)&255)+"."+((g>>24)&255);
+            }
+        }catch(Exception ignored){}
+        return "not reported by Android (0.0.0.0 is an unspecified address)";
+    }
+    private String networkInfo() {
         android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
         android.net.Network wifi=wifiRoute();
-        if(wifi==null)return "Android reports no connected Wi-Fi network. Connect to the router's Wi-Fi before testing.";
-        String gateway="unknown";
+        if(wifi==null)return "Connected Wi-Fi: no. Connect to the router's Wi-Fi before trying to sign in.";
+        String localIp="not reported";
         android.net.LinkProperties lp=cm.getLinkProperties(wifi);
-        if(lp!=null)for(android.net.RouteInfo rt:lp.getRoutes()){
-            if(rt.isDefaultRoute()&&rt.getGateway()!=null&&rt.getGateway() instanceof java.net.Inet4Address){gateway=rt.getGateway().getHostAddress();break;}
+        if(lp!=null)for(android.net.LinkAddress address:lp.getLinkAddresses()) {
+            if(address.getAddress() instanceof java.net.Inet4Address) {
+                localIp=address.getAddress().getHostAddress();break;
+            }
         }
-        return "Connected Wi-Fi: yes\nAndroid Wi-Fi gateway: "+gateway
-            +"\nActive Android route is Wi-Fi: "+wifi.equals(cm.getActiveNetwork())
-            +"\nApp bypasses any HTTP proxy for local router requests.";
+        return "Connected Wi-Fi: yes"
+            +"\nYour phone's Wi-Fi IPv4: "+localIp
+            +"\nWi-Fi gateway: "+gateway()
+            +"\nAndroid's default network is Wi-Fi: "+wifi.equals(cm.getActiveNetwork())
+            +"\nWi-Fi HTTP proxy: "+proxyLabel(true)
+            +"\nSystem HTTP proxy: "+proxyLabel(false);
+    }
+    private String connectionReport(String ip) {
+        StringBuilder report=new StringBuilder(networkInfo());
+        report.append("\n\nPASSWORD-FREE CONNECTION TESTS\n");
+        String[] methods={"1. Wi-Fi direct","2. Android default direct","3. Wi-Fi HTTP proxy","4. System HTTP proxy"};
+        int[] indices={0,2,1,3};
+        for(int n=0;n<indices.length;n++){
+            report.append("\n").append(methods[n]).append(": ");
+            try {
+                report.append("\n").append(routerFor(ip,indices[n]).probeConnection());
+            } catch(Exception ex) {
+                report.append(ex.getClass().getSimpleName()).append(": ")
+                    .append(ex.getMessage()==null?"Unavailable":ex.getMessage());
+            }
+            report.append("\n");
+        }
+        report.append("\nNo password, cookies or authentication tokens sent.");
+        return report.toString();
     }
     private int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
     private GradientDrawable bg(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(14));return d;}
@@ -74,7 +152,7 @@ public class MainActivity extends Activity {
         if(busy){Toast.makeText(this,"One router command at a time",Toast.LENGTH_SHORT).show();return;}
         busy=true;update(label,false);
         executor.execute(()->{
-            try{T result=job.run();handler.post(()->{if(!alive)return;busy=false;update("Connected · "+router.address(),true);done.done(result);});}
+            try{T result=job.run();handler.post(()->{if(!alive)return;busy=false;update(router.loggedIn()?"Connected · "+router.address():"Diagnostic complete",true);done.done(result);});}
             catch(Exception e){handler.post(()->{if(!alive)return;busy=false;String m=e.getMessage()==null?"Unknown router error":e.getMessage();update(m,false);new AlertDialog.Builder(this).setTitle("Router request failed").setMessage(m).setPositiveButton("OK",null).show();});}
         });
     }
@@ -130,24 +208,37 @@ public class MainActivity extends Activity {
         mode.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,modes));
         login.addView(mode,new LinearLayout.LayoutParams(-1,dp(50)));
         msg(login,"Auto reads the router's password type. Do not retry rapidly if credentials are rejected.",12,MUTED,false);
-        button(login,"Test router connection (no password)",()->{
-            String addr=ip.getText().toString();
-            call("Testing local Wi-Fi router...",()->{
-                String info=networkInfo();
-                try{return info+"\n\n"+routerFor(addr).probeConnection();}
-                catch(Exception ex){throw new java.io.IOException(info+"\n\nHTTP connection failed: "+ex.getMessage(),ex);}
-            },this::result);
+        msg(login,"Connection route",12,MUTED,true);
+        Spinner route=new Spinner(this);
+        String[] routes={"Direct Wi-Fi (no proxy)","Wi-Fi HTTP proxy (opt-in)","Android default network","System HTTP proxy (opt-in)"};
+        route.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,routes));
+        login.addView(route,new LinearLayout.LayoutParams(-1,dp(50)));
+        msg(login,"Use a proxy only if diagnostics show it is needed. Your login session would pass through that proxy.",12,YELLOW,false);
+        button(login,"Diagnose all connections (no password)",()->{
+            String address=ip.getText().toString();
+            call("Checking direct and proxy routes...",()->connectionReport(address),this::result);
         },false);
         button(login,"Check login diagnostics (no password)",()->{
             String ipValue=ip.getText().toString();
-            call("Reading firmware login state...",()->routerFor(ipValue).diagnoseLogin(),this::result);
+            int chosen=route.getSelectedItemPosition();
+            call("Reading firmware login state...",()->routerFor(ipValue,chosen).diagnoseLogin(),this::result);
         },false);
         button(login,"Sign in & refresh",()->{
             String i=ip.getText().toString(),u=username.getText().toString(),p=password.getText().toString();
             String method=String.valueOf(mode.getSelectedItem());
-            call("Authenticating...",()->{RouterApi instance=routerFor(i);instance.login(u,p,method);return instance;},instance->{
-                router=instance;password.setText("");refresh();
-            });
+            final int selectedRoute=route.getSelectedItemPosition();
+            Runnable action=()->call("Authenticating...",()->{
+                RouterApi instance=routerFor(i,selectedRoute);
+                instance.login(u,p,method);
+                return instance;
+            },instance->{router=instance;password.setText("");refresh();});
+            if(selectedRoute==1||selectedRoute==3)
+                new AlertDialog.Builder(this)
+                    .setTitle("Send router authentication through proxy?")
+                    .setMessage("This will send the router's authentication requests and session through your configured HTTP proxy. Only use a proxy that you trust and control.")
+                    .setNegativeButton("Cancel",null)
+                    .setPositiveButton("Use proxy",(d,w)->action.run()).show();
+            else action.run();
         },true);
         if(router.loggedIn())button(login,"Refresh readings",this::refresh,false);
         LinearLayout metrics=card("Live LTE signal & tower","Measurements returned by router, not invented values.");
