@@ -1,5 +1,7 @@
 package com.b636control;
 
+import android.net.Network;
+
 import java.net.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -13,10 +15,13 @@ import java.util.*;
 public final class RouterApi {
     public static final int[] BANDS={1,3,5,7,8,20,28,32,38,40,41,42,43};
     private final String base;
+    private final Network wifiTransport;
     private String token="";
     private boolean loggedIn=false;
     private final Map<String,String> cookies=new LinkedHashMap<>();
-    public RouterApi(String ip) {
+    public RouterApi(String ip) { this(ip, null); }
+    public RouterApi(String ip, Network wifiTransport) {
+        this.wifiTransport = wifiTransport;
         ip=ip.trim().replace("http://","").replace("https://","").replaceAll("/+$","");
         if(!ip.matches("[0-9.]+")) throw new IllegalArgumentException("Only local IPv4 router addresses are allowed");
         String[] parts=ip.split("\\.");
@@ -32,7 +37,14 @@ public final class RouterApi {
     public String address(){return base;}
     private synchronized String send(String method,String path,String payload) throws Exception {
         if(!path.matches("/api/[A-Za-z0-9_/-]+")) throw new IllegalArgumentException("Invalid API path");
-        HttpURLConnection c=(HttpURLConnection)new URL(base+path).openConnection();
+        // Use the actual local Wi-Fi network instead of Android's default route,
+        // which can be mobile data or a VPN when Wi-Fi has no Internet access.
+        // Proxy.NO_PROXY prevents an optional phone Wi-Fi HTTP proxy from
+        // intercepting direct requests to the user's local router.
+        URL url = new URL(base+path);
+        HttpURLConnection c=(HttpURLConnection)(wifiTransport != null
+            ? wifiTransport.openConnection(url, Proxy.NO_PROXY)
+            : url.openConnection(Proxy.NO_PROXY));
         c.setRequestMethod(method);
         c.setConnectTimeout(5000);c.setReadTimeout(7000);
         c.setRequestProperty("X-Requested-With","XMLHttpRequest");
@@ -68,6 +80,14 @@ public final class RouterApi {
         }finally{c.disconnect();}
     }
     public synchronized String get(String path)throws Exception{return send("GET",path,null);}
+    public synchronized String probeConnection() throws Exception {
+        String raw = get("/api/webserver/SesTokInfo");
+        boolean session = raw.contains("<SesInfo>") || raw.contains("<TokInfo>");
+        return "Router reachable: " + base
+            + "\nHuawei session API: " + (session ? "accessible" : "responded, format differs")
+            + "\nConnection route: " + (wifiTransport != null ? "direct local Wi-Fi" : "Android default network")
+            + "\nNo login attempt or password transmitted.";
+    }
     private synchronized String post(String path,String xml)throws Exception{
         if(!loggedIn)throw new IOException("Log in first");
         try{
