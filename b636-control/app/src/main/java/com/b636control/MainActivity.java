@@ -68,6 +68,11 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state){super.onCreate(state);bands.add(7);
         getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
         outer=column();outer.setBackgroundColor(BG);setContentView(outer);
+        outer.setOnApplyWindowInsetsListener((view,insets)->{
+            view.setPadding(0,insets.getSystemWindowInsetTop(),0,insets.getSystemWindowInsetBottom());
+            return insets;
+        });
+        outer.requestApplyInsets();
         LinearLayout header=column();header.setPadding(dp(18),dp(16),dp(18),dp(5));outer.addView(header);
         msg(header,"B636  /  CONTROL",23,WHITE,true);msg(header,"LTE bands · towers · 2.4 / 5 GHz Wi-Fi",12,MUTED,false);
         status=new TextView(this);status.setTextSize(12);status.setTextColor(YELLOW);
@@ -94,11 +99,23 @@ public class MainActivity extends Activity {
         LinearLayout login=card("Your router","Connect to 192.168.1.1 over your home Wi-Fi. Password is never saved.");
         EditText ip=input(login,"Router IP","192.168.1.1",false);
         EditText username=input(login,"Username","admin",false);
+
         EditText password=input(login,"Router password","",true);
+        msg(login,"Login method (one attempt per tap)",12,MUTED,true);
+        Spinner mode=new Spinner(this);
+        String[] modes={"Auto","Type 4 (raw SHA256)","Type 4 (hex SHA256)","Type 0 (base64)"};
+        mode.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,modes));
+        login.addView(mode,new LinearLayout.LayoutParams(-1,dp(50)));
+        msg(login,"Auto reads the router's password type. Do not retry rapidly if credentials are rejected.",12,MUTED,false);
+        button(login,"Check login diagnostics (no password)",()->{
+            String ipValue=ip.getText().toString();
+            call("Reading firmware login state...",()->new RouterApi(ipValue).diagnoseLogin(),this::result);
+        },false);
         button(login,"Sign in & refresh",()->{
             String i=ip.getText().toString(),u=username.getText().toString(),p=password.getText().toString();
-            call("Authenticating...",()->{RouterApi instance=new RouterApi(i);instance.login(u,p);return instance;},r->{
-                router=r;password.setText("");refresh();
+            String method=String.valueOf(mode.getSelectedItem());
+            call("Authenticating...",()->{RouterApi instance=new RouterApi(i);instance.login(u,p,method);return instance;},instance->{
+                router=instance;password.setText("");refresh();
             });
         },true);
         if(router.loggedIn())button(login,"Refresh readings",this::refresh,false);
