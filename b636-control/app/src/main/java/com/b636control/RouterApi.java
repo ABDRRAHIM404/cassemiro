@@ -128,32 +128,51 @@ public final class RouterApi {
     private static String tokenForPost(String value){
         return value.length()>32?value.substring(value.length()-32):value;
     }
-    public synchronized String diagnoseLogin()throws Exception{
-        String state=get("/api/user/state-login");
+    /**
+     * Huawei session bootstrap. Some B636 firmwares return a bare session ID
+     * instead of a name=value cookie; the official web UI still expects it
+     * under the SessionID cookie name.
+     */
+    private String bootstrapSession() throws Exception {
         String session=get("/api/webserver/SesTokInfo");
+        String code=getValue(session,"code");
+        if(!code.isEmpty()){
+            throw new IOException("Huawei session bootstrap rejected (API code "+code+
+                "). An already logged-in browser session cannot be reused by this app.");
+        }
+        String sessionId=getValue(session,"SesInfo");
+        String rawToken=getValue(session,"TokInfo");
+        if(!sessionId.isEmpty()){
+            int eq=sessionId.indexOf('=');
+            if(eq>0)cookies.put(sessionId.substring(0,eq).trim(),sessionId.substring(eq+1).trim());
+            else cookies.put("SessionID",sessionId);
+        }
+        if(!rawToken.isEmpty())token=tokenForPost(rawToken);
+        if(rawToken.isEmpty())throw new IOException("Huawei did not provide a verification token");
+        return rawToken;
+    }
+    public synchronized String diagnoseLogin()throws Exception{
+        String rawToken=bootstrapSession();
+        String state=get("/api/user/state-login");
         return "Password type: "+getValue(state,"password_type")
           +"\nLocked: "+getValue(state,"lockstatus")
           +"\nRemaining attempts: "+getValue(state,"remaincount")
           +"\nWait time: "+getValue(state,"remainwaittime")
-          +"\nSession cookie found: "+(!getValue(session,"SesInfo").isEmpty())
-          +"\nVerification token length: "+getValue(session,"TokInfo").length()
+          +"\nSession cookie found: "+cookies.containsKey("SessionID")
+          +"\nVerification token length: "+rawToken.length()
           +"\nNo password or token contents are shown.";
     }
     public synchronized String login(String user,String pass,String scheme)throws Exception{
         if(user.trim().isEmpty()||pass.isEmpty())throw new IllegalArgumentException("Login credentials required");
         loggedIn=false;
+        cookies.clear();
+        token="";
+        String rawToken=bootstrapSession();
         String state=get("/api/user/state-login");
         if("1".equals(getValue(state,"lockstatus")))
             throw new IOException("Router temporarily locked. Wait "+getValue(state,"remainwaittime")+" minutes before retrying.");
         String pType=getValue(state,"password_type");
         if(scheme.equals("Auto"))scheme="0".equals(pType)?"Type 0 (base64)":"Type 4 (raw SHA256)";
-        String ses=get("/api/webserver/SesTokInfo");
-        String rawToken=getValue(ses,"TokInfo");
-        if(rawToken.isEmpty())throw new IOException("Router did not supply a login token");
-        token=tokenForPost(rawToken);
-        String cookie=getValue(ses,"SesInfo");
-        int sep=cookie.indexOf('=');
-        if(sep>0)cookies.put(cookie.substring(0,sep),cookie.substring(sep+1));
         if(scheme.equals("SCRAM challenge")){
             loginWithChallenge(user,pass);
             loggedIn=true;
