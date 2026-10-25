@@ -143,6 +143,11 @@ public final class RouterApi {
         String cookie=getValue(ses,"SesInfo");
         int sep=cookie.indexOf('=');
         if(sep>0)cookies.put(cookie.substring(0,sep),cookie.substring(sep+1));
+        if(scheme.equals("SCRAM challenge")){
+            loginWithChallenge(user,pass);
+            loggedIn=true;
+            return "Connected to "+base+" using SCRAM challenge";
+        }
         String pwd,loginType;
         if(scheme.equals("Type 0 (base64)")){
             pwd=b64(pass.getBytes(StandardCharsets.UTF_8));loginType="0";
@@ -169,6 +174,58 @@ public final class RouterApi {
         }
         loggedIn=true;
         return "Connected to "+base;
+    }
+
+    /** Huawei's SCRAM / PBKDF2 flow: explicit opt-in, never try multiple passwords per tap. */
+    private void loginWithChallenge(String user, String pass) throws Exception {
+        byte[] random=new byte[32];new java.security.SecureRandom().nextBytes(random);
+        String first=hex(random);
+        String challenge=send("POST","/api/user/challenge_login",
+            "<request><username>"+escape(user)+"</username><firstnonce>"+first+"</firstnonce><mode>1</mode></request>");
+        String error=getValue(challenge,"code");
+        if(!error.isEmpty())throw new IOException("Challenge login rejected (router code "+error+"). Do not retry repeatedly.");
+        String serverNonce=getValue(challenge,"servernonce");
+        String salt=getValue(challenge,"salt");
+        int rounds;
+        try{rounds=Integer.parseInt(getValue(challenge,"iterations"));}
+        catch(Exception e){throw new IOException("Unsupported SCRAM challenge response: missing iterations");}
+        if(!serverNonce.startsWith(first)||salt.isEmpty()||rounds<1||rounds>1000000)
+            throw new IOException("Invalid SCRAM challenge (nonce, salt or iterations)");
+        byte[] salted=javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+            .generateSecret(new javax.crypto.spec.PBEKeySpec(pass.toCharArray(),unhex(salt),rounds,256)).getEncoded();
+        byte[] clientKey=hmac(salted,"Client Key".getBytes(StandardCharsets.UTF_8));
+        String authMessage=first+","+serverNonce+","+serverNonce;
+        byte[] signature=hmac(digest(clientKey),authMessage.getBytes(StandardCharsets.UTF_8));
+        byte[] proof=new byte[clientKey.length];
+        for(int i=0;i<proof.length;i++)proof[i]=(byte)(clientKey[i]^signature[i]);
+        String result=send("POST","/api/user/authentication_login",
+            "<request><clientproof>"+hex(proof)+"</clientproof><finalnonce>"+escape(serverNonce)+"</finalnonce><logintype>1</logintype></request>");
+        String err=getValue(result,"code");
+        if(!err.isEmpty())throw new IOException("SCRAM authentication rejected (router code "+err+").");
+        String serverSignature=getValue(result,"serversignature");
+        if(!serverSignature.isEmpty()){
+            byte[] serverKey=hmac(salted,"Server Key".getBytes(StandardCharsets.UTF_8));
+            String expected=hex(hmac(serverKey,authMessage.getBytes(StandardCharsets.UTF_8)));
+            if(!expected.equalsIgnoreCase(serverSignature))throw new IOException("Router SCRAM server signature mismatch");
+        }else if(!getValue(result,"response").equalsIgnoreCase("OK")){
+            throw new IOException("Router did not confirm SCRAM authentication");
+        }
+    }
+    private static String hex(byte[] bytes){
+        StringBuilder out=new StringBuilder();
+        for(byte b:bytes)out.append(String.format(Locale.US,"%02x",b&255));
+        return out.toString();
+    }
+    private static byte[] unhex(String hex){
+        if(hex.length()%2!=0||hex.length()>1024)throw new IllegalArgumentException("Invalid SCRAM salt");
+        byte[] out=new byte[hex.length()/2];
+        for(int i=0;i<out.length;i++)out[i]=(byte)Integer.parseInt(hex.substring(i*2,i*2+2),16);
+        return out;
+    }
+    private static byte[] hmac(byte[] key,byte[] message)throws Exception {
+        javax.crypto.Mac mac=javax.crypto.Mac.getInstance("HmacSHA256");
+        mac.init(new javax.crypto.spec.SecretKeySpec(key,"HmacSHA256"));
+        return mac.doFinal(message);
     }
     public static String escape(String s){return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;").replace("'","&apos;");}
     public static String getValue(String xml,String name){
