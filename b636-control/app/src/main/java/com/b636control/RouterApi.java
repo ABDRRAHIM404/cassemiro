@@ -1,6 +1,12 @@
 package com.b636control;
 
-import android.net.Network;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.MediaType;
+import okhttp3.ResponseBody;
+import java.util.concurrent.TimeUnit;
 
 import java.net.*;
 import java.io.*;
@@ -15,16 +21,15 @@ import java.util.*;
 public final class RouterApi {
     public static final int[] BANDS={1,3,5,7,8,20,28,32,38,40,41,42,43};
     private final String base;
-    private final Network wifiTransport;
-    private final Proxy httpProxy;
+    private final OkHttpClient client = new OkHttpClient.Builder()
+        .connectTimeout(10,TimeUnit.SECONDS)
+        .readTimeout(15,TimeUnit.SECONDS)
+        .followRedirects(true)
+        .build();
     private String token="";
     private boolean loggedIn=false;
     private final Map<String,String> cookies=new LinkedHashMap<>();
-    public RouterApi(String ip) { this(ip, null, Proxy.NO_PROXY); }
-    public RouterApi(String ip, Network wifiTransport) { this(ip, wifiTransport, Proxy.NO_PROXY); }
-    public RouterApi(String ip, Network wifiTransport, Proxy httpProxy) {
-        this.wifiTransport = wifiTransport;
-        this.httpProxy = httpProxy == null ? Proxy.NO_PROXY : httpProxy;
+    public RouterApi(String ip) {
         ip=ip.trim().replace("http://","").replace("https://","").replaceAll("/+$","");
         if(!ip.matches("[0-9.]+")) throw new IllegalArgumentException("Only local IPv4 router addresses are allowed");
         String[] parts=ip.split("\\.");
@@ -38,84 +43,61 @@ public final class RouterApi {
     }
     public boolean loggedIn(){return loggedIn;}
     public String address(){return base;}
+    // Same Android-default OkHttp transport as the two Huawei apps that
+    // already connect on the user's split-tunnel VPN. No forced Wi-Fi binding,
+    // manual proxy bypass, custom socket factory, or hardcoded network routes.
     private synchronized String send(String method,String path,String payload) throws Exception {
         if(!path.matches("/api/[A-Za-z0-9_/-]+")) throw new IllegalArgumentException("Invalid API path");
-        URL url = new URL(base+path);
-        HttpURLConnection c = createConnection(url);
-        c.setRequestMethod(method);
-        c.setConnectTimeout(5000);c.setReadTimeout(7000);
-        c.setRequestProperty("X-Requested-With","XMLHttpRequest");
-        if(!token.isEmpty()) c.setRequestProperty("__RequestVerificationToken",token);
+        Request.Builder builder=new Request.Builder()
+            .url(base+path)
+            .header("X-Requested-With","XMLHttpRequest");
+        if(!token.isEmpty())builder.header("__RequestVerificationToken",token);
         if(!cookies.isEmpty()){
             List<String> parts=new ArrayList<>();
             for(Map.Entry<String,String> e:cookies.entrySet())parts.add(e.getKey()+"="+e.getValue());
-            c.setRequestProperty("Cookie",String.join("; ",parts));
+            builder.header("Cookie",String.join("; ",parts));
         }
         if(payload!=null){
-            byte[] b=payload.getBytes(StandardCharsets.UTF_8);
-            c.setDoOutput(true);c.setRequestProperty("Content-Type","application/xml; charset=UTF-8");
-            c.setFixedLengthStreamingMode(b.length);
-            try(OutputStream out=c.getOutputStream()){out.write(b);}
-        }
-        int code=c.getResponseCode();
-        Map<String,List<String>> headers=c.getHeaderFields();
-        for(Map.Entry<String,List<String>> h:headers.entrySet()){
-            String k=h.getKey();if(k==null||h.getValue()==null)continue;
-            if(k.equalsIgnoreCase("Set-Cookie"))for(String v:h.getValue()){
-                String first=v.split(";",2)[0];int i=first.indexOf('=');if(i>0)cookies.put(first.substring(0,i).trim(),first.substring(i+1).trim());
+            RequestBody body=RequestBody.create(
+                payload, MediaType.parse("application/xml; charset=UTF-8"));
+            builder.post(body);
+        }else builder.get();
+        try(Response response=client.newCall(builder.build()).execute()){
+            for(String value:response.headers("Set-Cookie")){
+                String first=value.split(";",2)[0];int i=first.indexOf('=');
+                if(i>0)cookies.put(first.substring(0,i).trim(),first.substring(i+1).trim());
             }
-            if(k.equalsIgnoreCase("__RequestVerificationToken")||k.equalsIgnoreCase("__RequestVerificationTokenone"))
-                if(!h.getValue().isEmpty())token=tokenForPost(h.getValue().get(0).split("#",2)[0].trim());
+            String t=response.header("__RequestVerificationTokenone");
+            if(t==null||t.isEmpty())t=response.header("__RequestVerificationToken");
+            if(t!=null&&!t.isEmpty())token=tokenForPost(t.split("#",2)[0].trim());
+            ResponseBody body=response.body();
+            String content=body==null?"":body.string();
+            if(!response.isSuccessful())
+                throw new IOException("Router HTTP "+response.code()+", API code "+getValue(content,"code"));
+            return content;
         }
-        try(InputStream in=code>=400?c.getErrorStream():c.getInputStream()){
-            if(in==null)throw new IOException("Router HTTP "+code);
-            ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int got,limit=160000;
-            while(out.size()<limit&&(got=in.read(buf,0,Math.min(buf.length,limit-out.size())))>0)out.write(buf,0,got);
-            String response=out.toString("UTF-8");
-            if(code>=400)throw new IOException("Router HTTP "+code+", error "+getValue(response,"code"));
-            return response;
-        }finally{c.disconnect();}
-    }
-    private HttpURLConnection createConnection(URL u) throws IOException {
-        // All traffic remains bound to the selected Android route. Proxy routing
-        // is opt-in for login, never silently enabled for credentials.
-        return (HttpURLConnection)(wifiTransport == null
-            ? u.openConnection(httpProxy)
-            : wifiTransport.openConnection(u,httpProxy));
     }
     public synchronized String get(String path)throws Exception{return send("GET",path,null);}
-    public synchronized String probeConnection() {
-        StringBuilder report=new StringBuilder();
-        report.append("HTTP ").append(base).append(" via ")
-              .append(wifiTransport==null?"Android default route":"Wi-Fi route")
-              .append(httpProxy==Proxy.NO_PROXY?" (direct)":" (configured HTTP proxy)");
-        for(String endpoint:new String[]{"/","/api/webserver/SesTokInfo"}) {
-            HttpURLConnection c=null;
-            try {
-                c=createConnection(new URL(base+endpoint));
-                c.setRequestMethod("GET");
-                c.setConnectTimeout(1900);
-                c.setReadTimeout(2200);
-                c.setInstanceFollowRedirects(false);
-                c.setRequestProperty("X-Requested-With","XMLHttpRequest");
-                int code=c.getResponseCode();
-                report.append("\n").append(endpoint).append(": HTTP ").append(code);
-                if(endpoint.contains("SesTokInfo")&&code==200) {
-                    String body="";
-                    try(InputStream in=c.getInputStream()){
-                        byte[] b=new byte[2048];int count=in.read(b);
-                        if(count>0)body=new String(b,0,count,StandardCharsets.UTF_8);
-                    }
-                    report.append(body.contains("<TokInfo>")||body.contains("<SesInfo>")
-                        ?" (Huawei session API detected)":" (response not recognized as Huawei XML)");
+    public synchronized String probeConnection(){
+        StringBuilder out=new StringBuilder("Default Android network · OkHttp, same transport as working Huawei apps");
+        for(String path:new String[]{"/","/api/webserver/SesTokInfo"}){
+            try(Response response=client.newCall(
+                new Request.Builder().url(base+path).get().build()).execute()){
+                out.append("\\n").append(path).append(": HTTP ").append(response.code());
+                if(path.contains("SesTokInfo")){
+                    ResponseBody b=response.body();
+                    String content=b==null?"":b.string();
+                    out.append(content.contains("<TokInfo>")||content.contains("<SesInfo>")
+                        ?" (Huawei XML API reachable)":" (unexpected API response)");
                 }
-            } catch(Exception ex) {
-                report.append("\n").append(endpoint).append(": ")
-                      .append(ex.getClass().getSimpleName()).append(" - ")
-                      .append(ex.getMessage()==null?"Connection failed":ex.getMessage());
-            } finally {if(c!=null)c.disconnect();}
+            }catch(Exception ex){
+                out.append("\\n").append(path).append(": ")
+                   .append(ex.getClass().getSimpleName()).append(" · ")
+                   .append(ex.getMessage()==null?"Connection error":ex.getMessage());
+            }
         }
-        return report.toString();
+        out.append("\\nNo password sent.");
+        return out.toString();
     }
     private synchronized String post(String path,String xml)throws Exception{
         if(!loggedIn)throw new IOException("Log in first");
