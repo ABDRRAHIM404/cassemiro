@@ -56,7 +56,7 @@ public final class RouterApi {
                 String first=v.split(";",2)[0];int i=first.indexOf('=');if(i>0)cookies.put(first.substring(0,i).trim(),first.substring(i+1).trim());
             }
             if(k.equalsIgnoreCase("__RequestVerificationToken")||k.equalsIgnoreCase("__RequestVerificationTokenone"))
-                if(!h.getValue().isEmpty())token=h.getValue().get(0);
+                if(!h.getValue().isEmpty())token=tokenForPost(h.getValue().get(0).split("#",2)[0].trim());
         }
         try(InputStream in=code>=400?c.getErrorStream():c.getInputStream()){
             if(in==null)throw new IOException("Router HTTP "+code);
@@ -74,7 +74,7 @@ public final class RouterApi {
             String t=get("/api/webserver/token");
             String value=getValue(t,"token");
             if(value.isEmpty())value=getValue(t,"TokInfo");
-            if(!value.isEmpty())token=value;
+            if(!value.isEmpty())token=tokenForPost(value);
         }catch(Exception ignored){}
         String reply=send("POST",path,xml);
         if(!getValue(reply,"response").equalsIgnoreCase("OK"))
@@ -87,21 +87,66 @@ public final class RouterApi {
         for(byte v:b)hex.append(String.format(Locale.US,"%02x",v&255));
         return hex.toString();
     }
-    public synchronized String login(String user,String pass)throws Exception{
+
+    /** Exactly one credential attempt per tap, to avoid Huawei account lockouts. */
+    public synchronized String login(String user,String pass)throws Exception{return login(user,pass,"Auto");}
+    private static byte[] digest(byte[] bytes)throws Exception{
+        return MessageDigest.getInstance("SHA-256").digest(bytes);
+    }
+    private static String b64(byte[] bytes){return Base64.getEncoder().encodeToString(bytes);}
+    private static String tokenForPost(String value){
+        return value.length()>32?value.substring(value.length()-32):value;
+    }
+    public synchronized String diagnoseLogin()throws Exception{
+        String state=get("/api/user/state-login");
+        String session=get("/api/webserver/SesTokInfo");
+        return "Password type: "+getValue(state,"password_type")
+          +"\nLocked: "+getValue(state,"lockstatus")
+          +"\nRemaining attempts: "+getValue(state,"remaincount")
+          +"\nWait time: "+getValue(state,"remainwaittime")
+          +"\nSession cookie found: "+(!getValue(session,"SesInfo").isEmpty())
+          +"\nVerification token length: "+getValue(session,"TokInfo").length()
+          +"\nNo password or token contents are shown.";
+    }
+    public synchronized String login(String user,String pass,String scheme)throws Exception{
         if(user.trim().isEmpty()||pass.isEmpty())throw new IllegalArgumentException("Login credentials required");
         loggedIn=false;
+        String state=get("/api/user/state-login");
+        if("1".equals(getValue(state,"lockstatus")))
+            throw new IOException("Router temporarily locked. Wait "+getValue(state,"remainwaittime")+" minutes before retrying.");
+        String pType=getValue(state,"password_type");
+        if(scheme.equals("Auto"))scheme="0".equals(pType)?"Type 0 (base64)":"Type 4 (raw SHA256)";
         String ses=get("/api/webserver/SesTokInfo");
-        String tok=getValue(ses,"TokInfo");
-        if(!tok.isEmpty())token=tok;
+        String rawToken=getValue(ses,"TokInfo");
+        if(rawToken.isEmpty())throw new IOException("Router did not supply a login token");
+        token=tokenForPost(rawToken);
         String cookie=getValue(ses,"SesInfo");
         int sep=cookie.indexOf('=');
         if(sep>0)cookies.put(cookie.substring(0,sep),cookie.substring(sep+1));
-        String hashed=Base64.getEncoder().encodeToString(shaHex(pass).getBytes(StandardCharsets.UTF_8));
-        String auth=Base64.getEncoder().encodeToString(shaHex(user+hashed+token).getBytes(StandardCharsets.UTF_8));
-        String xml="<request><Username>"+escape(user)+"</Username><Password>"+auth+"</Password><password_type>4</password_type></request>";
+        String pwd,loginType;
+        if(scheme.equals("Type 0 (base64)")){
+            pwd=b64(pass.getBytes(StandardCharsets.UTF_8));loginType="0";
+        }else if(scheme.equals("Type 4 (raw SHA256)")){
+            String inner=b64(digest(pass.getBytes(StandardCharsets.UTF_8)));
+            pwd=b64(digest((user+inner+rawToken).getBytes(StandardCharsets.UTF_8)));loginType="4";
+        }else if(scheme.equals("Type 4 (hex SHA256)")){
+            String inner=b64(shaHex(pass).getBytes(StandardCharsets.UTF_8));
+            pwd=b64(shaHex(user+inner+rawToken).getBytes(StandardCharsets.UTF_8));loginType="4";
+        }else throw new IllegalArgumentException("Unsupported login method");
+        String xml="<request><Username>"+escape(user)+"</Username><Password>"+pwd+
+              "</Password><password_type>"+loginType+"</password_type></request>";
         String reply=send("POST","/api/user/login",xml);
-        if(!getValue(reply,"response").equalsIgnoreCase("OK"))
-            throw new IOException("Login rejected by router (firmware may use a different login scheme)");
+        if(!getValue(reply,"response").equalsIgnoreCase("OK")){
+            String code=getValue(reply,"code");
+            String count=getValue(reply,"remaincount");
+            if(code.equals("108007"))throw new IOException("Login temporarily locked (108007). Stop retrying.");
+            if(code.equals("125003")||code.equals("125002")||code.equals("125001"))
+                throw new IOException("Router rejected the security token (code "+code+"). Close any browser router sessions and try again.");
+            throw new IOException("Login rejected using "+scheme+
+                 (code.isEmpty()?" (unknown router error)":" (router code "+code+")")+
+                 (count.isEmpty()?"":". Attempts remaining: "+count)+
+                 ". Please avoid repeated attempts.");
+        }
         loggedIn=true;
         return "Connected to "+base;
     }
