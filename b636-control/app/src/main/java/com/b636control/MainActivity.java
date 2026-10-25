@@ -19,6 +19,29 @@ public class MainActivity extends Activity {
     final Handler handler=new Handler(Looper.getMainLooper());
     Map<String,String> latest=new LinkedHashMap<>();
     String tab="Dashboard";boolean busy=false;boolean alive=true;
+    private android.net.Network wifiRoute(){
+        android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        if(cm==null)return null;
+        for(android.net.Network n:cm.getAllNetworks()){
+            android.net.NetworkCapabilities caps=cm.getNetworkCapabilities(n);
+            if(caps!=null&&caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI))return n;
+        }
+        return null;
+    }
+    private RouterApi routerFor(String ip){return new RouterApi(ip,wifiRoute());}
+    private String networkInfo(){
+        android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        android.net.Network wifi=wifiRoute();
+        if(wifi==null)return "Android reports no connected Wi-Fi network. Connect to the router's Wi-Fi before testing.";
+        String gateway="unknown";
+        android.net.LinkProperties lp=cm.getLinkProperties(wifi);
+        if(lp!=null)for(android.net.RouteInfo rt:lp.getRoutes()){
+            if(rt.isDefaultRoute()&&rt.getGateway()!=null&&rt.getGateway() instanceof java.net.Inet4Address){gateway=rt.getGateway().getHostAddress();break;}
+        }
+        return "Connected Wi-Fi: yes\nAndroid Wi-Fi gateway: "+gateway
+            +"\nActive Android route is Wi-Fi: "+wifi.equals(cm.getActiveNetwork())
+            +"\nApp bypasses any HTTP proxy for local router requests.";
+    }
     private int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
     private GradientDrawable bg(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(14));return d;}
     private LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);return l;}
@@ -107,14 +130,22 @@ public class MainActivity extends Activity {
         mode.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,modes));
         login.addView(mode,new LinearLayout.LayoutParams(-1,dp(50)));
         msg(login,"Auto reads the router's password type. Do not retry rapidly if credentials are rejected.",12,MUTED,false);
+        button(login,"Test router connection (no password)",()->{
+            String addr=ip.getText().toString();
+            call("Testing local Wi-Fi router...",()->{
+                String info=networkInfo();
+                try{return info+"\n\n"+routerFor(addr).probeConnection();}
+                catch(Exception ex){throw new java.io.IOException(info+"\n\nHTTP connection failed: "+ex.getMessage(),ex);}
+            },this::result);
+        },false);
         button(login,"Check login diagnostics (no password)",()->{
             String ipValue=ip.getText().toString();
-            call("Reading firmware login state...",()->new RouterApi(ipValue).diagnoseLogin(),this::result);
+            call("Reading firmware login state...",()->routerFor(ipValue).diagnoseLogin(),this::result);
         },false);
         button(login,"Sign in & refresh",()->{
             String i=ip.getText().toString(),u=username.getText().toString(),p=password.getText().toString();
             String method=String.valueOf(mode.getSelectedItem());
-            call("Authenticating...",()->{RouterApi instance=new RouterApi(i);instance.login(u,p,method);return instance;},instance->{
+            call("Authenticating...",()->{RouterApi instance=routerFor(i);instance.login(u,p,method);return instance;},instance->{
                 router=instance;password.setText("");refresh();
             });
         },true);
