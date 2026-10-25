@@ -6,8 +6,11 @@ android {
         applicationId = "com.b636control"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+}
+dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
