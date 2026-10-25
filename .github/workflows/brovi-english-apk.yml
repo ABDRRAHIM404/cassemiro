@@ -1,0 +1,44 @@
+name: Brovi English APK (isolated)
+on:
+  push:
+    branches:
+      - build/brovi-cpe-english-apk
+    paths:
+      - '.github/workflows/brovi-english-apk.yml'
+      - 'brovi-build/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore translation kit
+        run: |
+          mkdir kit
+          base64 -d brovi-build/english-kit.tar.gz.b64 | tar -xz -C kit
+          python3 -m py_compile kit/translate_to_english.py
+      - name: Clone original CPE Android application
+        run: git clone --depth 1 https://github.com/fz911a/Brovi-Huawei-5G-CPE-Manager.git source
+      - name: Apply English UI text
+        run: python3 kit/translate_to_english.py source
+      - name: Android SDK 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build Android APK
+        working-directory: source
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Brovi-CPE-Manager-English-APK
+          path: source/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
