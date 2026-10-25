@@ -126,7 +126,7 @@ public class MainActivity extends Activity {
         EditText password=input(login,"Router password","",true);
         msg(login,"Login method (one attempt per tap)",12,MUTED,true);
         Spinner mode=new Spinner(this);
-        String[] modes={"Auto","Type 4 (raw SHA256)","Type 4 (hex SHA256)","Type 0 (base64)"};
+        String[] modes={"Auto","Type 4 (raw SHA256)","Type 4 (hex SHA256)","Type 0 (base64)","SCRAM challenge"};
         mode.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,modes));
         login.addView(mode,new LinearLayout.LayoutParams(-1,dp(50)));
         msg(login,"Auto reads the router's password type. Do not retry rapidly if credentials are rejected.",12,MUTED,false);
