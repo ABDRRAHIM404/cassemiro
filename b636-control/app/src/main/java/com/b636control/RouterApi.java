@@ -99,7 +99,7 @@ public final class RouterApi {
                 c.setInstanceFollowRedirects(false);
                 c.setRequestProperty("X-Requested-With","XMLHttpRequest");
                 int code=c.getResponseCode();
-                report.append("\\n").append(endpoint).append(": HTTP ").append(code);
+                report.append("\n").append(endpoint).append(": HTTP ").append(code);
                 if(endpoint.contains("SesTokInfo")&&code==200) {
                     String body="";
                     try(InputStream in=c.getInputStream()){
@@ -110,7 +110,7 @@ public final class RouterApi {
                         ?" (Huawei session API detected)":" (response not recognized as Huawei XML)");
                 }
             } catch(Exception ex) {
-                report.append("\\n").append(endpoint).append(": ")
+                report.append("\n").append(endpoint).append(": ")
                       .append(ex.getClass().getSimpleName()).append(" - ")
                       .append(ex.getMessage()==null?"Connection failed":ex.getMessage());
             } finally {if(c!=null)c.disconnect();}
