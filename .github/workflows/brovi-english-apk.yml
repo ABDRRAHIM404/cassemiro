@@ -40,6 +40,7 @@ jobs:
       - name: Build Android APK
         working-directory: source
         run: |
+          sed -i '/^org.gradle.java.home=/d' gradle.properties
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
