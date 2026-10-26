@@ -246,14 +246,56 @@ public final class MainActivity extends Activity {
             new String[]{"net/net-mode","net/net-mode-list","net/current-plmn"}));
     }
     private void wifi(){
-        LinearLayout card=box(body,"2.4 GHz & 5 GHz Wi-Fi","Inspect SSIDs, channels, security settings and router radio capabilities.");
-        button(card,"Read both Wi-Fi radio settings",true,()->readMultiple("Wi-Fi radios",
-            new String[]{"wlan/basic-settings","wlan/multi-basic-settings","wlan/wifi-feature-switch","wlan/multi-security-settings"}));
-        button(card,"Inspect Wi-Fi channel and width",false,()->readMultiple("Wi-Fi channels",
+        LinearLayout card=box(body,"Wi-Fi status","2.4 GHz and 5 GHz settings returned by your router.");
+        button(card,"Refresh Wi-Fi status",true,()->run("Reading Wi-Fi radio settings…",()->{
+            Map<String,Map<String,String>> data=new LinkedHashMap<>();
+            for(String endpoint:new String[]{"wlan/basic-settings","wlan/multi-basic-settings",
+                    "wlan/wifi-feature-switch"}){
+                try{data.put(endpoint,router.readFeature(endpoint));}
+                catch(Exception e){data.put(endpoint,Map.of("_error",brief(e)));}
+            }
+            return data;
+        },this::showWifiOverview));
+        wifiOverview=vertical();
+        card.addView(wifiOverview);
+        note(wifiOverview,"Tap Refresh for current SSID, channel, bandwidth and 5 GHz capability.",SUB);
+        button(card,"Advanced radio configuration details",false,()->readMultiple("Wi-Fi radios",
+            new String[]{"wlan/basic-settings","wlan/multi-basic-settings",
+                "wlan/wifi-feature-switch","wlan/multi-security-settings"}));
+        note(card,"Channel 12 and 40 MHz in your previous report refer to Wi-Fi settings, not the LTE B7 bandwidth.",SUB);
+        LinearLayout advanced=box(body,"Wi-Fi channel diagnostics","Only verified GET endpoints are queried; no settings are changed.");
+        button(advanced,"Check channel API responses",false,()->readMultiple("Wi-Fi channels",
             new String[]{"wlan/wlan-debug","wlan/channel","wlan/wlan-settings"}));
-        note(card,"Wi-Fi 2.4 GHz and 5 GHz are separate from LTE. Wi-Fi channel width changes require confirmation of the exact API schema returned by your firmware.",AMBER);
-        LinearLayout guard=box(body,"Unsupported settings safety","Avoid writing guessed fields to the wrong radio.");
-        note(guard,"Channel/width and per-device rate limits stay read-only until the firmware provides a verified write schema. Read failures show the actual Huawei error instead of fake success.",SUB);
+        note(advanced,"Your firmware returned Huawei 100003 for some read requests. Channel-width writes and device rate limits stay disabled until their supported schema is verified.",AMBER);
+    }
+    private static String wifiValue(Map<String,String> map,String...keys){
+        if(map==null)return "not read";
+        if(map.containsKey("_error"))return "API rejected: "+map.get("_error");
+        return hostValue(map,keys);
+    }
+    private void showWifiOverview(Map<String,Map<String,String>> result){
+        if(!"Wi-Fi".equals(page)||wifiOverview==null)return;
+        wifiOverview.removeAllViews();
+        Map<String,String> primary=result.get("wlan/basic-settings");
+        Map<String,String> secondary=result.get("wlan/multi-basic-settings");
+        Map<String,String> features=result.get("wlan/wifi-feature-switch");
+        LinearLayout primaryCard=box(wifiOverview,"Primary Wi-Fi",null);
+        note(primaryCard,"Status: "+wifiValue(primary,"WifiEnable")+
+            "\nSSID: "+wifiValue(primary,"WifiSsid")+
+            "\nChannel: "+wifiValue(primary,"WifiChannel")+
+            "\nReported Wi-Fi width: "+wifiValue(primary,"wifibandwidth")+" MHz"+
+            "\nMode: "+wifiValue(primary,"WifiMode")+
+            "\nCountry: "+wifiValue(primary,"WifiCode"),SUB);
+        LinearLayout extraCard=box(wifiOverview,"Additional SSID entry",null);
+        note(extraCard,"Status: "+wifiValue(secondary,"WifiEnable")+
+            "\nSSID: "+wifiValue(secondary,"WifiSsid")+
+            "\nRouter record ID: "+wifiValue(secondary,"ID"),SUB);
+        note(extraCard,"This is an additional SSID record. It is not necessarily the 5 GHz primary radio.",SUB);
+        LinearLayout caps=box(wifiOverview,"5 GHz and Wi-Fi capabilities",null);
+        note(caps,"5 GHz enabled: "+wifiValue(features,"wifi5g_enabled")+
+            "\nChannel optimization: "+wifiValue(features,"channel_optimize_enable")+
+            "\n802.11r feature: "+wifiValue(features,"wifi11renable")+
+            "\nWLAN debug feature: "+wifiValue(features,"wlan_debug_enable"),SUB);
     }
     private void clients(){
         LinearLayout c=box(body,"Connected devices","Each Wi-Fi client shown separately, directly from the Huawei host-list API.");
