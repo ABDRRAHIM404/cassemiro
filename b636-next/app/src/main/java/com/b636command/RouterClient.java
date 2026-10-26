@@ -105,13 +105,76 @@ public final class RouterClient {
             return body;
         }
     }
-    public Map<String,String> sessionDiagnostics()throws Exception{
-        String xml=request("/api/webserver/SesTokInfo",null,"");
-        assertSuccess("Session",xml);
-        Map<String,String> m=fields(xml);
-        String raw=safe(m.get("TokInfo"));String ses=safe(m.get("SesInfo"));
-        return new LinkedHashMap<>(Map.of("router",base,"session",ses.isEmpty()?"missing":"received",
-            "token",raw.isEmpty()?"missing":("available ("+raw.length()+" characters)")));
+    /**
+     * Network diagnostics report ONLY statuses, document roots, known Huawei error
+     * codes and token presence. Never emit raw XML, tokens, cookies or passwords.
+     * A 2xx HTML response can otherwise be misdiagnosed as a missing token.
+     */
+    private String documentRoot(String body){
+        String value=body==null?"":body.trim();
+        if(value.isEmpty())return "empty body";
+        if(value.startsWith("<!DOCTYPE html")||value.startsWith("<!doctype html"))return "HTML document";
+        if(value.startsWith("{")||value.startsWith("["))return "JSON";
+        try{
+            DocumentBuilderFactory f=DocumentBuilderFactory.newInstance();
+            f.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);
+            f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);
+            f.setFeature("http://xml.org/sax/features/external-general-entities",false);
+            f.setFeature("http://xml.org/sax/features/external-parameter-entities",false);
+            f.setXIncludeAware(false);
+            Document d=f.newDocumentBuilder().parse(
+                new java.io.ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8)));
+            return "XML root <"+d.getDocumentElement().getNodeName()+">";
+        }catch(Exception ex){
+            if(value.toLowerCase(Locale.ROOT).startsWith("<html"))return "HTML document";
+            return "unrecognized response";
+        }
+    }
+    private String safeProbe(String path,boolean browserLike){
+        StringBuilder out=new StringBuilder();
+        try{
+            Request.Builder request=new Request.Builder().url(base+path).get();
+            if(browserLike)request.header("X-Requested-With","XMLHttpRequest");
+            try(Response response=client.newCall(request.build()).execute()){
+                ResponseBody body=response.body();
+                String text=body==null?"":body.string();
+                Map<String,String> m=fields(text);
+                out.append("HTTP ").append(response.code())
+                    .append("; ").append(documentRoot(text));
+                String err=safe(m.get("code"));
+                if(!err.isEmpty())out.append("; Huawei error ").append(err);
+                out.append("; TokInfo ").append(safe(m.get("TokInfo")).isEmpty()?"absent":"present");
+                out.append("; SesInfo ").append(safe(m.get("SesInfo")).isEmpty()?"absent":"present");
+                String ct=response.header("Content-Type");
+                if(ct!=null&&!ct.isEmpty()){
+                    String subtype=ct.split(";",2)[0];
+                    out.append("; content type ").append(subtype.length()>50?"long":subtype);
+                }
+                if(response.isRedirect())out.append("; redirect");
+            }
+        }catch(Exception ex){
+            out.append(ex.getClass().getSimpleName()).append(" (")
+               .append(ex.getMessage()==null?"no message":ex.getMessage()).append(")");
+        }
+        return out.toString();
+    }
+    public Map<String,String> sessionDiagnostics() {
+        Map<String,String> result=new LinkedHashMap<>();
+        result.put("Address",base);
+        result.put("Home page GET",safeProbe("/",false));
+        result.put("Huawei session GET",safeProbe("/api/webserver/SesTokInfo",false));
+        result.put("Huawei session AJAX GET",safeProbe("/api/webserver/SesTokInfo",true));
+        result.put("Huawei login-state GET",safeProbe("/api/user/state-login",false));
+        result.put("Privacy","No password or session values transmitted in this report.");
+        return result;
+    }
+    private String safeSessionError(String sessionXml){
+        Map<String,String> response=fields(sessionXml);
+        String code=safe(response.get("code"));
+        if(!code.isEmpty())return "Huawei session API returned error code "+code+
+            ". Open the no-password diagnostic test. Do not retry your password.";
+        return "Huawei session API did not return TokInfo ("+documentRoot(sessionXml)+
+            "). Open the no-password diagnostic test. Do not retry your password.";
     }
     /**
      * Exactly the Huawei Manager type-4 hash/login algorithm.
@@ -126,7 +189,7 @@ public final class RouterClient {
             assertSuccess("Session",sesXml);
             Map<String,String> session=fields(sesXml);
             String raw=safe(session.get("TokInfo")),ses=safe(session.get("SesInfo"));
-            if(raw.isEmpty())throw new IOException("Router did not return a session token");
+            if(raw.isEmpty())throw new IOException(safeSessionError(sesXml));
             if(!ses.isEmpty()&&ses.contains("=")){
                 int i=ses.indexOf('=');
                 try{Cookie c=new Cookie.Builder().name(ses.substring(0,i).trim())
