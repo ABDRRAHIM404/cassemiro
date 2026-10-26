@@ -24,6 +24,7 @@ public final class MainActivity extends Activity {
     private RouterClient.Snapshot last;
     private LinearLayout root,body,bar;private TextView connection,updated;
     private SignalGraph graph;
+    private LinearLayout deviceResults,wifiOverview;
     private String page="Live";private boolean busy=false,active=false;
     private int tick=0;
     private final Runnable poller=new Runnable(){@Override public void run(){
@@ -136,7 +137,7 @@ public final class MainActivity extends Activity {
         }
     }
     private void show(String tab){
-        page=tab;tabs();metrics.clear();graph=null;body.removeAllViews();updated=null;
+        page=tab;tabs();metrics.clear();graph=null;deviceResults=null;wifiOverview=null;body.removeAllViews();updated=null;
         switch(tab){
             case "Live": live();break;case "LTE": cellular();break;
             case "Wi-Fi": wifi();break;case "Clients":clients();break;
@@ -162,7 +163,7 @@ public final class MainActivity extends Activity {
         overview.addView(updated);
         metricRow("rsrp","RSRP · dBm","sinr","SINR · dB",overview);
         metricRow("rsrq","RSRQ · dB","rssi","RSSI · dBm",overview);
-        graph=new SignalGraph(this);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(190));
+        graph=new SignalGraph(this);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(210));
         gp.setMargins(0,dp(12),0,0);overview.addView(graph,gp);
         LinearLayout network=box(body,"Serving tower","LTE identity and carrier measurements");
         metricRow("band","Serving LTE band","pci","PCI",network);
@@ -176,9 +177,25 @@ public final class MainActivity extends Activity {
     }
     private static String value(String s){return s==null||s.isEmpty()?"—":s;}
     private static String prettyRate(String raw){
-        try{double bytes=Double.parseDouble(raw);
-            return String.format(Locale.US,"%.2f Mbps",bytes*8d/1000000d);
+        try{
+            double bytes=Double.parseDouble(raw);
+            if(bytes<=0)return "0 kbps";
+            double kbps=bytes*8d/1000d;
+            if(kbps<1000)return String.format(Locale.US,"%.1f kbps",kbps);
+            return String.format(Locale.US,"%.2f Mbps",kbps/1000d);
         }catch(Exception e){return value(raw);}
+    }
+    private static String readableBand(String raw){
+        if(raw==null||raw.equals("—"))return "—";
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile("\\\\bB(\\\\d+)\\\\b")
+            .matcher(raw);
+        if(m.find())return "B"+m.group(1);
+        return raw;
+    }
+    private static String modeCode(String raw){
+        if(raw==null||raw.equals("—"))return "—";
+        if(raw.matches("\\\\d+"))return "Code "+raw;
+        return raw;
     }
     private void set(String key,String s){TextView v=metrics.get(key);if(v!=null)v.setText(value(s));}
     private void updateLive(RouterClient.Snapshot snap){
@@ -187,11 +204,11 @@ public final class MainActivity extends Activity {
             .format(new Date(snap.at))+(snap.failures.isEmpty()?" · all queried endpoints responded":" · "+snap.failures.size()+" endpoint warning(s)"));
         set("rsrp",snap.get("rsrp"));set("sinr",snap.get("sinr"));
         set("rsrq",snap.get("rsrq"));set("rssi",snap.get("rssi"));
-        set("band",snap.get("band","BandLTEWork"));set("pci",snap.get("pci"));
+        set("band",readableBand(snap.get("band","BandLTEWork")));set("pci",snap.get("pci"));
         set("cell",snap.get("cell_id","CellID"));set("earfcn",snap.get("earfcn"));
         set("dlwidth",snap.get("dlbandwidth"));set("ulwidth",snap.get("ulbandwidth"));
         set("users",snap.get("CurrentWifiUser"));
-        set("mode",snap.get("NetworkType","CurrentNetworkType"));
+        set("mode",modeCode(snap.get("NetworkType","CurrentNetworkType")));
         set("down",prettyRate(snap.get("CurrentDownloadRate")));
         set("up",prettyRate(snap.get("CurrentUploadRate")));
         if(graph!=null)graph.push(snap.get("rsrp"),snap.get("sinr"));
