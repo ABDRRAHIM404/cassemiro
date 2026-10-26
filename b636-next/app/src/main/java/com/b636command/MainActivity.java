@@ -296,6 +296,8 @@ public final class MainActivity extends Activity {
         selectedRoute.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
             new String[]{"Android default network","Physical Wi-Fi (non-VPN only)"}));
         login.addView(selectedRoute,new LinearLayout.LayoutParams(-1,dp(48)));
+        // Prefer physical Wi-Fi when the OS exposes one; never auto-select VPN overlay.
+        if(new NetworkProbe(this).wifi()!=null)selectedRoute.setSelection(1);
         EditText user=field(login,"Username","admin",false);
         EditText pass=field(login,"Admin password","",true);
         button(login,"Connect & start real-time monitoring",true,()->{
