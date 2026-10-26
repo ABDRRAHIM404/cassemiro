@@ -20,8 +20,26 @@ import java.nio.charset.StandardCharsets;
  */
 final class NetworkProbe {
     private final ConnectivityManager cm;
+    private final Context context;
     NetworkProbe(Context ctx) {
-        cm=(ConnectivityManager)ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+        context=ctx.getApplicationContext();
+        cm=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+    }
+    private String physicalDhcp(){
+        try {
+            android.net.wifi.WifiManager manager=
+                (android.net.wifi.WifiManager)context.getSystemService(Context.WIFI_SERVICE);
+            android.net.DhcpInfo info=manager==null?null:manager.getDhcpInfo();
+            if(info==null)return "not reported by device";
+            return "Wi-Fi DHCP IPv4: "+ipFromDhcp(info.ipAddress)
+                +" | DHCP gateway: "+ipFromDhcp(info.gateway);
+        }catch(Exception error){
+            return "Wi-Fi DHCP unavailable ("+error.getClass().getSimpleName()+")";
+        }
+    }
+    private static String ipFromDhcp(int ip){
+        if(ip==0)return "unavailable";
+        return (ip&255)+"."+((ip>>8)&255)+"."+((ip>>16)&255)+"."+((ip>>24)&255);
     }
     /**
      * A VPN overlay can claim both WIFI and VPN transports. Only return the
@@ -159,6 +177,7 @@ final class NetworkProbe {
         Network wifiNetwork=wifi();
         report.append("B636 / ROUTING DIAGNOSTICS v1.3\n");
         report.append("VISIBLE NETWORKS\n").append(inventory()).append("\n");
+        report.append("PHYSICAL Wi-Fi DHCP\n").append(physicalDhcp()).append("\n\n");
         report.append("Default Android route: ").append(caps(defaultNetwork)).append("\n");
         report.append("Selected physical Wi-Fi: ").append(wifiNetwork==null?
             "NOT FOUND (VPN overlay excluded)":caps(wifiNetwork)).append("\n");
