@@ -11,10 +11,10 @@ A **new**, independent Android app for the Huawei B636-336. Source is under `b63
 
 ## Features in this alpha
 
-- Fresh native Android UI, private LAN-only HTTP, no credentials stored on disk
+- Fresh native Android UI, private LAN-only HTTP, optional Android Keystore AES-GCM encrypted login and auto-sign-in
 - Real router polling every 3 seconds while foregrounded: RSRP, RSRQ, SINR, RSSI, PCI, cell ID, EARFCN, LTE band, traffic rate, radio channel allocation
-- RSRP/SINR history, no synthetic data or speed values
-- Multi-band LTE masks and automatic restore (may disconnect mobile connectivity)
+- RSRP/SINR history on correctly labeled axes, signal quality indicators, and configurable 2/3/5/10-second foreground sampling; no synthetic data or speed values
+- Multi-band LTE masks, read-current-band control, preservation of network mode and verified readback; settings writes refresh Huawei POST tokens and have one safe fallback if error 125003 occurs
 - EARFCN / PCI cell lock and release using the documented Huawei endpoint **only if the router accepts it**
 - Current + neighboring cell discovery and secondary-cell info if supplied by firmware
 - Read-only capability inspection for 2.4 / 5 GHz Wi-Fi, clients and QoS
@@ -38,3 +38,10 @@ gradle assembleDebug
 Or use the [B636 Command Actions workflow](../../.github/workflows/build-b636-command.yml) (GitHub Actions runner with Android SDK 35).
 
 Do not reuse the previously pasted router web session token; use your own current password locally in the new app.
+
+## Secure login and validation
+
+- Opt-in saved credentials are encrypted locally using Android Keystore (AES-256-GCM). `android:allowBackup=false` is set. The encryption key is nonexportable and no plaintext password is stored on disk. Auto-login occurs once when the app opens; users can erase the encrypted login and key from the Login page. This feature still needs on-device validation.
+- B636 POST token flow accepts either the 64-character `/api/webserver/token` convention (last 32 chars) or the `SesTokInfo` token used by Huawei Manager. A rejected LTE settings request with Huawei 125003 may be retried once with the other token source; unconfirmed changes are never labeled successful.
+- LTE changes read the current network mode and preserve it, then check the router's actual `LTEBand` readback. Routers can still reject specific masks or privileges; no bypass is attempted.
+- No custom VPN routing, per-network socket binding, or background routing changes.
