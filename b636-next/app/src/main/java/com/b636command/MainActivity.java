@@ -256,13 +256,46 @@ public final class MainActivity extends Activity {
         note(guard,"Channel/width and per-device rate limits stay read-only until the firmware provides a verified write schema. Read failures show the actual Huawei error instead of fake success.",SUB);
     }
     private void clients(){
-        LinearLayout c=box(body,"Connected devices","Discover users on both Wi-Fi radios; availability depends on firmware.");
-        button(c,"Read Wi-Fi client list",true,()->readMultiple("Connected clients",
-            new String[]{"wlan/host-list","monitoring/converged-status","security/host-info"}));
-        LinearLayout c2=box(body,"Bandwidth and QoS","Router-specific; operator LTE bandwidth cannot be forced.");
-        button(c2,"Inspect QoS and traffic-control APIs",false,()->readMultiple("QoS discovery",
+        LinearLayout c=box(body,"Connected devices","Each Wi-Fi client shown separately, directly from the Huawei host-list API.");
+        button(c,"Refresh connected device list",true,()->{
+            run("Reading Wi-Fi clients…",()->router.connectedHosts(),this::showHosts);
+        });
+        deviceResults=vertical();
+        c.addView(deviceResults);
+        note(deviceResults,"Tap Refresh to load the router's current client list.",SUB);
+        LinearLayout c2=box(body,"Bandwidth and QoS","The router did not expose the tested QoS read APIs (Huawei 100003).");
+        button(c2,"Inspect QoS capability responses",false,()->readMultiple("QoS discovery",
             new String[]{"qos/qos-enable","qos/qos-list","security/host-info"}));
-        note(c2,"Per-client throttling is not enabled until we verify that this B636-336 firmware exposes a safe write endpoint.",AMBER);
+        note(c2,"Speed-limit controls remain disabled until a supported authenticated write API is verified. The app will not claim success from a failed request.",AMBER);
+    }
+    private static String hostValue(Map<String,String> host,String...names){
+        for(String name:names){
+            String value=host.get(name);
+            if(value!=null&&!value.trim().isEmpty())return value.trim();
+        }
+        return "—";
+    }
+    private void showHosts(List<Map<String,String>> devices){
+        if(!"Clients".equals(page)||deviceResults==null)return;
+        deviceResults.removeAllViews();
+        note(deviceResults,devices.size()+" host record(s) reported by router",AQUA);
+        if(devices.isEmpty()){
+            note(deviceResults,"The API returned no individual Host records. No device counts were invented.",AMBER);
+            return;
+        }
+        int i=0;
+        for(Map<String,String> host:devices){
+            i++;
+            String name=hostValue(host,"ActualName","HostName");
+            if(name.equals("—"))name="Device "+i;
+            LinearLayout device=box(deviceResults,name,null);
+            note(device,"IP: "+hostValue(host,"IpAddress","IPAddress")+
+                "\nWi-Fi: "+hostValue(host,"Frequency")+
+                "\nSSID: "+hostValue(host,"AssociatedSsid")+
+                "\nMAC: "+hostValue(host,"MacAddress"),SUB);
+            String activity=hostValue(host,"Active","IsActive");
+            if(!activity.equals("—"))note(device,"Router active flag: "+activity,SUB);
+        }
     }
     private void tools(){
         LinearLayout c=box(body,"Router tools","Read system information or send confirmed management actions.");
