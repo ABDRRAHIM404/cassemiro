@@ -275,16 +275,28 @@ public final class RouterClient {
             return "—";
         }
     }
+    // Cache slow-changing router metadata between polls instead of showing
+    // empty placeholders 3 out of 4 samples. Never synthesize signal values.
+    private final Map<String,String> cachedInfo=new LinkedHashMap<>();
+    private final Map<String,String> cachedPlmn=new LinkedHashMap<>();
     public synchronized Snapshot poll(int tick)throws Exception{
         if(!authenticated)throw new IOException("Login required");
         Snapshot snap=new Snapshot();
         readInto(snap,"device/signal",snap.signal);
         readInto(snap,"monitoring/status",snap.status);
         readInto(snap,"monitoring/traffic-statistics",snap.traffic);
-        if(tick%4==0){
-            readInto(snap,"device/information",snap.info);
-            readInto(snap,"net/current-plmn",snap.plmn);
+        if(tick%4==0 || cachedInfo.isEmpty()){
+            Map<String,String> current=new LinkedHashMap<>();
+            readInto(snap,"device/information",current);
+            if(!current.isEmpty()){cachedInfo.clear();cachedInfo.putAll(current);}
         }
+        if(tick%4==0 || cachedPlmn.isEmpty()){
+            Map<String,String> current=new LinkedHashMap<>();
+            readInto(snap,"net/current-plmn",current);
+            if(!current.isEmpty()){cachedPlmn.clear();cachedPlmn.putAll(current);}
+        }
+        snap.info.putAll(cachedInfo);
+        snap.plmn.putAll(cachedPlmn);
         return snap;
     }
     private void readInto(Snapshot snap,String ep,Map<String,String> dest){
