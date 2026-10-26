@@ -319,18 +319,48 @@ public final class MainActivity extends Activity {
         updateHealth(snap);
     }
     private void cellular(){
-        LinearLayout bands=box(body,"LTE band control","Choose bands allowed by the router. B7 (2600 MHz) is selected by default.");
+        LinearLayout bands=box(body,"LTE band control",
+            "Select LTE bands or load your router's current selection. Never assume a band is active by default.");
+        TextView currentBandSelection=text("Current LTE selection: not loaded",12,AQUA,false);
+        currentBandSelection.setPadding(0,dp(5),0,dp(9));bands.addView(currentBandSelection);
+        Map<Integer,CheckBox> bandChecks=new LinkedHashMap<>();
         for(int b:RouterClient.LTE_BANDS){
             CheckBox cb=new CheckBox(this);cb.setText("Band B"+b+(b==7?"  ·  2600 MHz":""));
             cb.setTextColor(TEXT);cb.setButtonTintList(ColorStateList.valueOf(AQUA));
             cb.setChecked(selectedBands.contains(b));bands.addView(cb);
+            bandChecks.put(b,cb);
             cb.setOnCheckedChangeListener((v,checked)->{if(checked)selectedBands.add(b);else selectedBands.remove(b);});
         }
+        button(bands,"Load current router band selection",false,()->run(
+            "Reading current LTE band settings…",()->router.readFeature("net/net-mode"),values->{
+                String raw=values.get("LTEBand");
+                String mode=values.get("NetworkMode");
+                if(raw==null||raw.trim().isEmpty()){
+                    currentBandSelection.setText("Router did not return an LTE band mask.");
+                    return;
+                }
+                currentBandSelection.setText("Router: mode "+mode+" · LTE mask "+raw);
+                String clean=raw.trim().replaceFirst("(?i)^0x","");
+                try{
+                    java.math.BigInteger mask=new java.math.BigInteger(clean,16);
+                    java.math.BigInteger full=new java.math.BigInteger("7FFFFFFFFFFFFFFF",16);
+                    selectedBands.clear();
+                    for(Map.Entry<Integer,CheckBox> entry:bandChecks.entrySet()){
+                        boolean allowed=!mask.equals(full)&&mask.testBit(entry.getKey()-1);
+                        entry.getValue().setChecked(allowed);
+                    }
+                    if(mask.equals(full))
+                        currentBandSelection.setText("Current setting: all LTE bands enabled. Select specific bands below to restrict it.");
+                }catch(Exception ignored){
+                    currentBandSelection.setText("Router LTE mask: "+raw+" (could not decode)");
+                }
+            }));
+        note(bands,"Band changes use a fresh Huawei write token, then read the new band mask back from the router.",SUB);
         button(bands,"Apply selected LTE bands",true,()->confirm("Change LTE bands?",
             "Changing bands can disconnect the router. Keep your router's web interface available as a recovery option.",
-            ()->run("Applying LTE bands…",()->{router.lockBands(selectedBands);return "Bands applied";},this::showResult)));
-        button(bands,"Restore automatic band selection",false,()->confirm("Restore LTE auto?",
-            "Return to automatic cellular band selection?",()->run("Restoring LTE auto…",()->{router.resetBandAuto();return "Automatic LTE selected";},this::showResult)));
+            ()->run("Applying LTE bands…",()->{router.lockBands(selectedBands);return "Requested LTE band selection accepted and verified";},this::showResult)));
+        button(bands,"Allow all LTE bands again",false,()->confirm("Allow all LTE bands?",
+            "Remove the LTE band restriction while preserving the current network mode?",()->run("Restoring LTE auto…",()->{router.resetBandAuto();return "LTE band restriction cleared and verified";},this::showResult)));
         LinearLayout cell=box(body,"Advanced cell lock","Firmware-dependent · lock a specific LTE EARFCN and PCI, if supported.");
         EditText frequency=field(cell,"LTE EARFCN (channel number)","",false);
         EditText pci=field(cell,"PCI (0–503)","",false);
