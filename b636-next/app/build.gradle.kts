@@ -6,8 +6,8 @@ android {
         applicationId = "com.b636command"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.4.0-alpha"
+        versionCode = 6
+        versionName = "1.5.0-alpha"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
