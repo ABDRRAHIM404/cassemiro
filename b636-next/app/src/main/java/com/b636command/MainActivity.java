@@ -393,36 +393,21 @@ public final class MainActivity extends Activity {
         },result->popup(name,result));
     }
     private void login(){
-        LinearLayout login=box(body,"Router sign-in","Huawei Manager type-4 authentication · credentials held in memory only");
+        LinearLayout login=box(body,"Router sign-in",
+            "Huawei Manager type-4 authentication · your credentials stay in memory");
         EditText ip=field(login,"Local router IP","192.168.1.1",false);
-        button(login,"Diagnose VPN / Wi-Fi routes (no password)",false,()->{
-            String address=ip.getText().toString();
-            run("Testing phone network routes…",()->new NetworkProbe(this).run(address),
-                diagnostics->popup("Connection paths",diagnostics));
-        });
-        note(login,"Optional connection test, without password. Normal login uses Android routing; no special Wi-Fi binding is needed.",SUB);
-        note(login,"Connection path for login",SUB);
-        Spinner selectedRoute=new Spinner(this);
-        selectedRoute.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
-            new String[]{"Standard Android connection (recommended)","Advanced: force physical Wi-Fi"}));
-        login.addView(selectedRoute,new LinearLayout.LayoutParams(-1,dp(48)));
-        // The user excludes this app from their VPN. Android's own routing must
-        // choose the local LAN; forcing a network socket triggers EPERM on the
-        // user's HyperOS. Never auto-select or bind to physical Wi-Fi.
-        selectedRoute.setSelection(0);
         EditText user=field(login,"Username","admin",false);
         EditText pass=field(login,"Admin password","",true);
         button(login,"Connect & start real-time monitoring",true,()->{
-            String address=ip.getText().toString(),u=user.getText().toString(),password=pass.getText().toString();
-            final int routeIndex=selectedRoute.getSelectedItemPosition();
+            String address=ip.getText().toString();
+            String username=user.getText().toString();
+            String password=pass.getText().toString();
             run("Connecting to Huawei…",()->{
-                android.net.Network route=null;
-                if(routeIndex==1){
-                    route=new NetworkProbe(this).wifi();
-                    if(route==null)throw new java.io.IOException("No physical non-VPN Wi-Fi network available to the app. Run the password-free route diagnosis. Do not retry login.");
-                }
-                RouterClient next=new RouterClient(address,route);
-                next.login(u,password);return next;
+                // No VPN API, socket binding or special Wi-Fi routing.
+                // The OS picks the network, just like other Huawei apps.
+                RouterClient next=new RouterClient(address);
+                next.login(username,password);
+                return next;
             },next->{
                 router.close();router=next;pass.setText("");
                 setStatus("Connected · "+next.address(),true);
@@ -430,21 +415,16 @@ public final class MainActivity extends Activity {
                 show("Live");
             });
         });
-        button(login,"Test Huawei session without password",false,()->{
-            int routeIndex=selectedRoute.getSelectedItemPosition();
-            run("Checking session API…",()->{
-                android.net.Network route=routeIndex==1?new NetworkProbe(this).wifi():null;
-                if(routeIndex==1&&route==null)throw new java.io.IOException("Physical non-VPN Wi-Fi is not available to the app. Run route diagnosis.");
-                return new RouterClient(ip.getText().toString(),route).sessionDiagnostics();
-            },
-                res->{
+        button(login,"Test router connection without password",false,()->{
+            run("Checking local router…",()->new RouterClient(ip.getText().toString()).sessionDiagnostics(),
+                result->{
                     StringBuilder display=new StringBuilder();
-                    for(Map.Entry<String,String> item:res.entrySet())
+                    for(Map.Entry<String,String> item:result.entrySet())
                         display.append(item.getKey()).append(":\n").append(item.getValue()).append("\n\n");
-                    popup("Connection test",display.toString());
+                    popup("Router connection test",display.toString());
                 });
         });
-        note(login,"Use Standard Android connection with your existing app-level network exclusion. No direct socket binding is attempted unless you deliberately choose the Advanced option.",SUB);
+        note(login,"Connect to your router over Wi-Fi. Network routing is managed by Android; this app doesn't configure or bypass other apps.",SUB);
         LinearLayout about=box(body,"Privacy & safety","Local-only access to your router");
         note(about,"Your password is never saved to a file, sent to GitHub or placed in app logs. Commands are confirmed before execution.",SUB);
     }
