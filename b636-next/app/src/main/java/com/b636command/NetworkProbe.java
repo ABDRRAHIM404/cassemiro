@@ -23,13 +23,42 @@ final class NetworkProbe {
     NetworkProbe(Context ctx) {
         cm=(ConnectivityManager)ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
     }
+    /**
+     * A VPN overlay can claim both WIFI and VPN transports. Only return the
+     * non-VPN physical radio, never an inherited Wi-Fi VPN network.
+     */
     Network wifi(){
         if(cm==null)return null;
+        Network fallback=null;
         for(Network n:cm.getAllNetworks()){
-            NetworkCapabilities caps=cm.getNetworkCapabilities(n);
-            if(caps!=null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))return n;
+            NetworkCapabilities c=cm.getNetworkCapabilities(n);
+            if(c==null || !c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))continue;
+            if(c.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
+                !c.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN))continue;
+            if(fallback==null)fallback=n;
+            String ip=ipv4(n);
+            if(!ip.equals("no IPv4 address")&&!ip.equals("not reported"))return n;
         }
-        return null;
+        return fallback;
+    }
+    private String inventory(){
+        if(cm==null)return "Network service unavailable";
+        Network[] available=cm.getAllNetworks();
+        if(available.length==0)return "No networks visible to app";
+        StringBuilder out=new StringBuilder();
+        for(int i=0;i<Math.min(available.length,12);i++){
+            Network n=available[i];NetworkCapabilities c=cm.getNetworkCapabilities(n);
+            boolean physical=c!=null&&c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                &&!c.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+                &&c.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN);
+            LinkProperties link=cm.getLinkProperties(n);
+            out.append("Network #").append(i+1).append(": ").append(caps(n)).append("\n")
+                .append("  IPv4 ").append(ipv4(n))
+                .append(" | interface ").append(link==null?"unknown":link.getInterfaceName())
+                .append(" | physical Wi-Fi ").append(physical?"YES":"no").append("\n");
+        }
+        if(available.length>12)out.append("More networks omitted\n");
+        return out.toString();
     }
     private String caps(Network network){
         if(network==null)return "unknown";
@@ -39,6 +68,8 @@ final class NetworkProbe {
         if(c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))s.append("Wi-Fi ");
         if(c.hasTransport(NetworkCapabilities.TRANSPORT_VPN))s.append("VPN ");
         if(c.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))s.append("Mobile ");
+        if(c.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN))s.append("NOT-VPN ");
+        else s.append("VPN-OVERLAY ");
         s.append(c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)?"Internet-capable ":"");
         s.append(c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)?"validated":"unvalidated");
         return s.toString();
@@ -126,10 +157,12 @@ final class NetworkProbe {
         StringBuilder report=new StringBuilder();
         Network defaultNetwork=cm==null?null:cm.getActiveNetwork();
         Network wifiNetwork=wifi();
-        report.append("B636 / ROUTING DIAGNOSTICS\n");
+        report.append("B636 / ROUTING DIAGNOSTICS v1.3\n");
+        report.append("VISIBLE NETWORKS\n").append(inventory()).append("\n");
         report.append("Default Android route: ").append(caps(defaultNetwork)).append("\n");
-        report.append("Direct Wi-Fi network: ").append(caps(wifiNetwork)).append("\n");
-        report.append("Wi-Fi IPv4: ").append(ipv4(wifiNetwork)).append("\n");
+        report.append("Selected physical Wi-Fi: ").append(wifiNetwork==null?
+            "NOT FOUND (VPN overlay excluded)":caps(wifiNetwork)).append("\n");
+        report.append("Physical Wi-Fi IPv4: ").append(ipv4(wifiNetwork)).append("\n");
         report.append("Wi-Fi gateway: ").append(gateway(wifiNetwork)).append("\n");
         report.append("Wi-Fi HTTP proxy: ").append(proxy(wifiNetwork)).append("\n");
         report.append("A VPN app may apply per-app rules that aren't visible here.\n\n");
@@ -137,7 +170,8 @@ final class NetworkProbe {
         report.append(socket(null,host)).append("\n");
         report.append(http(url(address+"/"),null,false,Proxy.NO_PROXY)).append("\n\n");
         report.append("EXPLICIT Wi-Fi ROUTE (no proxy)\n");
-        if(wifiNetwork==null)report.append("No Wi-Fi route available");
+        if(wifiNetwork==null)
+            report.append("No non-VPN Wi-Fi network visible. Direct test not attempted on VPN.");
         else{
             report.append(socket(wifiNetwork,host)).append("\n");
             report.append(http(url(address+"/"),wifiNetwork,false,Proxy.NO_PROXY));
@@ -154,7 +188,8 @@ final class NetworkProbe {
         }
         report.append("No password, tokens or browser cookies sent.\n");
         report.append("If Wi-Fi route works but default fails, use Direct Wi-Fi in Login.\n");
-        report.append("If both fail, inspect the VPN's per-app exclusion for 'B636 Command', not the older B636 apps.");
+        if(wifiNetwork==null)report.append("Check VPN per-app exclusions and Android 'Block connections without VPN' settings.");
+        else report.append("If physical Wi-Fi fails too, verify its local IPv4 subnet and router access.");
         return report.toString();
     }
     private static URL url(String s){
