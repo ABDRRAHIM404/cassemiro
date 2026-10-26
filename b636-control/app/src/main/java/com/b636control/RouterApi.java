@@ -178,8 +178,64 @@ public final class RouterApi {
           +"\nVerification token length: "+rawToken.length()
           +"\nNo password or token contents are shown.";
     }
+    /**
+     * Huawei Manager (degdag/huawei-manager) login protocol, faithfully
+     * translated from HilinkClient.kt: fetch SesTokInfo, SHA256-hex twice,
+     * Base64 the hex strings, POST password_type=4 using the RAW session token.
+     * The rest of B636 Control remains unchanged.
+     */
+    private String loginWithHuaweiManager(String user,String pass) throws Exception {
+        loggedIn=false;
+        cookies.clear();
+        token="";
+        String ses=get("/api/webserver/SesTokInfo");
+        String rawToken=getValue(ses,"TokInfo");
+        String sesInfo=getValue(ses,"SesInfo");
+        if(rawToken.isEmpty())
+            throw new IOException("Huawei Manager login: missing TokInfo ("+getValue(ses,"code")+")");
+        if(!sesInfo.isEmpty()) {
+            int sep=sesInfo.indexOf('=');
+            String cookieName=sep>0?sesInfo.substring(0,sep).trim():"SessionID";
+            String cookieValue=sep>0?sesInfo.substring(sep+1).trim():sesInfo;
+            // Mirror the upstream cookie jar and recognize bare SesInfo values.
+            String routerHost=java.net.URI.create(base).getHost();
+            cookies.put(cookieName,new Cookie.Builder().name(cookieName).value(cookieValue)
+                .hostOnlyDomain(routerHost).path("/").build());
+        }
+
+        String passHash=shaHex(pass);
+        String passB64=b64(passHash.getBytes(StandardCharsets.UTF_8));
+        String finalHash=shaHex(user+passB64+rawToken);
+        String authPassword=b64(finalHash.getBytes(StandardCharsets.UTF_8));
+
+        String xml="<?xml version=\"1.0\" encoding=\"UTF-8\"?><request><Username>"+escape(user)
+            +"</Username><Password>"+authPassword+"</Password><password_type>4</password_type></request>";
+        Request req=new Request.Builder()
+            .url(base+"/api/user/login")
+            .header("__RequestVerificationToken",rawToken)
+            .post(RequestBody.create(xml,MediaType.parse("application/xml")))
+            .build();
+        try(Response res=client.newCall(req).execute()){
+            ResponseBody responseBody=res.body();
+            String response=responseBody==null?"":responseBody.string();
+            String t=res.header("__RequestVerificationToken");
+            if(t!=null&&!t.isEmpty())token=tokenForPost(t);
+            if(!res.isSuccessful())
+                throw new IOException("Huawei Manager login HTTP "+res.code());
+            if(!response.contains("<response>OK</response>")){
+                String code=getValue(response,"code");
+                throw new IOException("Huawei Manager login rejected"+
+                    (code.isEmpty()?"":", router error code "+code)+
+                    ". Do not retry repeatedly.");
+            }
+            loggedIn=true;
+            return "Connected with Huawei Manager login";
+        }
+    }
     public synchronized String login(String user,String pass,String scheme)throws Exception{
         if(user.trim().isEmpty()||pass.isEmpty())throw new IllegalArgumentException("Login credentials required");
+        if(scheme.equals("Huawei Manager (type 4)")||scheme.equals("Auto"))
+            return loginWithHuaweiManager(user,pass);
         loggedIn=false;
         cookies.clear();
         token="";
