@@ -25,6 +25,8 @@ public final class MainActivity extends Activity {
     private LinearLayout root,body,bar;private TextView connection,updated;
     private SignalGraph graph;
     private LinearLayout deviceResults,wifiOverview;
+    private SecureLoginStore secureLogin;
+    private TextView liveHealth,liveInsight,liveOperator;
     private String page="Live";private boolean busy=false,active=false;
     private int tick=0;
     private final Runnable poller=new Runnable(){@Override public void run(){
@@ -105,7 +107,7 @@ public final class MainActivity extends Activity {
     }
     @Override public void onCreate(Bundle state){
         super.onCreate(state);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
-        selectedBands.add(7);
+        secureLogin=new SecureLoginStore(this);
         root=vertical();root.setBackgroundColor(BG);setContentView(root);
         root.setOnApplyWindowInsetsListener((v,i)->{
             v.setPadding(0,i.getSystemWindowInsetTop(),0,i.getSystemWindowInsetBottom());return i;
@@ -122,6 +124,21 @@ public final class MainActivity extends Activity {
         root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
         body=vertical();body.setPadding(dp(12),dp(4),dp(12),dp(20));sc.addView(body);
         tabs();show("Live");
+        autoLoginIfSaved();
+    }
+    private void autoLoginIfSaved(){
+        if(!secureLogin.hasLogin())return;
+        run("Automatically signing in securely…",()->{
+            SecureLoginStore.Credentials saved=secureLogin.load();
+            if(saved==null)throw new java.io.IOException("No saved login");
+            RouterClient next=new RouterClient(saved.address);
+            next.login(saved.username,saved.password);
+            return next;
+        },next->{
+            router.close();router=next;
+            setStatus("Connected automatically · "+next.address(),true);
+            show("Live");
+        });
     }
     @Override public void onResume(){super.onResume();active=true;ui.removeCallbacks(poller);ui.postDelayed(poller,1000);}
     @Override public void onPause(){active=false;ui.removeCallbacks(poller);super.onPause();}
@@ -137,7 +154,7 @@ public final class MainActivity extends Activity {
         }
     }
     private void show(String tab){
-        page=tab;tabs();metrics.clear();graph=null;deviceResults=null;wifiOverview=null;body.removeAllViews();updated=null;
+        page=tab;tabs();metrics.clear();graph=null;deviceResults=null;wifiOverview=null;liveHealth=null;liveInsight=null;liveOperator=null;body.removeAllViews();updated=null;
         switch(tab){
             case "Live": live();break;case "LTE": cellular();break;
             case "Wi-Fi": wifi();break;case "Clients":clients();break;
