@@ -1,0 +1,52 @@
+name: REA audit original Huawei APK
+on:
+  push:
+    branches: [build/b636-reborn]
+    paths: ['.github/workflows/b636-rea-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Dependencies
+        run: sudo apt-get -y -qq update && sudo apt-get -y -qq install procps curl
+      - name: Fetch original Huawei app binary
+        run: |
+          git clone --depth 1 https://github.com/fz911a/Brovi-Huawei-5G-CPE-Manager.git original
+          APK=original/app/build/intermediates/apk/debug/app-debug.apk
+          test -s "$APK"
+          sha256sum "$APK"
+      - name: Install REA and verified JADX bridge
+        run: |
+          npm install --global rea-agents@6.7.0
+          curl -fLsS --retry 2 -o "$RUNNER_TEMP/jadx.jar" https://github.com/1013503897/jadx-headless-mcp/releases/download/v0.7.1/jadx-headless-mcp-0.7.1-all.jar
+          echo '6e5eacf500b64292bfb73c49797c1958f6ee44646e43e868039ae7feb573ff75  '"$RUNNER_TEMP"'/jadx.jar' | sha256sum --check
+      - name: Run REA static Android analysis
+        env:
+          REA_JADX_MCP_JAR: ${{ runner.temp }}/jadx.jar
+        run: |
+          mkdir -p reports
+          set +e
+          rea inspect-android-package original/app/build/intermediates/apk/debug/app-debug.apk --json > reports/rea-android.json 2> reports/rea-stderr.txt
+          code=$?
+          echo "$code" > reports/exit-code.txt
+          echo "REA return code: $code"
+          if test "$code" -ne 0; then tail -80 reports/rea-stderr.txt; fi
+          exit "$code"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: B636-REA-audit-evidence
+          path: reports/
+          if-no-files-found: warn
