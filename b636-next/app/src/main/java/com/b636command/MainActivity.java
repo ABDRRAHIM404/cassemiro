@@ -400,14 +400,16 @@ public final class MainActivity extends Activity {
             run("Testing phone network routes…",()->new NetworkProbe(this).run(address),
                 diagnostics->popup("Connection paths",diagnostics));
         });
-        note(login,"Diagnose first. Compare the default Android route against explicit Wi-Fi and see whether port 80 is open. No password is sent.",SUB);
+        note(login,"Optional connection test, without password. Normal login uses Android routing; no special Wi-Fi binding is needed.",SUB);
         note(login,"Connection path for login",SUB);
         Spinner selectedRoute=new Spinner(this);
         selectedRoute.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
-            new String[]{"Android default network","Physical Wi-Fi (non-VPN only)"}));
+            new String[]{"Standard Android connection (recommended)","Advanced: force physical Wi-Fi"}));
         login.addView(selectedRoute,new LinearLayout.LayoutParams(-1,dp(48)));
-        // Prefer physical Wi-Fi when the OS exposes one; never auto-select VPN overlay.
-        if(new NetworkProbe(this).wifi()!=null)selectedRoute.setSelection(1);
+        // The user excludes this app from their VPN. Android's own routing must
+        // choose the local LAN; forcing a network socket triggers EPERM on the
+        // user's HyperOS. Never auto-select or bind to physical Wi-Fi.
+        selectedRoute.setSelection(0);
         EditText user=field(login,"Username","admin",false);
         EditText pass=field(login,"Admin password","",true);
         button(login,"Connect & start real-time monitoring",true,()->{
@@ -442,7 +444,7 @@ public final class MainActivity extends Activity {
                     popup("Connection test",display.toString());
                 });
         });
-        note(login,"Connect to your router over local Wi-Fi. Internet access or a VPN is not required for local management. Credentials remain in memory only.",SUB);
+        note(login,"Use Standard Android connection with your existing app-level network exclusion. No direct socket binding is attempted unless you deliberately choose the Advanced option.",SUB);
         LinearLayout about=box(body,"Privacy & safety","Local-only access to your router");
         note(about,"Your password is never saved to a file, sent to GitHub or placed in app logs. Commands are confirmed before execution.",SUB);
     }
