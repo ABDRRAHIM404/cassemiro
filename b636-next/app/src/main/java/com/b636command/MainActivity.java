@@ -294,7 +294,7 @@ public final class MainActivity extends Activity {
         note(login,"Connection path for login",SUB);
         Spinner selectedRoute=new Spinner(this);
         selectedRoute.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
-            new String[]{"Android default network","Direct Wi-Fi (bypass VPN route)"}));
+            new String[]{"Android default network","Physical Wi-Fi (non-VPN only)"}));
         login.addView(selectedRoute,new LinearLayout.LayoutParams(-1,dp(48)));
         EditText user=field(login,"Username","admin",false);
         EditText pass=field(login,"Admin password","",true);
@@ -305,7 +305,7 @@ public final class MainActivity extends Activity {
                 android.net.Network route=null;
                 if(routeIndex==1){
                     route=new NetworkProbe(this).wifi();
-                    if(route==null)throw new java.io.IOException("No Wi-Fi network to bind. Connect to your router Wi-Fi.");
+                    if(route==null)throw new java.io.IOException("No physical non-VPN Wi-Fi network available to the app. Run the password-free route diagnosis. Do not retry login.");
                 }
                 RouterClient next=new RouterClient(address,route);
                 next.login(u,password);return next;
@@ -320,7 +320,7 @@ public final class MainActivity extends Activity {
             int routeIndex=selectedRoute.getSelectedItemPosition();
             run("Checking session API…",()->{
                 android.net.Network route=routeIndex==1?new NetworkProbe(this).wifi():null;
-                if(routeIndex==1&&route==null)throw new java.io.IOException("No Wi-Fi network connected");
+                if(routeIndex==1&&route==null)throw new java.io.IOException("Physical non-VPN Wi-Fi is not available to the app. Run route diagnosis.");
                 return new RouterClient(ip.getText().toString(),route).sessionDiagnostics();
             },
                 res->{
@@ -330,7 +330,7 @@ public final class MainActivity extends Activity {
                     popup("Connection test",display.toString());
                 });
         });
-        note(login,"Exclude B636 Command from your VPN exactly as you did for the working Huawei Manager app. The login procedure performs one password attempt per tap.",AMBER);
+        note(login,"If the test finds only a Wi-Fi + VPN overlay, use the VPN settings to allow this new app to access the local network. The app will not silently route the password through the VPN.",AMBER);
         LinearLayout about=box(body,"Privacy & safety","Local-only access to your router");
         note(about,"Your password is never saved to a file, sent to GitHub or placed in app logs. Commands are confirmed before execution.",SUB);
     }
