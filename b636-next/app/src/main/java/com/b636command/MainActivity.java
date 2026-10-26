@@ -300,7 +300,12 @@ public final class MainActivity extends Activity {
         });
         button(login,"Test Huawei session without password",false,()->{
             run("Checking session API…",()->new RouterClient(ip.getText().toString()).sessionDiagnostics(),
-                res->popup("Connection test",res.toString()));
+                res->{
+                    StringBuilder display=new StringBuilder();
+                    for(Map.Entry<String,String> item:res.entrySet())
+                        display.append(item.getKey()).append(":\\n").append(item.getValue()).append("\\n\\n");
+                    popup("Connection test",display.toString());
+                });
         });
         note(login,"Exclude B636 Command from your VPN exactly as you did for the working Huawei Manager app. The login procedure performs one password attempt per tap.",AMBER);
         LinearLayout about=box(body,"Privacy & safety","Local-only access to your router");
