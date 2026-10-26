@@ -378,39 +378,71 @@ public final class RouterClient {
         String path=endpoint.startsWith("/api/")?endpoint:"/api/"+endpoint;
         if(!Set.of("/api/net/net-mode","/api/net/lock-cell","/api/dialup/mobile-dataswitch",
                 "/api/device/control").contains(path))throw new IOException("Unverified API write blocked");
-        // A login token is not necessarily a valid later POST token. Acquire a
-        // fresh token from the current authenticated session BEFORE every write.
-        // The old client reused raw TokInfo and returned Huawei error 125003.
-        String fresh=refreshToken();
-        if(fresh.isEmpty())throw new IOException("No fresh Huawei POST verification token");
-        String result=request(path,xml(fields),fresh);
+        String body=xml(fields);
+        // The login's TokInfo is not reusable indefinitely. Start with the
+        // web UI's /api/webserver/token POST token (tail 32 of 64 chars).
+        String requestToken=refreshToken();
+        String result=request(path,body,requestToken);
         try{
             assertSuccess(path,result);
-        }catch(IOException e){
-            if(e.getMessage()!=null && e.getMessage().contains("125003"))
-                throw new IOException("Huawei rejected this setting request (125003). A fresh session POST token was used; the firmware may require another privilege. No change confirmed.");
-            throw e;
+        }catch(IOException rejected){
+            String message=rejected.getMessage();
+            if(message==null||!message.contains("125003")||!path.equals("/api/net/net-mode"))
+                throw rejected;
+            // A 125003 request was explicitly rejected. One single retry with
+            // Huawei Manager's alternate SesTokInfo flow is appropriate; do not
+            // retry ambiguous responses or potentially destructive operations.
+            String alternate=freshSessionToken();
+            result=request(path,body,alternate);
+            try{
+                assertSuccess(path,result);
+            }catch(IOException again){
+                throw new IOException("Band request rejected with both Huawei POST token formats ("+
+                    again.getMessage()+"). No band change confirmed.",again);
+            }
         }
         if(!"OK".equalsIgnoreCase(safe(RouterClient.fields(result).get("response"))))
-            throw new IOException("Router did not confirm the change");
+            throw new IOException("Router did not confirm the settings update");
     }
     private static String adaptPostToken(String raw)throws IOException{
         String value=safe(raw).split("#",2)[0].trim();
-        // Huawei's 64-char /webserver/token value uses the second 32 chars for POST.
         if(value.length()==64)return value.substring(32);
         if(value.length()==32)return value;
         throw new IOException("Unexpected Huawei token format ("+value.length()+" characters)");
     }
-    public synchronized String refreshToken()throws Exception{
-        // This GET is authenticated by OkHttp's existing cookie jar.
-        String rawXml=request("/api/webserver/token",null,"");
-        assertSuccess("/api/webserver/token",rawXml);
-        Map<String,String> response=fields(rawXml);
-        String raw=safe(response.get("token"));
-        if(raw.isEmpty())raw=safe(response.get("TokInfo"));
-        if(raw.isEmpty())throw new IOException("Router didn't return a fresh write token");
-        token=adaptPostToken(raw);
+    private String freshSessionToken()throws Exception{
+        String body=request("/api/webserver/SesTokInfo",null,"");
+        assertSuccess("/api/webserver/SesTokInfo",body);
+        Map<String,String> session=fields(body);
+        String raw=safe(session.get("TokInfo"));
+        if(raw.isEmpty())throw new IOException("Huawei session refresh returned no token");
+        String ses=safe(session.get("SesInfo"));
+        if(!ses.isEmpty()){
+            int eq=ses.indexOf('=');
+            String name=eq>0?ses.substring(0,eq).trim():"SessionID";
+            String val=eq>0?ses.substring(eq+1).trim():ses;
+            Cookie c=new Cookie.Builder().name(name).value(val)
+                .hostOnlyDomain(host).path("/").build();
+            cookies.put(c.name(),c);
+        }
+        token=raw.split("#",2)[0].trim();
         return token;
+    }
+    public synchronized String refreshToken()throws Exception{
+        try{
+            String xml=request("/api/webserver/token",null,"");
+            assertSuccess("/api/webserver/token",xml);
+            Map<String,String> fields=fields(xml);
+            String raw=safe(fields.get("token"));
+            if(raw.isEmpty())raw=safe(fields.get("TokInfo"));
+            if(raw.isEmpty())throw new IOException("Huawei token API returned no token");
+            token=adaptPostToken(raw);
+            return token;
+        }catch(IOException tokenUnavailable){
+            // Some Huawei V10 firmwares implement only SesTokInfo, as in the
+            // degdag Huawei Manager app. Never fall back to the stale login token.
+            return freshSessionToken();
+        }
     }
     private Map<String,String> currentNetworkSettings()throws Exception{
         return get("net/net-mode");
