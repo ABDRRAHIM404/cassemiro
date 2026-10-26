@@ -8,9 +8,6 @@ import java.security.MessageDigest;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.*;
 import okhttp3.*;
 
 /**
@@ -68,26 +65,63 @@ public final class RouterClient {
     public String error(){return lastError;}
     private static String safe(String s){return s==null?"":s.trim();}
     private static String esc(String s){return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;").replace("'","&apos;");}
-    public static Map<String,String> fields(String xml){
-        Map<String,String> out=new LinkedHashMap<>();
+
+    private static final class XmlNode {
+        final String name;
+        final StringBuilder text=new StringBuilder();
+        boolean hasChildren=false;
+        XmlNode(String name){this.name=name;}
+    }
+    private static final class XmlResult {
+        final Map<String,String> fields=new LinkedHashMap<>();
+        String root="";
+        String failure="";
+    }
+    /**
+     * Use Android's actual XmlPullParser, NOT a DocumentBuilderFactory that
+     * throws ParserConfigurationException on Android when XMLConstants
+     * FEATURE_SECURE_PROCESSING is set. Reject DTD and bounded untrusted XML.
+     */
+    private static XmlResult parseRouterXml(String body){
+        XmlResult result=new XmlResult();
+        if(body==null||body.isEmpty()){result.failure="empty response";return result;}
+        if(body.length()>1048576){result.failure="response too large";return result;}
+        String xml=body;
+        if(xml.charAt(0)=='\uFEFF')xml=xml.substring(1);
+        if(java.util.regex.Pattern.compile("(?is)<!\\s*(?:doctype|entity)\\b").matcher(xml).find()){
+            result.failure="DTD declarations rejected";return result;
+        }
         try{
-            DocumentBuilderFactory f=DocumentBuilderFactory.newInstance();
-            f.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);
-            f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);
-            f.setFeature("http://xml.org/sax/features/external-general-entities",false);
-            f.setFeature("http://xml.org/sax/features/external-parameter-entities",false);
-            f.setXIncludeAware(false);f.setExpandEntityReferences(false);
-            Document d=f.newDocumentBuilder().parse(new java.io.ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
-            NodeList nodes=d.getElementsByTagName("*");
-            for(int i=0;i<nodes.getLength();i++){
-                Node n=nodes.item(i);
-                boolean leaf=true;
-                for(Node child=n.getFirstChild();child!=null;child=child.getNextSibling())
-                    if(child.getNodeType()==Node.ELEMENT_NODE){leaf=false;break;}
-                if(leaf)out.put(n.getNodeName(),safe(n.getTextContent()));
+            org.xmlpull.v1.XmlPullParser parser=android.util.Xml.newPullParser();
+            // Android defaults to no DTD processing. Never enable it.
+            parser.setInput(new java.io.StringReader(xml));
+            Deque<XmlNode> stack=new ArrayDeque<>();
+            int events=0;
+            for(int event=parser.getEventType();event!=org.xmlpull.v1.XmlPullParser.END_DOCUMENT;
+                    event=parser.next()){
+                if(++events>20000)throw new IllegalArgumentException("too many XML events");
+                if(event==org.xmlpull.v1.XmlPullParser.START_TAG){
+                    if(result.root.isEmpty())result.root=parser.getName();
+                    if(!stack.isEmpty())stack.peek().hasChildren=true;
+                    stack.push(new XmlNode(parser.getName()));
+                } else if(event==org.xmlpull.v1.XmlPullParser.TEXT||
+                          event==org.xmlpull.v1.XmlPullParser.CDSECT){
+                    if(!stack.isEmpty()){
+                        XmlNode node=stack.peek();
+                        if(node.text.length()<65536)node.text.append(parser.getText());
+                    }
+                } else if(event==org.xmlpull.v1.XmlPullParser.END_TAG){
+                    if(!stack.isEmpty()){
+                        XmlNode done=stack.pop();
+                        if(!done.hasChildren)result.fields.put(done.name,done.text.toString().trim());
+                    }
+                }
             }
-        }catch(Exception ignored){}
-        return out;
+        }catch(Exception ex){result.failure=ex.getClass().getSimpleName();}
+        return result;
+    }
+    public static Map<String,String> fields(String xml){
+        return parseRouterXml(xml).fields;
     }
     private static String prop(Map<String,String> m,String...keys){
         for(String key:keys){String v=m.get(key);if(v!=null&&!v.trim().isEmpty())return v.trim();}
@@ -121,23 +155,15 @@ public final class RouterClient {
      */
     private String documentRoot(String body){
         String value=body==null?"":body.trim();
-        if(value.isEmpty())return "empty body";
-        if(value.startsWith("<!DOCTYPE html")||value.startsWith("<!doctype html"))return "HTML document";
+        if(value.isEmpty())return "empty response body";
+        if(value.startsWith("<!DOCTYPE html")||value.startsWith("<!doctype html")||
+            value.toLowerCase(Locale.ROOT).startsWith("<html"))return "HTML document";
         if(value.startsWith("{")||value.startsWith("["))return "JSON";
-        try{
-            DocumentBuilderFactory f=DocumentBuilderFactory.newInstance();
-            f.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);
-            f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,true);
-            f.setFeature("http://xml.org/sax/features/external-general-entities",false);
-            f.setFeature("http://xml.org/sax/features/external-parameter-entities",false);
-            f.setXIncludeAware(false);
-            Document d=f.newDocumentBuilder().parse(
-                new java.io.ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8)));
-            return "XML root <"+d.getDocumentElement().getNodeName()+">";
-        }catch(Exception ex){
-            if(value.toLowerCase(Locale.ROOT).startsWith("<html"))return "HTML document";
-            return "unrecognized response";
-        }
+        XmlResult parsed=parseRouterXml(body);
+        if(!parsed.root.isEmpty())
+            return "XML root <"+parsed.root+">"+
+                (parsed.failure.isEmpty()?"":" (parse: "+parsed.failure+")");
+        return "unrecognized response (parse: "+parsed.failure+")";
     }
     private String safeProbe(String path,boolean browserLike){
         StringBuilder out=new StringBuilder();
