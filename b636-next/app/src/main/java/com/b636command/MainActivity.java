@@ -27,6 +27,8 @@ public final class MainActivity extends Activity {
     private LinearLayout deviceResults,wifiOverview;
     private SecureLoginStore secureLogin;
     private TextView liveHealth,liveInsight,liveOperator;
+    private ProgressBar strengthBar,clarityBar;
+    private int pollIntervalMs=3000;
     private String page="Live";private boolean busy=false,active=false;
     private int tick=0;
     private final Runnable poller=new Runnable(){@Override public void run(){
@@ -39,7 +41,7 @@ public final class MainActivity extends Activity {
                 }catch(Exception e){ui.post(()->{busy=false;setStatus("Live poll error: "+brief(e),false);});}
             });
         }
-        if(active)ui.postDelayed(this,3000);
+        if(active)ui.postDelayed(this,pollIntervalMs);
     }};
     private int dp(float n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private GradientDrawable bg(int color,int radius){
@@ -154,7 +156,7 @@ public final class MainActivity extends Activity {
         }
     }
     private void show(String tab){
-        page=tab;tabs();metrics.clear();graph=null;deviceResults=null;wifiOverview=null;liveHealth=null;liveInsight=null;liveOperator=null;body.removeAllViews();updated=null;
+        page=tab;tabs();metrics.clear();graph=null;deviceResults=null;wifiOverview=null;liveHealth=null;liveInsight=null;liveOperator=null;strengthBar=null;clarityBar=null;body.removeAllViews();updated=null;
         switch(tab){
             case "Live": live();break;case "LTE": cellular();break;
             case "Wi-Fi": wifi();break;case "Clients":clients();break;
@@ -178,23 +180,66 @@ public final class MainActivity extends Activity {
         LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);card.addView(row);
         metricCell(row,a,la);metricCell(row,b,lb);
     }
+    private ProgressBar qualityBar(LinearLayout card,int color){
+        ProgressBar bar=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);
+        bar.setProgress(0);
+        bar.setProgressTintList(ColorStateList.valueOf(color));
+        bar.setProgressBackgroundTintList(ColorStateList.valueOf(INSET));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(7));
+        lp.setMargins(0,dp(7),0,dp(13));
+        card.addView(bar,lp);
+        return bar;
+    }
     private void live(){
-        LinearLayout overview=box(body,"Live signal monitor","Actual router measurements · refresh every 3 seconds while app is visible");
-        updated=text(router.loggedIn()?"Reading measurements…":"Login is required for live data",12,SUB,false);
+        LinearLayout hero=box(body,"NETWORK PULSE","Your live B636-336 LTE link · real router telemetry");
+        liveHealth=text("Waiting for radio measurements…",22,TEXT,true);
+        liveHealth.setPadding(0,dp(6),0,dp(5));hero.addView(liveHealth);
+        liveInsight=text("Connect to see signal strength and interference separately.",13,SUB,false);
+        hero.addView(liveInsight);
+        note(hero,"Signal strength (RSRP)",SUB);
+        strengthBar=qualityBar(hero,AQUA);
+        note(hero,"Signal clarity (SINR)",SUB);
+        clarityBar=qualityBar(hero,AMBER);
+        liveOperator=text("Cellular network · waiting for router",12,SUB,false);
+        hero.addView(liveOperator);
+        LinearLayout overview=box(body,"SIGNAL ANALYTICS",
+            "Live RSRP, RSRQ, SINR and RSSI · two independent chart axes");
+        updated=text(router.loggedIn()?"Reading measurements…":
+            "Login is required for live data",12,SUB,false);
         overview.addView(updated);
         metricRow("rsrp","RSRP · dBm","sinr","SINR · dB",overview);
         metricRow("rsrq","RSRQ · dB","rssi","RSSI · dBm",overview);
-        graph=new SignalGraph(this);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(210));
-        gp.setMargins(0,dp(12),0,0);overview.addView(graph,gp);
-        LinearLayout network=box(body,"Serving tower","LTE identity and carrier measurements");
-        metricRow("band","Serving LTE band","pci","PCI",network);
-        metricRow("cell","Cell ID","earfcn","EARFCN",network);
-        metricRow("dlwidth","LTE DL bandwidth","ulwidth","LTE UL bandwidth",network);
-        metricRow("down","Download","up","Upload",network);
-        metricRow("users","Wi-Fi users","mode","Connection mode",network);
-        button(network,"Read neighbor cells / CA details",false,()->readMultiple("Cell and aggregation",
-            new String[]{"device/seccellinfo","device/nbrcellinfo","net/cell-info"}));
-        note(body,"LTE channel width is allocated by the operator; the router cannot demand a specific MHz allocation.",SUB);
+        graph=new SignalGraph(this);
+        LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(210));
+        gp.setMargins(0,dp(12),0,0);
+        overview.addView(graph,gp);
+        note(overview,"The graph records actual router samples; it is not an internet speed test.",SUB);
+        LinearLayout network=box(body,"SERVING CELL","Current LTE carrier and cell identifiers");
+        metricRow("band","LTE band","pci","PCI",network);
+        metricRow("cell","Cell ID","earfcn","DL / UL EARFCN",network);
+        metricRow("dlwidth","Downlink width","ulwidth","Uplink width",network);
+        metricRow("down","Download rate","up","Upload rate",network);
+        metricRow("users","Wi-Fi devices","mode","Network type",network);
+        button(network,"Read cell and aggregation diagnostics",false,
+            ()->readMultiple("Cell and aggregation",
+                new String[]{"device/seccellinfo","device/nbrcellinfo","net/cell-info"}));
+        LinearLayout control=box(body,"MONITOR SETTINGS",
+            "Updates happen only while the app is visible.");
+        note(control,"Live refresh interval",SUB);
+        Spinner refresh=new Spinner(this);
+        refresh.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
+            new String[]{"Every 2 seconds","Every 3 seconds","Every 5 seconds","Every 10 seconds"}));
+        int[] millis={2000,3000,5000,10000};
+        refresh.setSelection(pollIntervalMs==2000?0:pollIntervalMs==5000?2:pollIntervalMs==10000?3:1);
+        refresh.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                pollIntervalMs=millis[position];
+            }
+        });
+        control.addView(refresh,new LinearLayout.LayoutParams(-1,dp(44)));
+        note(body,"LTE carrier bandwidth is assigned by your mobile operator. Wi-Fi channel width is a different setting.",SUB);
     }
     private static String value(String s){return s==null||s.isEmpty()?"—":s;}
     private static String prettyRate(String raw){
