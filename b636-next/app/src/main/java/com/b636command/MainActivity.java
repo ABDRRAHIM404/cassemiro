@@ -187,14 +187,14 @@ public final class MainActivity extends Activity {
     }
     private static String readableBand(String raw){
         if(raw==null||raw.equals("—"))return "—";
-        java.util.regex.Matcher m=java.util.regex.Pattern.compile("\\\\bB(\\\\d+)\\\\b")
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile("\\bB(\\d+)\\b")
             .matcher(raw);
         if(m.find())return "B"+m.group(1);
         return raw;
     }
     private static String modeCode(String raw){
         if(raw==null||raw.equals("—"))return "—";
-        if(raw.matches("\\\\d+"))return "Code "+raw;
+        if(raw.matches("\\d+"))return "Code "+raw;
         return raw;
     }
     private void set(String key,String s){TextView v=metrics.get(key);if(v!=null)v.setText(value(s));}
