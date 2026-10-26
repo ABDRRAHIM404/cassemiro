@@ -409,30 +409,59 @@ public final class MainActivity extends Activity {
             return s.toString();
         },result->popup(name,result));
     }
+    private static final class LoginResult{
+        final RouterClient router;
+        final String storageWarning;
+        LoginResult(RouterClient r,String warning){router=r;storageWarning=warning;}
+    }
     private void login(){
-        LinearLayout login=box(body,"Router sign-in",
-            "Huawei Manager type-4 authentication · your credentials stay in memory");
+        LinearLayout login=box(body,"Router login",
+            "Huawei HiLink · normal Android connection · secure auto sign-in");
+        boolean saved=secureLogin.hasLogin();
         EditText ip=field(login,"Local router IP","192.168.1.1",false);
         EditText user=field(login,"Username","admin",false);
         EditText pass=field(login,"Admin password","",true);
-        button(login,"Connect & start real-time monitoring",true,()->{
-            String address=ip.getText().toString();
-            String username=user.getText().toString();
+        CheckBox keep=new CheckBox(this);
+        keep.setText("Save password securely and sign in automatically");
+        keep.setTextColor(TEXT);
+        keep.setTextSize(13);
+        keep.setButtonTintList(ColorStateList.valueOf(AQUA));
+        keep.setPadding(dp(4),dp(12),dp(4),dp(12));
+        keep.setChecked(true);
+        login.addView(keep);
+        note(login,saved?
+            "A saved login is available. It is decrypted only on this phone and used once when you open the app.":
+            "The password will be encrypted with a nonexportable key in Android Keystore after successful login.",SUB);
+        button(login,"Connect and open live dashboard",true,()->{
+            String address=ip.getText().toString().trim();
+            String username=user.getText().toString().trim();
             String password=pass.getText().toString();
-            run("Connecting to Huawei…",()->{
-                // No VPN API, socket binding or special Wi-Fi routing.
-                // The OS picks the network, just like other Huawei apps.
+            boolean remember=keep.isChecked();
+            run("Signing in to your B636…",()->{
+                // Preserve the working no-special-routing Huawei client.
                 RouterClient next=new RouterClient(address);
                 next.login(username,password);
-                return next;
-            },next->{
-                router.close();router=next;pass.setText("");
-                setStatus("Connected · "+next.address(),true);
-                Toast.makeText(this,"Huawei login accepted",Toast.LENGTH_SHORT).show();
+                String warning="";
+                try{
+                    if(remember)secureLogin.save(address,username,password);
+                    else secureLogin.clear();
+                }catch(Exception e){
+                    warning="Logged in successfully, but secure password storage failed ("+
+                        e.getClass().getSimpleName()+"). The password was not saved.";
+                }
+                return new LoginResult(next,warning);
+            },result->{
+                router.close();router=result.router;pass.setText("");
+                setStatus("Connected · "+router.address(),true);
                 show("Live");
+                if(!result.storageWarning.isEmpty())popup("Saved login",result.storageWarning);
             });
         });
-        button(login,"Test router connection without password",false,()->{
+        if(saved)button(login,"Forget saved login on this phone",false,()->confirm(
+            "Delete saved router login?",
+            "Remove the encrypted credentials and their encryption key. The current session can remain connected.",
+            ()->{secureLogin.clear();show("Login");}));
+        button(login,"Check router connection without a password",false,()->{
             run("Checking local router…",()->new RouterClient(ip.getText().toString()).sessionDiagnostics(),
                 result->{
                     StringBuilder display=new StringBuilder();
@@ -441,8 +470,8 @@ public final class MainActivity extends Activity {
                     popup("Router connection test",display.toString());
                 });
         });
-        note(login,"Connect to your router over Wi-Fi. Network routing is managed by Android; this app doesn't configure or bypass other apps.",SUB);
-        LinearLayout about=box(body,"Privacy & safety","Local-only access to your router");
-        note(about,"Your password is never saved to a file, sent to GitHub or placed in app logs. Commands are confirmed before execution.",SUB);
+        note(login,"The app uses Android's normal routing. Your VPN exclusion is managed separately; the app never changes VPN settings.",SUB);
+        LinearLayout privacy=box(body,"Privacy and security",null);
+        note(privacy,"Router credentials are stored only on your device using Android Keystore AES-256-GCM encryption. Auto-login happens when the app opens. Data is never uploaded to a server or GitHub.",SUB);
     }
 }
