@@ -338,29 +338,70 @@ public final class RouterClient {
     }
     public synchronized Map<String,String> readFeature(String ep)throws Exception{return get(ep);}
     private static String xml(Map<String,String> data){
-        StringBuilder s=new StringBuilder("<request>");
-        for(Map.Entry<String,String> e:data.entrySet()){
-            String k=e.getKey();if(!k.matches("[A-Za-z][A-Za-z0-9_]*"))throw new IllegalArgumentException("Invalid field");
-            s.append('<').append(k).append('>').append(esc(e.getValue())).append("</").append(k).append('>');
+        StringBuilder s=new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><request>");
+        // Use canonical Huawei XML field order for /api/net/net-mode, while
+        // retaining the optional networkOption element for V10 firmware.
+        String[] netKeys={"NetworkMode","NetworkBand","LTEBand","networkOption"};
+        if(data.containsKey("NetworkMode")&&data.containsKey("LTEBand")){
+            for(String k:netKeys){
+                if(data.containsKey(k))
+                    s.append('<').append(k).append('>').append(esc(data.get(k))).append("</").append(k).append('>');
+            }
+        }else{
+            for(Map.Entry<String,String> e:data.entrySet()){
+                String k=e.getKey();if(!k.matches("[A-Za-z][A-Za-z0-9_]*"))
+                    throw new IllegalArgumentException("Invalid field");
+                s.append('<').append(k).append('>').append(esc(e.getValue())).append("</").append(k).append('>');
+            }
         }
         return s.append("</request>").toString();
     }
+    /**
+     * Huawei requires a fresh per-request CSRF token for authenticated POSTs.
+     * GET telemetry does not consume it. The initial login TokInfo is only for
+     * /api/user/login, not for later control requests.
+     */
     public synchronized void postFeature(String endpoint,Map<String,String> fields)throws Exception{
         if(!authenticated)throw new IOException("Login required");
         String path=endpoint.startsWith("/api/")?endpoint:"/api/"+endpoint;
-        // Only these well-understood local write APIs; no remote firmware/security/debug bypass.
+        // Only known local write APIs; no hidden/debug or bypass endpoints.
         if(!Set.of("/api/net/net-mode","/api/net/lock-cell","/api/dialup/mobile-dataswitch",
                 "/api/device/control").contains(path))throw new IOException("Unverified API write blocked");
-        if(token.isEmpty()) refreshToken();
+        refreshToken(); // Do not reuse the initial login token.
         String result=request(path,xml(fields),token);
+        Map<String,String> response=RouterClient.fields(result);
+        String code=safe(response.get("code"));
+        if("125003".equals(code)||"125001".equals(code)||"125002".equals(code)){
+            // This was REJECTED by the router. Never silently retry an operation
+            // that changes connectivity or could disconnect the user.
+            token="";
+            throw new IOException("Huawei security token rejected ("+code+
+                "). No setting was changed. Return to Login and reconnect before trying again.");
+        }
         assertSuccess(path,result);
-        if(!"OK".equalsIgnoreCase(safe(RouterClient.fields(result).get("response"))))
+        if(!"OK".equalsIgnoreCase(safe(response.get("response"))))
             throw new IOException("Router did not confirm the change");
     }
+    /**
+     * Brovi HiLink token format: /api/webserver/token may supply a 64-character
+     * string or a #-delimited set of tokens. POST uses the last 32 characters
+     * of the first candidate when a 64-character value is returned.
+     */
     public synchronized void refreshToken()throws Exception{
-        Map<String,String> m=fields(request("/api/webserver/token",null,""));
-        String raw=safe(m.get("token"));if(raw.isEmpty())raw=safe(m.get("TokInfo"));
-        if(!raw.isEmpty())token=raw.length()>32?raw.substring(raw.length()-32):raw;
+        if(!authenticated)throw new IOException("Login required");
+        token="";
+        String body=request("/api/webserver/token",null,"");
+        Map<String,String> m=fields(body);
+        String error=safe(m.get("code"));
+        if(!error.isEmpty())
+            throw new IOException("Huawei token endpoint rejected the session (code "+error+"). Reconnect.");
+        String raw=safe(m.get("token"));
+        if(raw.isEmpty())raw=safe(m.get("TokInfo"));
+        if(raw.isEmpty())throw new IOException("Huawei did not provide a fresh control token. No setting changed.");
+        String first=raw.split("#",2)[0].trim();
+        if(first.length()>32)first=first.substring(first.length()-32);
+        if(first.isEmpty())throw new IOException("Router returned an empty control token");
+        token=first;
     }
     public void lockBands(Collection<Integer> selected)throws Exception{
         if(selected.isEmpty())throw new IOException("Select at least one LTE band");
