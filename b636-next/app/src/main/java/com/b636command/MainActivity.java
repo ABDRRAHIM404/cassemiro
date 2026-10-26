@@ -351,9 +351,10 @@ public final class MainActivity extends Activity {
             Map<String,String> log=router.readFeature("log/loginfo");
             String raw=log.get("LogContent");
             if(raw==null)return "The router returned no LogContent field.";
-            String formatted=raw.replace("\\\\r\\\\n","\\n").replace("\\\\n","\\n")
-                .replace("\\r\\n","\\n");
-            if(formatted.length()>18000)formatted=formatted.substring(0,18000)+"\\n… more log entries omitted";
+            String formatted=raw.replace("\\r\\n","\n").replace("\\n","\n")
+                .replace("\r\n","\n");
+            if(formatted.length()>18000)
+                formatted=formatted.substring(0,18000)+"\n… more log entries omitted";
             return formatted;
         },value->popup("Router logs",value)));
         button(c,"Enable mobile data",false,()->confirm("Enable mobile data?","Enable the router's cellular data switch?",
