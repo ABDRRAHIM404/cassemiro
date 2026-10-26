@@ -58,7 +58,17 @@ jobs:
           s=s.replace('''                    val p = prefs.getString("pass", "dns12345") ?: "dns12345"
                     hilink.login(u, p)''','''                    val p = sessionPassword
                     if (!p.isNullOrBlank()) hilink.login(u, p)''')
+          # Sanitize any remaining occurrences in upstream variants.
+          s=s.replace('"dns12345"','""')
+          s=s.replace('''            val u = prefs.getString("user", "admin") ?: "admin"
+            val p = prefs.getString("pass", "") ?: ""
+            hilink.login(u, p)
+            startLoop()''','''            startLoop()''')
+          s=s.replace('''                    val p = prefs.getString("pass", "") ?: ""
+                    hilink.login(u, p)''','''                    val p = sessionPassword
+                    if (!p.isNullOrBlank()) hilink.login(u, p)''')
           assert 'dns12345' not in s, "Unsafe hardcoded original default password remains"
+          assert 'hilink.login(u, p)\n            startLoop()' not in s, "Startup should not auto-login without user password"
           assert 'sessionPassword = p' in s
           assert 'hilink.login(u, p)' in s
           assert s!=original
