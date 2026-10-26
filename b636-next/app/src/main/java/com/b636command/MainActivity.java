@@ -264,6 +264,43 @@ public final class MainActivity extends Activity {
         return raw;
     }
     private void set(String key,String s){TextView v=metrics.get(key);if(v!=null)v.setText(value(s));}
+    private static int clampScore(double value){
+        return (int)Math.max(0,Math.min(100,Math.round(value)));
+    }
+    private static String rsrpAssessment(Float n){
+        if(n==null)return "Unknown strength";
+        if(n>=-80)return "Excellent strength";
+        if(n>=-90)return "Good strength";
+        if(n>=-100)return "Fair strength";
+        return "Weak strength";
+    }
+    private static String sinrAssessment(Float n){
+        if(n==null)return "Unknown clarity";
+        if(n>=20)return "Excellent clarity";
+        if(n>=10)return "Good clarity";
+        if(n>=0)return "Fair clarity";
+        return "Poor clarity";
+    }
+    private void updateHealth(RouterClient.Snapshot snap){
+        Float rsrp=SignalGraph.parse(snap.get("rsrp"));
+        Float sinr=SignalGraph.parse(snap.get("sinr"));
+        if(liveHealth==null)return;
+        liveHealth.setText(rsrpAssessment(rsrp)+" · "+sinrAssessment(sinr));
+        if(strengthBar!=null)
+            strengthBar.setProgress(rsrp==null?0:clampScore((rsrp+120)*100d/50d));
+        if(clarityBar!=null)
+            clarityBar.setProgress(sinr==null?0:clampScore((sinr+10)*100d/40d));
+        if(rsrp!=null&&sinr!=null&&rsrp>=-90&&sinr<5){
+            liveInsight.setText("Signal is reasonably strong but SINR is low. Check interference, tower load or LTE cell conditions.");
+        }else if(sinr!=null&&sinr>=15&&rsrp!=null&&rsrp<-100){
+            liveInsight.setText("Good clarity but weak signal. Placement may improve reception.");
+        }else{
+            liveInsight.setText("Bars are descriptive indicators, not guaranteed download speeds.");
+        }
+        if(liveOperator!=null)
+            liveOperator.setText("Band "+readableBand(snap.get("band","BandLTEWork"))+
+                " · PCI "+snap.get("pci")+" · live LTE carrier");
+    }
     private void updateLive(RouterClient.Snapshot snap){
         if(!page.equals("Live"))return;
         if(updated!=null)updated.setText("Last router response: "+new java.text.SimpleDateFormat("HH:mm:ss",Locale.getDefault())
@@ -274,10 +311,12 @@ public final class MainActivity extends Activity {
         set("cell",snap.get("cell_id","CellID"));set("earfcn",snap.get("earfcn"));
         set("dlwidth",snap.get("dlbandwidth"));set("ulwidth",snap.get("ulbandwidth"));
         set("users",snap.get("CurrentWifiUser"));
-        set("mode",modeCode(snap.get("NetworkType","CurrentNetworkType")));
+        String netType=snap.get("NetworkType","CurrentNetworkType");
+        set("mode","19".equals(netType)?"LTE (19)":modeCode(netType));
         set("down",prettyRate(snap.get("CurrentDownloadRate")));
         set("up",prettyRate(snap.get("CurrentUploadRate")));
         if(graph!=null)graph.push(snap.get("rsrp"),snap.get("sinr"));
+        updateHealth(snap);
     }
     private void cellular(){
         LinearLayout bands=box(body,"LTE band control","Choose bands allowed by the router. B7 (2600 MHz) is selected by default.");
