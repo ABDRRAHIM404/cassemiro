@@ -151,7 +151,11 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(84),1);
         lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(wrapper,lp);
         wrapper.addView(text(label,11,SUB,false));
-        TextView value=text("—",23,TEXT,true);wrapper.addView(value);metrics.put(key,value);
+        TextView value=text("—",23,TEXT,true);
+        value.setMaxLines(2);
+        value.setAutoSizeTextTypeUniformWithConfiguration(12,23,1,
+            android.util.TypedValue.COMPLEX_UNIT_SP);
+        wrapper.addView(value);metrics.put(key,value);
     }
     private void metricRow(String a,String la,String b,String lb,LinearLayout card){
         LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);card.addView(row);
@@ -343,7 +347,15 @@ public final class MainActivity extends Activity {
         LinearLayout c=box(body,"Router tools","Read system information or send confirmed management actions.");
         button(c,"System information & WAN status",false,()->readMultiple("Router information",
             new String[]{"device/information","monitoring/status","net/current-plmn"}));
-        button(c,"System logs (read only)",false,()->readMultiple("Router logs",new String[]{"log/loginfo"}));
+        button(c,"System logs (read only)",false,()->run("Reading router logs…",()->{
+            Map<String,String> log=router.readFeature("log/loginfo");
+            String raw=log.get("LogContent");
+            if(raw==null)return "The router returned no LogContent field.";
+            String formatted=raw.replace("\\\\r\\\\n","\\n").replace("\\\\n","\\n")
+                .replace("\\r\\n","\\n");
+            if(formatted.length()>18000)formatted=formatted.substring(0,18000)+"\\n… more log entries omitted";
+            return formatted;
+        },value->popup("Router logs",value)));
         button(c,"Enable mobile data",false,()->confirm("Enable mobile data?","Enable the router's cellular data switch?",
             ()->run("Enabling data…",()->{router.mobileData(true);return "Data enabled";},this::showResult)));
         button(c,"Disable mobile data",false,()->confirm("Disable mobile data?","This will interrupt Internet access for everyone.",
@@ -365,11 +377,16 @@ public final class MainActivity extends Activity {
                     Map<String,String> reply=router.readFeature(ep);
                     if(reply.isEmpty())s.append("No fields returned");
                     for(Map.Entry<String,String> item:reply.entrySet()){
-                        if(item.getKey().matches("(?i).*password.*|.*token.*|.*SesInfo.*|.*IMEI.*|.*IMSI.*|.*ICCID.*|.*key.*"))continue;
+                        if(item.getKey().matches("(?i).*(password|passkey|wpa.*psk|passphrase|token|sesinfo|imei|imsi|iccid|secret|privatekey|cookie).*"))continue;
                         s.append(item.getKey()).append(": ").append(item.getValue()).append("\n");
                         if(s.length()>18000){s.append("Output shortened for readability\n");break;}
                     }
-                }catch(Exception e){s.append("Unsupported/rejected: ").append(brief(e)).append("\n");}
+                }catch(Exception e){
+                    String msg=brief(e);
+                    if(msg.contains("Huawei error 100003"))
+                        s.append("Read request rejected (Huawei 100003; method, access or firmware support uncertain)").append("\\n");
+                    else s.append("Read failed: ").append(msg).append("\\n");
+                }
             }
             return s.toString();
         },result->popup(name,result));
@@ -424,7 +441,7 @@ public final class MainActivity extends Activity {
                     popup("Connection test",display.toString());
                 });
         });
-        note(login,"If the test finds only a Wi-Fi + VPN overlay, use the VPN settings to allow this new app to access the local network. The app will not silently route the password through the VPN.",AMBER);
+        note(login,"Connect to your router over local Wi-Fi. Internet access or a VPN is not required for local management. Credentials remain in memory only.",SUB);
         LinearLayout about=box(body,"Privacy & safety","Local-only access to your router");
         note(about,"Your password is never saved to a file, sent to GitHub or placed in app logs. Commands are confirmed before execution.",SUB);
     }
