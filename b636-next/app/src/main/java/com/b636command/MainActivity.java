@@ -285,12 +285,30 @@ public final class MainActivity extends Activity {
     private void login(){
         LinearLayout login=box(body,"Router sign-in","Huawei Manager type-4 authentication · credentials held in memory only");
         EditText ip=field(login,"Local router IP","192.168.1.1",false);
+        button(login,"Diagnose VPN / Wi-Fi routes (no password)",false,()->{
+            String address=ip.getText().toString();
+            run("Testing phone network routes…",()->new NetworkProbe(this).run(address),
+                diagnostics->popup("Connection paths",diagnostics));
+        });
+        note(login,"Diagnose first. Compare the default Android route against explicit Wi-Fi and see whether port 80 is open. No password is sent.",SUB);
+        note(login,"Connection path for login",SUB);
+        Spinner selectedRoute=new Spinner(this);
+        selectedRoute.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
+            new String[]{"Android default network","Direct Wi-Fi (bypass VPN route)"}));
+        login.addView(selectedRoute,new LinearLayout.LayoutParams(-1,dp(48)));
         EditText user=field(login,"Username","admin",false);
         EditText pass=field(login,"Admin password","",true);
         button(login,"Connect & start real-time monitoring",true,()->{
             String address=ip.getText().toString(),u=user.getText().toString(),password=pass.getText().toString();
+            final int routeIndex=selectedRoute.getSelectedItemPosition();
             run("Connecting to Huawei…",()->{
-                RouterClient next=new RouterClient(address);next.login(u,password);return next;
+                android.net.Network route=null;
+                if(routeIndex==1){
+                    route=new NetworkProbe(this).wifi();
+                    if(route==null)throw new java.io.IOException("No Wi-Fi network to bind. Connect to your router Wi-Fi.");
+                }
+                RouterClient next=new RouterClient(address,route);
+                next.login(u,password);return next;
             },next->{
                 router.close();router=next;pass.setText("");
                 setStatus("Connected · "+next.address(),true);
@@ -299,11 +317,16 @@ public final class MainActivity extends Activity {
             });
         });
         button(login,"Test Huawei session without password",false,()->{
-            run("Checking session API…",()->new RouterClient(ip.getText().toString()).sessionDiagnostics(),
+            int routeIndex=selectedRoute.getSelectedItemPosition();
+            run("Checking session API…",()->{
+                android.net.Network route=routeIndex==1?new NetworkProbe(this).wifi():null;
+                if(routeIndex==1&&route==null)throw new java.io.IOException("No Wi-Fi network connected");
+                return new RouterClient(ip.getText().toString(),route).sessionDiagnostics();
+            },
                 res->{
                     StringBuilder display=new StringBuilder();
                     for(Map.Entry<String,String> item:res.entrySet())
-                        display.append(item.getKey()).append(":\\n").append(item.getValue()).append("\\n\\n");
+                        display.append(item.getKey()).append(":\n").append(item.getValue()).append("\n\n");
                     popup("Connection test",display.toString());
                 });
         });
