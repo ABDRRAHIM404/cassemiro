@@ -364,58 +364,90 @@ public final class RouterClient {
     public synchronized void postFeature(String endpoint,Map<String,String> fields)throws Exception{
         if(!authenticated)throw new IOException("Login required");
         String path=endpoint.startsWith("/api/")?endpoint:"/api/"+endpoint;
-        // Only known local write APIs; no hidden/debug or bypass endpoints.
         if(!Set.of("/api/net/net-mode","/api/net/lock-cell","/api/dialup/mobile-dataswitch",
                 "/api/device/control").contains(path))throw new IOException("Unverified API write blocked");
-        refreshToken(); // Do not reuse the initial login token.
-        String result=request(path,xml(fields),token);
-        Map<String,String> response=RouterClient.fields(result);
-        String code=safe(response.get("code"));
-        if("125003".equals(code)||"125001".equals(code)||"125002".equals(code)){
-            // This was REJECTED by the router. Never silently retry an operation
-            // that changes connectivity or could disconnect the user.
-            token="";
-            throw new IOException("Huawei security token rejected ("+code+
-                "). No setting was changed. Return to Login and reconnect before trying again.");
+        // A login token is not necessarily a valid later POST token. Acquire a
+        // fresh token from the current authenticated session BEFORE every write.
+        // The old client reused raw TokInfo and returned Huawei error 125003.
+        String fresh=refreshToken();
+        if(fresh.isEmpty())throw new IOException("No fresh Huawei POST verification token");
+        String result=request(path,xml(fields),fresh);
+        try{
+            assertSuccess(path,result);
+        }catch(IOException e){
+            if(e.getMessage()!=null && e.getMessage().contains("125003"))
+                throw new IOException("Huawei rejected this setting request (125003). A fresh session POST token was used; the firmware may require another privilege. No change confirmed.");
+            throw e;
         }
-        assertSuccess(path,result);
-        if(!"OK".equalsIgnoreCase(safe(response.get("response"))))
+        if(!"OK".equalsIgnoreCase(safe(RouterClient.fields(result).get("response"))))
             throw new IOException("Router did not confirm the change");
     }
-    /**
-     * Brovi HiLink token format: /api/webserver/token may supply a 64-character
-     * string or a #-delimited set of tokens. POST uses the last 32 characters
-     * of the first candidate when a 64-character value is returned.
-     */
-    public synchronized void refreshToken()throws Exception{
-        if(!authenticated)throw new IOException("Login required");
-        token="";
-        String body=request("/api/webserver/token",null,"");
-        Map<String,String> m=fields(body);
-        String error=safe(m.get("code"));
-        if(!error.isEmpty())
-            throw new IOException("Huawei token endpoint rejected the session (code "+error+"). Reconnect.");
-        String raw=safe(m.get("token"));
-        if(raw.isEmpty())raw=safe(m.get("TokInfo"));
-        if(raw.isEmpty())throw new IOException("Huawei did not provide a fresh control token. No setting changed.");
-        String first=raw.split("#",2)[0].trim();
-        if(first.length()>32)first=first.substring(first.length()-32);
-        if(first.isEmpty())throw new IOException("Router returned an empty control token");
-        token=first;
+    private static String adaptPostToken(String raw)throws IOException{
+        String value=safe(raw).split("#",2)[0].trim();
+        // Huawei's 64-char /webserver/token value uses the second 32 chars for POST.
+        if(value.length()==64)return value.substring(32);
+        if(value.length()==32)return value;
+        throw new IOException("Unexpected Huawei token format ("+value.length()+" characters)");
+    }
+    public synchronized String refreshToken()throws Exception{
+        // This GET is authenticated by OkHttp's existing cookie jar.
+        String rawXml=request("/api/webserver/token",null,"");
+        assertSuccess("/api/webserver/token",rawXml);
+        Map<String,String> response=fields(rawXml);
+        String raw=safe(response.get("token"));
+        if(raw.isEmpty())raw=safe(response.get("TokInfo"));
+        if(raw.isEmpty())throw new IOException("Router didn't return a fresh write token");
+        token=adaptPostToken(raw);
+        return token;
+    }
+    private Map<String,String> currentNetworkSettings()throws Exception{
+        return get("net/net-mode");
+    }
+    private static String modeValue(Map<String,String> settings,String key,String fallback){
+        String s=safe(settings.get(key));
+        return s.isEmpty()?fallback:s;
+    }
+    private static Map<String,String> modePayload(String mode,String networkBand,String lteBand){
+        // Preserve field ordering from the successful reference Huawei Manager
+        // POST payload; Map.of() had nondeterministic tag order.
+        Map<String,String> data=new LinkedHashMap<>();
+        data.put("NetworkMode",mode);
+        data.put("NetworkBand",networkBand);
+        data.put("LTEBand",lteBand);
+        data.put("networkOption","");
+        return data;
+    }
+    private void verifiedNetModeWrite(String lteMask)throws Exception{
+        Map<String,String> old=currentNetworkSettings();
+        String networkMode=modeValue(old,"NetworkMode","03");
+        String networkBand=modeValue(old,"NetworkBand","3FFFFFFF");
+        // Only LTEBand changes. Don't flip 4G-only to 2G/3G/4G without consent.
+        postFeature("net/net-mode",modePayload(networkMode,networkBand,lteMask));
+        Map<String,String> updated=currentNetworkSettings();
+        String observed=safe(updated.get("LTEBand"));
+        if(observed.isEmpty())
+            throw new IOException("Router accepted the request but didn't return LTEBand for verification");
+        try{
+            BigInteger expected=new BigInteger(lteMask,16);
+            BigInteger actual=new BigInteger(observed.replaceFirst("(?i)^0x",""),16);
+            if(!expected.equals(actual))throw new IOException(
+                "Router replied OK, but LTE band readback doesn't match. Actual mask: "+observed);
+        }catch(NumberFormatException e){
+            throw new IOException("LTE mask readback was not valid hex: "+observed);
+        }
     }
     public void lockBands(Collection<Integer> selected)throws Exception{
         if(selected.isEmpty())throw new IOException("Select at least one LTE band");
         BigInteger mask=BigInteger.ZERO;
         for(int band:selected){
-            if(Arrays.stream(LTE_BANDS).noneMatch(x->x==band))throw new IOException("Unsupported LTE band "+band);
+            if(Arrays.stream(LTE_BANDS).noneMatch(x->x==band))
+                throw new IOException("Band B"+band+" isn't in the supported selection list");
             mask=mask.setBit(band-1);
         }
-        postFeature("net/net-mode",Map.of("NetworkMode","03","NetworkBand","3FFFFFFF",
-            "LTEBand",mask.toString(16).toUpperCase(Locale.ROOT),"networkOption",""));
+        verifiedNetModeWrite(mask.toString(16).toUpperCase(Locale.ROOT));
     }
     public void resetBandAuto()throws Exception{
-        postFeature("net/net-mode",Map.of("NetworkMode","00","NetworkBand","3FFFFFFF",
-            "LTEBand","7FFFFFFFFFFFFFFF","networkOption",""));
+        verifiedNetModeWrite("7FFFFFFFFFFFFFFF");
     }
     public void lockCell(long earfcn,int pci)throws Exception{
         if(earfcn<0||earfcn>300000||pci<0||pci>503)throw new IOException("Check EARFCN and PCI values");
