@@ -6,6 +6,9 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.MediaType;
 import okhttp3.ResponseBody;
+import okhttp3.Cookie;
+import okhttp3.CookieJar;
+import okhttp3.HttpUrl;
 import java.util.concurrent.TimeUnit;
 
 import java.net.*;
@@ -21,14 +24,27 @@ import java.util.*;
 public final class RouterApi {
     public static final int[] BANDS={1,3,5,7,8,20,28,32,38,40,41,42,43};
     private final String base;
+    private final Map<String,Cookie> cookies=new LinkedHashMap<>();
+    // Match Huawei Manager: OkHttp owns the cookie lifecycle. The only
+    // manually seeded cookie is SessionID when Huawei SesTokInfo returns
+    // a bare ID rather than a Set-Cookie header.
     private final OkHttpClient client = new OkHttpClient.Builder()
-        .connectTimeout(10,TimeUnit.SECONDS)
-        .readTimeout(15,TimeUnit.SECONDS)
+        .cookieJar(new CookieJar(){
+            @Override public void saveFromResponse(HttpUrl url,List<Cookie> received){
+                for(Cookie cookie:received)cookies.put(cookie.name(),cookie);
+            }
+            @Override public List<Cookie> loadForRequest(HttpUrl url){
+                List<Cookie> result=new ArrayList<>();
+                for(Cookie cookie:cookies.values())if(cookie.matches(url))result.add(cookie);
+                return result;
+            }
+        })
+        .connectTimeout(15,TimeUnit.SECONDS)
+        .readTimeout(30,TimeUnit.SECONDS)
         .followRedirects(true)
         .build();
     private String token="";
     private boolean loggedIn=false;
-    private final Map<String,String> cookies=new LinkedHashMap<>();
     public RouterApi(String ip) {
         ip=ip.trim().replace("http://","").replace("https://","").replaceAll("/+$","");
         if(!ip.matches("[0-9.]+")) throw new IllegalArgumentException("Only local IPv4 router addresses are allowed");
@@ -48,14 +64,12 @@ public final class RouterApi {
     // manual proxy bypass, custom socket factory, or hardcoded network routes.
     private synchronized String send(String method,String path,String payload) throws Exception {
         if(!path.matches("/api/[A-Za-z0-9_/-]+")) throw new IllegalArgumentException("Invalid API path");
-        Request.Builder builder=new Request.Builder()
-            .url(base+path)
-            .header("X-Requested-With","XMLHttpRequest");
-        if(!token.isEmpty())builder.header("__RequestVerificationToken",token);
-        if(!cookies.isEmpty()){
-            List<String> parts=new ArrayList<>();
-            for(Map.Entry<String,String> e:cookies.entrySet())parts.add(e.getKey()+"="+e.getValue());
-            builder.header("Cookie",String.join("; ",parts));
+        Request.Builder builder=new Request.Builder().url(base+path);
+        // As in the Brovi client, verification tokens belong on POST requests.
+        // Ordinary GET requests should not unnecessarily consume the token.
+        if(payload!=null){
+            builder.header("X-Requested-With","XMLHttpRequest");
+            if(!token.isEmpty())builder.header("__RequestVerificationToken",token);
         }
         if(payload!=null){
             RequestBody body=RequestBody.create(
@@ -63,10 +77,6 @@ public final class RouterApi {
             builder.post(body);
         }else builder.get();
         try(Response response=client.newCall(builder.build()).execute()){
-            for(String value:response.headers("Set-Cookie")){
-                String first=value.split(";",2)[0];int i=first.indexOf('=');
-                if(i>0)cookies.put(first.substring(0,i).trim(),first.substring(i+1).trim());
-            }
             String t=response.header("__RequestVerificationTokenone");
             if(t==null||t.isEmpty())t=response.header("__RequestVerificationToken");
             if(t!=null&&!t.isEmpty())token=tokenForPost(t.split("#",2)[0].trim());
@@ -144,8 +154,14 @@ public final class RouterApi {
         String rawToken=getValue(session,"TokInfo");
         if(!sessionId.isEmpty()){
             int eq=sessionId.indexOf('=');
-            if(eq>0)cookies.put(sessionId.substring(0,eq).trim(),sessionId.substring(eq+1).trim());
-            else cookies.put("SessionID",sessionId);
+            String cookieName=eq>0?sessionId.substring(0,eq).trim():"SessionID";
+            String cookieValue=eq>0?sessionId.substring(eq+1).trim():sessionId;
+            String routerHost=java.net.URI.create(base).getHost();
+            // Avoid silently replacing a cookie supplied by the firmware.
+            if(!cookies.containsKey(cookieName))
+                cookies.put(cookieName,new Cookie.Builder()
+                    .name(cookieName).value(cookieValue)
+                    .hostOnlyDomain(routerHost).path("/").build());
         }
         if(!rawToken.isEmpty())token=tokenForPost(rawToken);
         if(rawToken.isEmpty())throw new IOException("Huawei did not provide a verification token");
