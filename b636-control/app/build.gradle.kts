@@ -5,9 +5,9 @@ android {
     defaultConfig {
         applicationId = "com.b636control"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 6
-        versionName = "0.6.0"
+        targetSdk = 34
+        versionCode = 7
+        versionName = "0.7.0"
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 }
