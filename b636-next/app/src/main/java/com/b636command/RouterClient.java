@@ -290,6 +290,52 @@ public final class RouterClient {
     private void readInto(Snapshot snap,String ep,Map<String,String> dest){
         try{dest.putAll(get(ep));}catch(Exception e){snap.failures.put(ep,e.getMessage());}
     }
+    /**
+     * The /api/wlan/host-list response contains repeated <Host> elements.
+     * Do not run it through fields(), which intentionally flattens values and
+     * loses all but the final device.
+     */
+    public synchronized List<Map<String,String>> connectedHosts()throws Exception{
+        if(!authenticated)throw new IOException("Login required");
+        String response=request("/api/wlan/host-list",null,"");
+        assertSuccess("/api/wlan/host-list",response);
+        org.xmlpull.v1.XmlPullParser parser=android.util.Xml.newPullParser();
+        parser.setInput(new java.io.StringReader(response));
+        List<Map<String,String>> hosts=new ArrayList<>();
+        Map<String,String> host=null;
+        int hostDepth=-1;
+        String field=null;
+        StringBuilder textValue=new StringBuilder();
+        int events=0;
+        for(int event=parser.getEventType();event!=org.xmlpull.v1.XmlPullParser.END_DOCUMENT;
+                event=parser.next()){
+            if(++events>20000)throw new IOException("Host list is unexpectedly complex");
+            if(event==org.xmlpull.v1.XmlPullParser.START_TAG){
+                String name=parser.getName();
+                if("Host".equalsIgnoreCase(name)&&host==null){
+                    host=new LinkedHashMap<>();
+                    hostDepth=parser.getDepth();
+                    if(hosts.size()>=128)throw new IOException("Too many reported hosts");
+                }else if(host!=null && parser.getDepth()==hostDepth+1){
+                    field=name;
+                    textValue.setLength(0);
+                }
+            }else if((event==org.xmlpull.v1.XmlPullParser.TEXT||
+                       event==org.xmlpull.v1.XmlPullParser.CDSECT)&&field!=null){
+                if(textValue.length()<4096)textValue.append(parser.getText());
+            }else if(event==org.xmlpull.v1.XmlPullParser.END_TAG&&host!=null){
+                if(field!=null && parser.getDepth()==hostDepth+1 &&
+                    parser.getName().equals(field)){
+                    host.put(field,textValue.toString().trim());
+                    field=null;
+                }else if("Host".equalsIgnoreCase(parser.getName())&&parser.getDepth()==hostDepth){
+                    hosts.add(host);
+                    host=null;hostDepth=-1;field=null;
+                }
+            }
+        }
+        return hosts;
+    }
     public synchronized Map<String,String> readFeature(String ep)throws Exception{return get(ep);}
     private static String xml(Map<String,String> data){
         StringBuilder s=new StringBuilder("<request>");
