@@ -1,6 +1,7 @@
 package com.b636command;
 
 import java.io.IOException;
+import android.net.Network;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,7 +31,8 @@ public final class RouterClient {
     private boolean authenticated=false;
     private String lastError="";
 
-    public RouterClient(String address){
+    public RouterClient(String address){this(address,null);}
+    public RouterClient(String address,Network wifiRoute){
         address=address.trim().replaceFirst("^https?://","").replaceAll("/.*$","");
         if(!address.matches("[0-9.]+"))throw new IllegalArgumentException("Enter a local router IPv4 address");
         String[] parts=address.split("\\.");
@@ -41,7 +43,14 @@ public final class RouterClient {
         if(!(b[0]==10||(b[0]==172&&b[1]>=16&&b[1]<=31)||(b[0]==192&&b[1]==168)))
             throw new IllegalArgumentException("Only private local router addresses are allowed");
         host=address;base="http://"+host;
-        client=new OkHttpClient.Builder().cookieJar(new CookieJar(){
+        OkHttpClient.Builder builder=new OkHttpClient.Builder();
+        if(wifiRoute!=null){
+            // Explicit transport binding bypasses Android\'s default VPN route.
+            // Use this only when the user selects Direct Wi-Fi.
+            builder.socketFactory(wifiRoute.getSocketFactory());
+            builder.dns(h -> Arrays.asList(wifiRoute.getAllByName(h)));
+        }
+        client=builder.cookieJar(new CookieJar(){
             @Override public void saveFromResponse(HttpUrl url,List<Cookie> received){
                 for(Cookie c:received)cookies.put(c.name(),c);
             }
