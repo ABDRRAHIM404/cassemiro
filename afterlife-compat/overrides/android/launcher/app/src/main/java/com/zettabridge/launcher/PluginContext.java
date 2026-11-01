@@ -82,9 +82,12 @@ final class PluginContext extends ContextWrapper {
 
     @Override
     public String getPackageName() {
-        String value = super.getPackageName();
+        // App-side identity should match the imported APK. The process and UID stay the
+        // launcher's; getOpPackageName() and system-owned contexts retain host identity.
+        String value = plugin.packageName;
         Diagnostics.noteIdentity("Context.getPackageName(): " + value
-                + " guest=" + plugin.packageName + " caller=" + Diagnostics.findGuestCaller());
+                + " host=" + getBaseContext().getPackageName()
+                + " caller=" + Diagnostics.findGuestCaller());
         return value;
     }
 
