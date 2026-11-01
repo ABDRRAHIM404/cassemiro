@@ -80,13 +80,33 @@ final class PluginContext extends ContextWrapper {
         return plugin.appInfo;
     }
 
+    /**
+     * A virtualized game has two legitimate package identities. Most app-side lookups should
+     * see the imported APK, but Play Services' service broker authenticates the package
+     * supplied over Binder against the *real* calling UID. That UID belongs to the launcher.
+     * Give the broker the actual installed host package, otherwise it rejects the request
+     * with SecurityException("Unknown calling package name").
+     *
+     * Keep this scoped to the broker call rather than all Play Services code: Firebase and
+     * analytics still need to read the imported game's package and manifest metadata.
+     */
+    private static boolean inGmsServiceBrokerCall() {
+        for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+            if ("com.google.android.gms.common.internal.BaseGmsClient".equals(frame.getClassName())
+                    && "getRemoteService".equals(frame.getMethodName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public String getPackageName() {
-        // App-side identity should match the imported APK. The process and UID stay the
-        // launcher's; getOpPackageName() and system-owned contexts retain host identity.
-        String value = plugin.packageName;
+        String host = getBaseContext().getPackageName();
+        boolean binderBroker = inGmsServiceBrokerCall();
+        String value = binderBroker ? host : plugin.packageName;
         Diagnostics.noteIdentity("Context.getPackageName(): " + value
-                + " host=" + getBaseContext().getPackageName()
+                + " host=" + host + " gms-broker=" + binderBroker
                 + " caller=" + Diagnostics.findGuestCaller());
         return value;
     }
