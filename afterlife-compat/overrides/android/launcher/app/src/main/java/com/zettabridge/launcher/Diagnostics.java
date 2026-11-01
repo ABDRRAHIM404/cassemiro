@@ -102,6 +102,17 @@ final class Diagnostics {
                 text += "\n--- JAVA IDENTITY TRACE ---\n"
                         + new String(Files.readAllBytes(identity.toPath()), StandardCharsets.UTF_8);
             }
+            // The runtime report covers native translation only. A guest crash before
+            // native loading appears in zb-errors.txt, so include recent Java exceptions.
+            File errors = new File(context.getExternalFilesDir(null), "zb-errors.txt");
+            if (errors.isFile()) {
+                String javaErrors = new String(Files.readAllBytes(errors.toPath()), StandardCharsets.UTF_8);
+                int keepFrom = Math.max(0, javaErrors.length() - 16000);
+                if (keepFrom > 0) javaErrors = "(older errors omitted)\n" + javaErrors.substring(keepFrom);
+                text += "\n--- JAVA ERRORS (RECENT) ---\n" + javaErrors;
+            } else {
+                text += "\n--- JAVA ERRORS (RECENT) ---\nNo recorded Java exceptions.\n";
+            }
             return text.isEmpty() ? null : text;
         } catch (IOException | RuntimeException e) {
             Log.w(TAG, "cannot read the runtime report: " + e);
