@@ -1,0 +1,98 @@
+name: Build Afterlife compatibility APK
+
+on:
+  push:
+    branches:
+      - afterlife-compat-research
+    paths:
+      - 'afterlife-compat/**'
+      - '.github/workflows/afterlife-compat-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build libboost-dev curl unzip e2fsprogs python3 git
+
+      - name: Install Android SDK/NDK
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "ndk;29.0.14206865"
+
+      - name: Fetch pinned Afterlife sources and apply compatibility patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/etonedemid/afterlife-manager.git afterlife-src
+          cd afterlife-src
+          git checkout c58ad0f5a6338fc6e2c806c9ba1320d715c57bd2
+          git submodule update --init --recursive
+          cd ..
+          cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PackageManagerHook.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PackageManagerHook.java
+          cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginStore.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginStore.java
+          git -C afterlife-src diff --check
+
+      - name: Compile 32-bit guest components
+        working-directory: afterlife-src
+        env:
+          NDK: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+          NDK_HOST: linux-x86_64
+        run: |
+          set -euo pipefail
+          ./tools/build_guest.sh
+
+      - name: Compile ARM64 translator and proxy
+        working-directory: afterlife-src
+        env:
+          NDK: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+        run: |
+          set -euo pipefail
+          mkdir -p build/boost-headers
+          ln -sfn /usr/include/boost build/boost-headers/boost
+          cmake -S . -B build/android-arm64 -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
+            -DCMAKE_BUILD_TYPE=Release -DZB_BUILD_TESTS=OFF \
+            -DBoost_INCLUDE_DIR="$PWD/build/boost-headers"
+          ninja -C build/android-arm64 zbridge zbproxy
+
+      - name: Prepare guest Android system libraries
+        working-directory: afterlife-src
+        run: |
+          set -euo pipefail
+          ./tools/extract_sysroot.sh
+
+      - name: Bundle native files and build signed debug APK
+        working-directory: afterlife-src
+        run: |
+          set -euo pipefail
+          ./tools/make_launcher_bundle.sh
+          cd android/launcher
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug
+          test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: afterlife-compat-debug-apk
+          path: afterlife-src/android/launcher/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
