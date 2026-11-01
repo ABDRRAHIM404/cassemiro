@@ -243,19 +243,16 @@ final class PackageManagerHook implements InvocationHandler {
             }
             case "getApplicationInfo": {
                 ApplicationInfo guestInfo = guestApplicationInfo(args[0]);
-                if (guestInfo != null) return guestInfo;
-                if (hostPackage.equals(args[0]) && result instanceof ApplicationInfo) {
-                    return withPluginMetaData((ApplicationInfo) result);
-                }
-                return result;
+                // The imported APK is virtualized, but an installed host-package query
+                // must describe the REAL host. Mixing host paths with guest metadata
+                // produces inconsistent package identities during integrity checks.
+                return guestInfo != null ? guestInfo : result;
             }
             case "getPackageInfo": {
                 PackageInfo guestInfo = guestPackageInfo(args[0]);
-                if (guestInfo != null) return guestInfo;
-                if (hostPackage.equals(args[0]) && result instanceof PackageInfo) {
-                    return withPluginVersion((PackageInfo) result);
-                }
-                return result;
+                // Never mutate the real host PackageInfo or replace its version/signature.
+                // Preserve the system's own answer for every installed third-party app.
+                return guestInfo != null ? guestInfo : result;
             }
             default:
                 return result;
@@ -345,30 +342,5 @@ final class PackageManagerHook implements InvocationHandler {
         return p.info;
     }
 
-    private ApplicationInfo withPluginMetaData(ApplicationInfo hostInfo) {
-        LoadedPlugin p = runtime.current();
-        if (p == null) return hostInfo;
-        ApplicationInfo copy = new ApplicationInfo(hostInfo);
-        copy.metaData = p.appInfo.metaData;
-        return copy;
-    }
 
-    private PackageInfo withPluginVersion(PackageInfo hostInfo) {
-        LoadedPlugin p = runtime.current();
-        if (p == null) return hostInfo;
-        hostInfo.versionName = p.info.versionName;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            hostInfo.setLongVersionCode(p.info.getLongVersionCode());
-        } else {
-            hostInfo.versionCode = p.info.versionCode;
-        }
-        // Preserve the imported APK's REAL signing identity for package queries. This
-        // does not forge certificates or change APK integrity verification.
-        if (p.info.signatures != null) hostInfo.signatures = p.info.signatures.clone();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && p.info.signingInfo != null) {
-            hostInfo.signingInfo = p.info.signingInfo;
-        }
-        if (hostInfo.applicationInfo != null) hostInfo.applicationInfo = withPluginMetaData(hostInfo.applicationInfo);
-        return hostInfo;
-    }
 }
