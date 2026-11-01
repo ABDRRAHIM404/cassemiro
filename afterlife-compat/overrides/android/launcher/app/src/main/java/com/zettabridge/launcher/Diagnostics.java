@@ -28,8 +28,11 @@ final class Diagnostics {
     private static final String TAG = "zb-launcher";
     private static final String REPORT_NAME = "zb-runtime-report.txt";
     private static final String IDENTITY_TRACE_NAME = "zb-identity-trace.txt";
+    private static final String PACKAGE_AUDIT_NAME = "zb-package-audit.txt";
     private static File identityTrace;
+    private static File packageAudit;
     private static int identityCount;
+    private static int packageAuditCount;
 
     private Diagnostics() {}
 
@@ -63,7 +66,15 @@ final class Diagnostics {
         File dir = context.getExternalFilesDir(null);
         if (dir == null) return;
         identityTrace = new File(dir, IDENTITY_TRACE_NAME);
+        packageAudit = new File(dir, PACKAGE_AUDIT_NAME);
         identityCount = 0;
+        packageAuditCount = 0;
+        try (FileOutputStream stream = new FileOutputStream(packageAudit, false)) {
+            stream.write("Read-only PackageManager response audit (signer SHA-256 only)\n"
+                    .getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            Log.w(TAG, "cannot initialize package audit", e);
+        }
         try (FileOutputStream stream = new FileOutputStream(identityTrace, false)) {
             stream.write("Java identity trace (debug build)\n".getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
@@ -77,6 +88,16 @@ final class Diagnostics {
             stream.write((message + "\n").getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             Log.w(TAG, "cannot append identity trace", e);
+        }
+    }
+
+    /** Unlike the identity trace, package return values have their own quota. */
+    static synchronized void notePackageAudit(String message) {
+        if (packageAudit == null || packageAuditCount++ >= 200) return;
+        try (FileOutputStream stream = new FileOutputStream(packageAudit, true)) {
+            stream.write((message + "\n").getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            Log.w(TAG, "cannot append package audit", e);
         }
     }
 
@@ -101,6 +122,11 @@ final class Diagnostics {
             if (identity.isFile()) {
                 text += "\n--- JAVA IDENTITY TRACE ---\n"
                         + new String(Files.readAllBytes(identity.toPath()), StandardCharsets.UTF_8);
+            }
+            File audit = new File(context.getExternalFilesDir(null), PACKAGE_AUDIT_NAME);
+            if (audit.isFile()) {
+                text += "\n--- PACKAGE RESPONSE AUDIT ---\n"
+                        + new String(Files.readAllBytes(audit.toPath()), StandardCharsets.UTF_8);
             }
             // The runtime report covers native translation only. A guest crash before
             // native loading appears in zb-errors.txt, so include recent Java exceptions.
