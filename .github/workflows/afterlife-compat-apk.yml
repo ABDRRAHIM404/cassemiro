@@ -47,6 +47,8 @@ jobs:
           cd ..
           cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PackageManagerHook.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PackageManagerHook.java
           cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginStore.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginStore.java
+          cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/Diagnostics.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/Diagnostics.java
+          cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginContext.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginContext.java
           git -C afterlife-src diff --check
 
       - name: Compile 32-bit guest components
