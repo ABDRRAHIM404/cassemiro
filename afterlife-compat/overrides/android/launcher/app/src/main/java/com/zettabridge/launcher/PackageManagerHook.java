@@ -11,7 +11,9 @@ import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.content.pm.Signature;
 import android.os.Build;
+import java.security.MessageDigest;
 import android.util.Log;
 
 import java.lang.reflect.Field;
@@ -76,11 +78,16 @@ final class PackageManagerHook implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        traceIdentityQuery(method.getName(), args);
+        String name = method.getName();
+        traceIdentityQuery(name, args);
         try {
             Object result = method.invoke(real, args);
-            return rewrite(method.getName(), args, result);
+            auditPackageResult("system", name, args, result, null);
+            Object rewritten = rewrite(name, args, result);
+            auditPackageResult("guest-visible", name, args, rewritten, null);
+            return rewritten;
         } catch (InvocationTargetException e) {
+            auditPackageResult("system-exception", name, args, null, e.getCause());
             // Plugin components are not in the launcher's manifest, so the system rejects toggling
             // them (ChatOn disables its own receivers at startup). There is no state to keep: ignore.
             if (e.getCause() instanceof IllegalArgumentException) {
@@ -95,9 +102,103 @@ final class PackageManagerHook implements InvocationHandler {
                 }
             }
             Object fallback = rewriteMissing(method.getName(), args);
-            if (fallback != null) return fallback;
+            if (fallback != null) {
+                auditPackageResult("guest-fallback", name, args, fallback, null);
+                return fallback;
+            }
             throw e.getCause();
         }
+    }
+
+
+    /**
+     * Read-only diagnostic of REAL binder answers and the VIRTUALIZED answers. Only the
+     * certificate SHA-256 fingerprints are logged, never private keys or raw certificates.
+     * Capture results in a separate file so frequent Context.getPackageName() calls cannot
+     * exhaust the quota before the application's integrity checks.
+     */
+    private void auditPackageResult(String stage, String name, Object[] args, Object value, Throwable error) {
+        boolean relevant = "getPackageInfo".equals(name) || "getApplicationInfo".equals(name)
+                || "getPackagesForUid".equals(name) || "getPackageUid".equals(name)
+                || "getPackageUidEtc".equals(name) || "checkSignatures".equals(name)
+                || "getInstallerPackageName".equals(name) || "getInstallSourceInfo".equals(name);
+        if (!relevant) return;
+        try {
+            String requested = args != null && args.length > 0 ? String.valueOf(args[0]) : "(none)";
+            // This reflects the system binder method's actual flags parameter, if supplied.
+            String flags = args != null && args.length > 1 ? String.valueOf(args[1]) : "-";
+            StringBuilder report = new StringBuilder(stage).append(" PackageManager.")
+                    .append(name).append(" package=").append(requested)
+                    .append(" flags=").append(flags);
+            if (error != null) {
+                report.append(" error=").append(error.getClass().getSimpleName())
+                        .append(": ").append(error.getMessage());
+            } else if (value instanceof PackageInfo) {
+                report.append(" ").append(describePackageInfo((PackageInfo) value));
+            } else if (value instanceof ApplicationInfo) {
+                report.append(" ").append(describeApplicationInfo((ApplicationInfo) value));
+            } else if (value instanceof String[]) {
+                report.append(" packages=").append(java.util.Arrays.toString((String[]) value));
+            } else {
+                report.append(" value=").append(String.valueOf(value));
+            }
+            LoadedPlugin guest = runtime.current();
+            if (guest != null && guest.info != null && "getPackageInfo".equals(name)
+                    && (requested.equals(guest.packageName) || requested.equals(hostPackage))) {
+                report.append("\n  imported-archive=").append(describePackageInfo(guest.info));
+            }
+            Diagnostics.notePackageAudit(report.toString());
+        } catch (RuntimeException failure) {
+            Log.w(TAG, "cannot record package result", failure);
+        }
+    }
+
+    private static String describePackageInfo(PackageInfo info) {
+        StringBuilder out = new StringBuilder();
+        out.append("package=").append(info.packageName)
+                .append(" version=").append(info.versionName)
+                .append(" signersLegacy=").append(signatureDigests(info.signatures));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            out.append(" versionCode=").append(info.getLongVersionCode());
+            if (info.signingInfo == null) {
+                out.append(" signingInfo=null");
+            } else {
+                out.append(" currentSigners=")
+                        .append(signatureDigests(info.signingInfo.getApkContentsSigners()))
+                        .append(" history=")
+                        .append(signatureDigests(info.signingInfo.getSigningCertificateHistory()));
+            }
+        } else {
+            out.append(" versionCode=").append(info.versionCode);
+        }
+        if (info.applicationInfo != null) {
+            out.append(" ").append(describeApplicationInfo(info.applicationInfo));
+        }
+        return out.toString();
+    }
+
+    private static String describeApplicationInfo(ApplicationInfo info) {
+        return "application=" + info.packageName + " uid=" + info.uid
+                + " targetSdk=" + info.targetSdkVersion
+                + " sourceDir=" + info.sourceDir + " publicSourceDir=" + info.publicSourceDir
+                + " nativeLibraryDir=" + info.nativeLibraryDir + " dataDir=" + info.dataDir;
+    }
+
+    private static String signatureDigests(Signature[] signatures) {
+        if (signatures == null) return "(null)";
+        if (signatures.length == 0) return "[]";
+        StringBuilder result = new StringBuilder("[");
+        try {
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            for (int i = 0; i < signatures.length; i++) {
+                if (i > 0) result.append(", ");
+                byte[] bytes = sha256.digest(signatures[i].toByteArray());
+                for (byte b : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", b & 0xff));
+            }
+        } catch (java.security.NoSuchAlgorithmException e) {
+            return "(sha256 unavailable)";
+        }
+        return result.append(']').toString();
     }
 
     private void traceIdentityQuery(String name, Object[] args) {
