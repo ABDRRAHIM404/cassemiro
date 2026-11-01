@@ -52,18 +52,17 @@ jobs:
       - name: Compile 32-bit guest components
         working-directory: afterlife-src
         env:
-          NDK: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
           NDK_HOST: linux-x86_64
         run: |
           set -euo pipefail
+          export NDK="$ANDROID_HOME/ndk/29.0.14206865"
           ./tools/build_guest.sh
 
       - name: Compile ARM64 translator and proxy
         working-directory: afterlife-src
-        env:
-          NDK: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
         run: |
           set -euo pipefail
+          export NDK="$ANDROID_HOME/ndk/29.0.14206865"
           mkdir -p build/boost-headers
           ln -sfn /usr/include/boost build/boost-headers/boost
           cmake -S . -B build/android-arm64 -G Ninja \
