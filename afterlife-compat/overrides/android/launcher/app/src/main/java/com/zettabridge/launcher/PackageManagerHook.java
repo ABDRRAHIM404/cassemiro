@@ -43,6 +43,7 @@ final class PackageManagerHook implements InvocationHandler {
     }
 
     static void install(Context host, GuestRuntime runtime) {
+        Diagnostics.startIdentityTrace(host);
         try {
             Class<?> activityThread = Class.forName("android.app.ActivityThread");
             Object current = Reflect.method(activityThread, "getPackageManager").invoke(null);
@@ -75,6 +76,7 @@ final class PackageManagerHook implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        traceIdentityQuery(method.getName(), args);
         try {
             Object result = method.invoke(real, args);
             return rewrite(method.getName(), args, result);
@@ -96,6 +98,26 @@ final class PackageManagerHook implements InvocationHandler {
             if (fallback != null) return fallback;
             throw e.getCause();
         }
+    }
+
+    private void traceIdentityQuery(String name, Object[] args) {
+        switch (name) {
+            case "getPackageInfo":
+            case "getApplicationInfo":
+            case "getPackagesForUid":
+            case "getInstallerPackageName":
+            case "getInstallSourceInfo":
+            case "checkSignatures":
+            case "getPackageUid":
+            case "getPackageUidEtc":
+                break;
+            default:
+                return;
+        }
+        String arg = args != null && args.length > 0 ? String.valueOf(args[0]) : "(none)";
+        String flags = args != null && args.length > 1 ? String.valueOf(args[1]) : "-";
+        Diagnostics.noteIdentity("PackageManager." + name + "(" + arg + ", " + flags + ")"
+                + " caller=" + Diagnostics.findGuestCaller());
     }
 
     private Object rewrite(String name, Object[] args, Object result) {
