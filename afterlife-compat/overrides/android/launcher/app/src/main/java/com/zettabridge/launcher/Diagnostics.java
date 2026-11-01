@@ -29,6 +29,8 @@ final class Diagnostics {
     private static final String REPORT_NAME = "zb-runtime-report.txt";
     private static final String IDENTITY_TRACE_NAME = "zb-identity-trace.txt";
     private static final String PACKAGE_AUDIT_NAME = "zb-package-audit.txt";
+    private static final String BOOT_AUDIT_NAME = "zb-guest-boot-audit.txt";
+    private static final String BUILD_ID = "Afterlife audit 0.1.1 (2026-11-01)";
     private static File identityTrace;
     private static File packageAudit;
     private static int identityCount;
@@ -58,6 +60,19 @@ final class Diagnostics {
             }
         } catch (Throwable t) {
             Log.w(TAG, "cannot start the runtime report: " + t);
+        }
+    }
+
+    /** Records process startup independently of PackageManagerHook installation. */
+    static synchronized void noteGuestBoot(Context context, String step) {
+        File dir = context.getExternalFilesDir(null);
+        if (dir == null) return;
+        try (FileOutputStream stream = new FileOutputStream(new File(dir, BOOT_AUDIT_NAME),
+                !"onCreate reached".equals(step))) {
+            stream.write((new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date())
+                    + " " + step + "\n").getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            Log.w(TAG, "cannot write guest startup audit", e);
         }
     }
 
@@ -117,17 +132,20 @@ final class Diagnostics {
         File file = runtimeReportFile(context);
         if (file == null || !file.isFile()) return null;
         try {
-            String text = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            String text = BUILD_ID + "\n"
+                    + new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            File boot = new File(context.getExternalFilesDir(null), BOOT_AUDIT_NAME);
+            text += "\n--- GUEST STARTUP STATUS ---\n"
+                    + (boot.isFile() ? new String(Files.readAllBytes(boot.toPath()), StandardCharsets.UTF_8)
+                            : "No guest startup marker. Guest process may not have started.\n");
             File identity = new File(context.getExternalFilesDir(null), IDENTITY_TRACE_NAME);
-            if (identity.isFile()) {
-                text += "\n--- JAVA IDENTITY TRACE ---\n"
-                        + new String(Files.readAllBytes(identity.toPath()), StandardCharsets.UTF_8);
-            }
+            text += "\n--- JAVA IDENTITY TRACE ---\n"
+                    + (identity.isFile() ? new String(Files.readAllBytes(identity.toPath()), StandardCharsets.UTF_8)
+                            : "No identity trace; PackageManagerHook may not have installed.\n");
             File audit = new File(context.getExternalFilesDir(null), PACKAGE_AUDIT_NAME);
-            if (audit.isFile()) {
-                text += "\n--- PACKAGE RESPONSE AUDIT ---\n"
-                        + new String(Files.readAllBytes(audit.toPath()), StandardCharsets.UTF_8);
-            }
+            text += "\n--- PACKAGE RESPONSE AUDIT ---\n"
+                    + (audit.isFile() ? new String(Files.readAllBytes(audit.toPath()), StandardCharsets.UTF_8)
+                            : "No package audit; PackageManagerHook may not have installed.\n");
             // The runtime report covers native translation only. A guest crash before
             // native loading appears in zb-errors.txt, so include recent Java exceptions.
             File errors = new File(context.getExternalFilesDir(null), "zb-errors.txt");
