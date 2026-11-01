@@ -49,6 +49,10 @@ jobs:
           cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginStore.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginStore.java
           cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/Diagnostics.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/Diagnostics.java
           cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginContext.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/PluginContext.java
+          cp afterlife-compat/overrides/android/launcher/app/src/main/java/com/zettabridge/launcher/ZbApplication.java afterlife-src/android/launcher/app/src/main/java/com/zettabridge/launcher/ZbApplication.java
+          # Give this diagnostic build its own visible version, unlike prior 0.1.0 APKs.
+          sed -i 's/versionCode = 1/versionCode = 2/; s/versionName = "0.1.0"/versionName = "0.1.1-audit"/' afterlife-src/android/launcher/app/build.gradle.kts
+          grep -q 'versionName = "0.1.1-audit"' afterlife-src/android/launcher/app/build.gradle.kts
           git -C afterlife-src diff --check
 
       - name: Compile 32-bit guest components
